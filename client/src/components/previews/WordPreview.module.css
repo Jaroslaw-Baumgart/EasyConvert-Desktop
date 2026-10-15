@@ -1,0 +1,37 @@
+.word-preview {
+  max-height: 32rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-page);
+}
+
+.word-preview [data-testid="docx-preview"] {
+  width: 100%;
+  min-width: 0;
+}
+
+.word-preview :global(.docx-wrapper) {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  zoom: 0.55;
+}
+
+.word-preview :global(.docx-wrapper) > :global(section.docx) {
+  margin: 0 auto var(--space-4);
+}
+
+@media (max-width: 700px) {
+  .word-preview {
+    max-height: 26rem;
+    padding: var(--space-2);
+  }
+
+  .word-preview :global(.docx-wrapper) {
+    zoom: 0.45;
+  }
+}

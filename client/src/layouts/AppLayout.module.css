@@ -1,0 +1,109 @@
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4);
+}
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.nav-tools { display: flex; align-items: center; gap: var(--space-3); }
+
+.brand-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text);
+  font-size: 1.125rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.converter-logo-mark {
+  width: 2rem;
+  height: 2rem;
+  fill: var(--color-primary);
+  transition: transform var(--transition-fast);
+}
+
+.converter-logo-file {
+  fill: white;
+}
+
+.converter-logo-fold,
+.converter-logo-arrow {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.converter-logo-arrow {
+  transition: transform var(--transition-fast);
+}
+
+.brand-link:hover .converter-logo-mark {
+  transform: rotate(-4deg);
+}
+
+.brand-link:hover .converter-logo-arrow {
+  transform: translateX(2px);
+}
+
+.nav-link {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition:
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.nav-link:hover,
+.nav-link[aria-current="page"] {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
+}
+
+.brand-link:focus-visible,
+.nav-link:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+@media (max-width: 500px) {
+  .app-container {
+    padding: var(--space-4) var(--space-3);
+  }
+
+  .app-nav {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .nav-links {
+    width: 100%;
+  }
+
+  .nav-tools { width: 100%; align-items: flex-start; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .converter-logo-mark,
+  .converter-logo-arrow {
+    transition: none;
+  }
+}

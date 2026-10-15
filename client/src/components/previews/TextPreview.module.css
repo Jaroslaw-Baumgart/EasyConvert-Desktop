@@ -1,0 +1,13 @@
+.text-preview {
+  display: block;
+  width: 100%;
+  min-height: 20rem;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-page);
+  color: var(--color-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  line-height: 1.5;
+  resize: vertical;
+}

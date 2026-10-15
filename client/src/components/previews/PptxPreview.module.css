@@ -1,0 +1,25 @@
+.pptx-preview {
+  max-height: 37.5rem;
+  overflow: auto;
+  padding: var(--space-3);
+}
+
+.pptx-slide-preview {
+  display: block;
+  width: auto;
+  max-width: none;
+  max-height: 37.5rem;
+  margin: 0 auto var(--space-5);
+}
+
+@media (max-width: 760px) {
+  .pptx-preview {
+    max-height: 28rem;
+  }
+
+  .pptx-slide-preview {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+  }
+}

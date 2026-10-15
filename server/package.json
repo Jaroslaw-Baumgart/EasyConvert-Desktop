@@ -1,0 +1,36 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run"
+  },
+  "dependencies": {
+    "@types/papaparse": "^5.5.2",
+    "@xmldom/xmldom": "^0.9.12",
+    "cors": "^2.8.5",
+    "express": "^4.22.3",
+    "fflate": "^0.8.3",
+    "file-type": "^22.1.1",
+    "multer": "^2.4.0",
+    "papaparse": "^5.7.0",
+    "pdf-poppler": "^0.2.1",
+    "pdfkit": "^0.13.0",
+    "sharp": "^0.35.5",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^24.2.1",
+    "@types/pdfkit": "^0.17.2",
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.2.2",
+    "tsx": "^4.23.15",
+    "typescript": "^5.2.2",
+    "vitest": "^4.1.10"
+  }
+}

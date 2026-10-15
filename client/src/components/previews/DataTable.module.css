@@ -1,0 +1,49 @@
+.scroll-container {
+  width: 100%;
+  max-width: 100%;
+  max-height: 26rem;
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table th,
+.table td {
+  max-width: 13.75rem;
+  padding: 0.5rem 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table th {
+  background: var(--color-page);
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .scroll-container {
+    max-height: 22rem;
+  }
+
+  .table {
+    font-size: 0.75rem;
+  }
+
+  .table th,
+  .table td {
+    max-width: 8.75rem;
+    padding: var(--space-1) var(--space-2);
+  }
+}

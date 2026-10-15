@@ -1,0 +1,38 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+playwright-report
+test-results
+/screenshots/
+*.tsbuildinfo
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local mentoring documentation
+docs/
+
+# Local converter binaries are installed manually and never committed.
+tools/*
+!tools/.gitkeep
+
+# Manual files used for local conversion checks
+server/src/fixtures/
