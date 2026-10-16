@@ -9,10 +9,15 @@
     "test": "npm run test:run --prefix client && npm run test:run --prefix server",
     "build": "npm run build --prefix client",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "desktop:build": "tsc -p desktop/tsconfig.json",
+    "desktop:start": "npm run desktop:build && electron dist/desktop/main/index.js",
+    "desktop:dev": "npm run desktop:build && electron dist/desktop/main/index.js --dev"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",
-    "concurrently": "^9.2.0"
+    "concurrently": "^9.2.0",
+    "electron": "44.7.2",
+    "typescript": "5.9.2"
   }
 }

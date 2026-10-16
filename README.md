@@ -2,13 +2,15 @@
 
 An offline file converter for Windows, built around Electron, React and TypeScript.
 
-**Status: preparing the desktop migration.** The repository currently contains
-code adapted from [OnlineConverter-app](https://github.com/Jaroslaw-Baumgart/OnlineConverter-app).
-Electron integration and the Windows installer are not implemented yet.
+**Status: desktop migration in progress.** The Electron shell runs the existing
+React frontend locally, including file previews, navigation and Polish/English support.
+The project is adapted from [OnlineConverter-app](https://github.com/Jaroslaw-Baumgart/OnlineConverter-app).
+Conversions still use the existing backend. Desktop conversion integration and
+the Windows installer are not implemented yet.
 
 ## Planned first release
 
-- Convert documents and images locally on Windows x64.
+- Convert documents and images locally on Windows 10 and Windows 11 (64-bit).
 - Preview source files and conversion results.
 - Choose conversion settings and save results through native file dialogs.
 - Export multiple results from a single source as ZIP.
@@ -32,8 +34,8 @@ The desktop version will preserve the conversions available in the original proj
 
 ## Installation
 
-No desktop release is available yet. Installation and development instructions
-will be added when the Electron application is ready to run.
+No desktop release or installer is available yet. Installation instructions
+will be added with the first desktop release.
 
 ## License
 
