@@ -36,3 +36,5 @@ tools/*
 
 # Manual files used for local conversion checks
 server/src/fixtures/
+
+/release/

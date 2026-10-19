@@ -2,22 +2,32 @@
   "name": "onlineconverter-app",
   "version": "1.0.0",
   "license": "MIT",
+  "main": "dist/desktop/main/index.js",
   "scripts": {
     "dev": "concurrently \"npm run dev --prefix client\" \"npm run dev --prefix server\"",
     "lint": "npm run lint --prefix client",
-    "typecheck": "npm run typecheck --prefix client && npm run typecheck --prefix server",
-    "test": "npm run test:run --prefix client && npm run test:run --prefix server",
+    "typecheck": "npm run typecheck --prefix client && npm run typecheck --prefix server && npm run typecheck:core",
+    "test": "npm run test:run --prefix client && npm run test:run --prefix server && npm run test:core",
     "build": "npm run build --prefix client",
     "check": "npm run lint && npm run typecheck && npm run test && npm run build",
     "test:e2e": "playwright test",
     "desktop:build": "tsc -p desktop/tsconfig.json",
     "desktop:start": "npm run desktop:build && electron dist/desktop/main/index.js",
-    "desktop:dev": "npm run desktop:build && electron dist/desktop/main/index.js --dev"
+    "desktop:dev": "npm run desktop:build && electron dist/desktop/main/index.js --dev",
+    "typecheck:core": "tsc -p conversion-core/tsconfig.json",
+    "test:core": "vitest run conversion-core",
+    "desktop:pack": "npm run build --prefix client && npm run desktop:build && electron-builder --win --x64 --dir"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",
+    "@types/node": "24.2.1",
     "concurrently": "^9.2.0",
     "electron": "44.7.2",
-    "typescript": "5.9.2"
+    "electron-builder": "26.17.0",
+    "typescript": "5.9.2",
+    "vitest": "4.1.11"
+  },
+  "dependencies": {
+    "sharp": "0.35.5"
   }
 }

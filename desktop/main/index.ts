@@ -1,6 +1,14 @@
-import { app, BrowserWindow, Menu, net, protocol } from "electron";
+import {
+  app,
+  BrowserWindow,
+  Menu,
+  net,
+  protocol,
+  utilityProcess,
+} from "electron";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { mkdtemp } from "node:fs/promises";
 
 const rendererCsp = [
   "default-src 'none'",
@@ -82,6 +90,41 @@ function registerAppProtocol(): void {
   });
 }
 
+async function runSharpProbe(): Promise<void> {
+  const flagIndex = process.argv.indexOf("--test-sharp");
+  const sourceArgument = process.argv[flagIndex + 1];
+
+  if (!sourceArgument) {
+    throw new Error("Pass a JPG path after --test-sharp.");
+  }
+
+  const inputPath = path.resolve(sourceArgument);
+  const outputDirectory = await mkdtemp(
+    path.join(app.getPath("temp"), "easyconvert-sharp-"),
+  );
+  const outputPath = path.join(outputDirectory, "result.png");
+
+  const worker = utilityProcess.fork(
+    path.join(__dirname, "../worker/index.js"),
+    [inputPath, outputPath],
+    { stdio: "inherit", serviceName: "EasyConvert Sharp probe" },
+  );
+
+  worker.on("spawn", () => {
+    console.log("Conversion worker started. PID:", worker.pid);
+  });
+
+  worker.on("exit", (code) => {
+    if (code === 0) {
+      console.log("Conversion result:", outputPath);
+    } else {
+      console.error("Conversion worker failed. Exit code:", code);
+    }
+
+    app.exit(code);
+  });
+}
+
 function createWindow(): void {
   const window = new BrowserWindow({
     width: 1200,
@@ -139,7 +182,18 @@ if (!hasSingleInstanceLock) {
     mainWindow.focus();
   });
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
+    if (process.argv.includes("--test-sharp")) {
+      try {
+        await runSharpProbe();
+      } catch (error: unknown) {
+        console.error(error instanceof Error ? error.message : String(error));
+        app.exit(1);
+      }
+
+      return;
+    }
+
     Menu.setApplicationMenu(null);
     registerAppProtocol();
     createWindow();

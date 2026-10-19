@@ -1,0 +1,20 @@
+appId: com.jaroslawbaumgart.easyconvert
+productName: EasyConvert
+
+directories:
+  output: release
+
+files:
+  - dist/desktop/**/*
+  - dist/conversion-core/**/*
+  - client/dist/**/*
+  - package.json
+
+asar: true
+
+asarUnpack:
+  - node_modules/sharp/**/*
+  - node_modules/@img/**/*
+
+win:
+  executableName: EasyConvert

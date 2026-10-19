@@ -13,20 +13,15 @@ import {
   pngToJpgSettingsSchema,
   pdfPageSettingsSchema,
 } from "../schemas/conversionSettings";
+import { convertJpgToPng } from "../../../conversion-core/image/convertJpgToPng";
+import {
+  ImagePixelLimitError,
+  validateImagePixels,
+} from "../../../conversion-core/image/imageLimits";
 
 const getBaseFileName = (file: Express.Multer.File) => {
   return path.parse(file.filename).name;
 };
-
-class ImagePixelLimitError extends Error {}
-
-async function validateImagePixels(inputPath: string) {
-  // metadata() reads the header without decoding the pixel buffer.
-  const { width, height } = await sharp(inputPath, { limitInputPixels: false }).metadata();
-  if (!width || !height || width * height > MAX_IMAGE_PIXELS) {
-    throw new ImagePixelLimitError(`Image exceeds the ${MAX_IMAGE_PIXELS}-pixel processing limit.`);
-  }
-}
 
 // JPG --> PNG
 export const jpgToPng = async (req: Request, res: Response) => {
@@ -38,15 +33,18 @@ export const jpgToPng = async (req: Request, res: Response) => {
   const outputPath = path.join(OUTPUT_DIR, outputName);
 
   try {
-    await validateImagePixels(req.file.path);
-    await sharp(req.file.path, { limitInputPixels: MAX_IMAGE_PIXELS }).png().toFile(outputPath);
+    await convertJpgToPng(req.file.path, outputPath);
 
     sendSuccessResponse(res, [createOutputFileItem(outputName)]);
   } catch (err: unknown) {
     const errorMessage =
       err instanceof Error ? err.message : "Failed to convert JPG to PNG.";
 
-    sendErrorResponse(res, err instanceof ImagePixelLimitError ? 400 : 500, errorMessage);
+    sendErrorResponse(
+      res,
+      err instanceof ImagePixelLimitError ? 400 : 500,
+      errorMessage,
+    );
   }
 };
 
@@ -78,7 +76,11 @@ export const pngToJpg = async (req: Request, res: Response) => {
     const errorMessage =
       err instanceof Error ? err.message : "Failed to convert PNG to JPG.";
 
-    sendErrorResponse(res, err instanceof ImagePixelLimitError ? 400 : 500, errorMessage);
+    sendErrorResponse(
+      res,
+      err instanceof ImagePixelLimitError ? 400 : 500,
+      errorMessage,
+    );
   }
 };
 
@@ -123,6 +125,10 @@ export const jpgToPdf = async (req: Request, res: Response) => {
     const errorMessage =
       err instanceof Error ? err.message : "Failed to convert JPG to PDF.";
 
-    sendErrorResponse(res, err instanceof ImagePixelLimitError ? 400 : 500, errorMessage);
+    sendErrorResponse(
+      res,
+      err instanceof ImagePixelLimitError ? 400 : 500,
+      errorMessage,
+    );
   }
 };
