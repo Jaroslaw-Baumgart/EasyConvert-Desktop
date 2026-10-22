@@ -106,8 +106,51 @@ async function runSharpProbe(): Promise<void> {
 
   const worker = utilityProcess.fork(
     path.join(__dirname, "../worker/index.js"),
-    [inputPath, outputPath],
+    ["jpg-to-png", inputPath, outputPath],
     { stdio: "inherit", serviceName: "EasyConvert Sharp probe" },
+  );
+
+  worker.on("spawn", () => {
+    console.log("Conversion worker started. PID:", worker.pid);
+  });
+
+  worker.on("exit", (code) => {
+    if (code === 0) {
+      console.log("Conversion result:", outputPath);
+    } else {
+      console.error("Conversion worker failed. Exit code:", code);
+    }
+
+    app.exit(code);
+  });
+}
+
+async function runOfficeProbe(): Promise<void> {
+  const flagIndex = process.argv.indexOf("--test-office");
+  const sourceArgument = process.argv[flagIndex + 1];
+
+  if (!sourceArgument) {
+    throw new Error("Pass a document path after --test-office.");
+  }
+
+  const inputPath = path.resolve(sourceArgument);
+  const outputDirectory = await mkdtemp(
+    path.join(app.getPath("temp"), "easyconvert-office-"),
+  );
+
+  const outputPath = path.join(
+    outputDirectory,
+    `${path.parse(inputPath).name}.pdf`,
+  );
+
+  const executablePath = app.isPackaged
+    ? path.join(process.resourcesPath, "libreoffice/program/soffice.com")
+    : path.resolve(__dirname, "../../../tools/libreoffice/program/soffice.com");
+
+  const worker = utilityProcess.fork(
+    path.join(__dirname, "../worker/index.js"),
+    ["office-to-pdf", inputPath, outputPath, executablePath],
+    { stdio: "inherit", serviceName: "EasyConvert Office probe" },
   );
 
   worker.on("spawn", () => {
@@ -186,6 +229,17 @@ if (!hasSingleInstanceLock) {
     if (process.argv.includes("--test-sharp")) {
       try {
         await runSharpProbe();
+      } catch (error: unknown) {
+        console.error(error instanceof Error ? error.message : String(error));
+        app.exit(1);
+      }
+
+      return;
+    }
+
+    if (process.argv.includes("--test-office")) {
+      try {
+        await runOfficeProbe();
       } catch (error: unknown) {
         console.error(error instanceof Error ? error.message : String(error));
         app.exit(1);

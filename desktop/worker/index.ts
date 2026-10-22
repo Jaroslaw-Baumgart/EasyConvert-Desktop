@@ -1,15 +1,30 @@
 import { convertJpgToPng } from "../../conversion-core/image/convertJpgToPng";
+import { convertLibreOfficeToPdf } from "../../conversion-core/office/convertLibreOfficeToPdf";
 
 async function run(): Promise<void> {
-  const [inputPath, outputPath] = process.argv.slice(2);
+  const [conversion, inputPath, outputPath, executablePath] =
+    process.argv.slice(2);
 
   if (!inputPath || !outputPath) {
     throw new Error("Expected input and output file paths.");
   }
 
-  await convertJpgToPng(inputPath, outputPath);
+  if (conversion === "jpg-to-png") {
+    await convertJpgToPng(inputPath, outputPath);
+  } else if (conversion === "office-to-pdf") {
+    if (!executablePath) {
+      throw new Error("Expected a LibreOffice executable path.");
+    }
 
-  console.log("JPG → PNG completed.");
+    await convertLibreOfficeToPdf(inputPath, outputPath, {
+      executablePath,
+      timeoutMs: 120_000,
+    });
+  } else {
+    throw new Error("Unsupported probe conversion.");
+  }
+
+  console.log("Conversion completed.");
 }
 
 run().then(

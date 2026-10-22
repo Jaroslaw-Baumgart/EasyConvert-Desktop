@@ -10,6 +10,12 @@ files:
   - client/dist/**/*
   - package.json
 
+extraResources:
+  - from: tools/libreoffice
+    to: libreoffice
+    filter:
+      - "**/*"
+
 asar: true
 
 asarUnpack:
