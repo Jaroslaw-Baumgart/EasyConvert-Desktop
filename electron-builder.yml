@@ -16,6 +16,16 @@ extraResources:
     filter:
       - "**/*"
 
+  - from: server/node_modules/pdf-poppler/lib/win/poppler-0.51
+    to: poppler
+    filter:
+      - "**/*"
+
+  - from: server/src/assets/fonts
+    to: fonts
+    filter:
+      - "**/*"
+
 asar: true
 
 asarUnpack:

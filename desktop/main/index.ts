@@ -168,6 +168,47 @@ async function runOfficeProbe(): Promise<void> {
   });
 }
 
+async function runPdfProbe(): Promise<void> {
+  const flagIndex = process.argv.indexOf("--test-pdf");
+  const sourceArgument = process.argv[flagIndex + 1];
+
+  if (!sourceArgument) {
+    throw new Error("Pass a PDF path after --test-pdf.");
+  }
+
+  const inputPath = path.resolve(sourceArgument);
+  const outputDirectory = await mkdtemp(
+    path.join(app.getPath("temp"), "easyconvert-pdf-"),
+  );
+
+  const binDirectory = app.isPackaged
+    ? path.join(process.resourcesPath, "poppler/bin")
+    : path.resolve(
+        __dirname,
+        "../../../server/node_modules/pdf-poppler/lib/win/poppler-0.51/bin",
+      );
+
+  const worker = utilityProcess.fork(
+    path.join(__dirname, "../worker/index.js"),
+    ["pdf-to-jpg", inputPath, outputDirectory, binDirectory],
+    { stdio: "inherit", serviceName: "EasyConvert PDF probe" },
+  );
+
+  worker.on("spawn", () => {
+    console.log("Conversion worker started. PID:", worker.pid);
+  });
+
+  worker.on("exit", (code) => {
+    if (code === 0) {
+      console.log("Conversion result:", outputDirectory);
+    } else {
+      console.error("Conversion worker failed. Exit code:", code);
+    }
+
+    app.exit(code);
+  });
+}
+
 function createWindow(): void {
   const window = new BrowserWindow({
     width: 1200,
@@ -240,6 +281,17 @@ if (!hasSingleInstanceLock) {
     if (process.argv.includes("--test-office")) {
       try {
         await runOfficeProbe();
+      } catch (error: unknown) {
+        console.error(error instanceof Error ? error.message : String(error));
+        app.exit(1);
+      }
+
+      return;
+    }
+
+    if (process.argv.includes("--test-pdf")) {
+      try {
+        await runPdfProbe();
       } catch (error: unknown) {
         console.error(error instanceof Error ? error.message : String(error));
         app.exit(1);

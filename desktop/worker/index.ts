@@ -1,5 +1,6 @@
 import { convertJpgToPng } from "../../conversion-core/image/convertJpgToPng";
 import { convertLibreOfficeToPdf } from "../../conversion-core/office/convertLibreOfficeToPdf";
+import { pdfToImages } from "../../conversion-core/pdf/poppler";
 
 async function run(): Promise<void> {
   const [conversion, inputPath, outputPath, executablePath] =
@@ -19,6 +20,16 @@ async function run(): Promise<void> {
     await convertLibreOfficeToPdf(inputPath, outputPath, {
       executablePath,
       timeoutMs: 120_000,
+    });
+  } else if (conversion === "pdf-to-jpg") {
+    if (!executablePath) {
+      throw new Error("Expected a Poppler binary directory.");
+    }
+
+    await pdfToImages(inputPath, outputPath, {
+      binDirectory: executablePath,
+      timeoutMs: 120_000,
+      maxPages: 100,
     });
   } else {
     throw new Error("Unsupported probe conversion.");
