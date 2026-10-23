@@ -9,6 +9,8 @@ import {
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { mkdtemp } from "node:fs/promises";
+import { registerSourceIpc } from "./sourceIpc";
+import { clearSource } from "./sourceRegistry";
 
 const rendererCsp = [
   "default-src 'none'",
@@ -225,6 +227,7 @@ function createWindow(): void {
   mainWindow = window;
 
   window.on("closed", () => {
+    clearSource();
     mainWindow = null;
   });
 
@@ -237,12 +240,12 @@ function createWindow(): void {
   });
 
   const useDevServer = !app.isPackaged && process.argv.includes("--dev");
+  const rendererUrl = useDevServer
+    ? "http://localhost:5173/"
+    : "app://easyconvert/";
 
-  if (useDevServer) {
-    void window.loadURL("http://localhost:5173");
-  } else {
-    void window.loadURL("app://easyconvert/");
-  }
+  registerSourceIpc(window, rendererUrl);
+  void window.loadURL(rendererUrl);
 
   if (!app.isPackaged) {
     window.webContents.openDevTools({ mode: "detach" });
