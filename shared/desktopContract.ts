@@ -11,7 +11,13 @@ export type SourceSelection =
 export interface EasyConvertApi {
   platform: "desktop";
   selectSource(): Promise<SourceSelection>;
+  startConversion(
+    request: StartConversionRequest,
+  ): Promise<StartConversionResponse>;
+  getJobState(): Promise<ConversionJobState>;
+  onJobStateChanged(listener: (state: ConversionJobState) => void): () => void;
 }
+
 export type StartConversionRequest = {
   sourceId: string;
   conversion: "jpg-to-png";

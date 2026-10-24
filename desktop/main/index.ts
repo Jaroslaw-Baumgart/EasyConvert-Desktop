@@ -11,6 +11,7 @@ import { pathToFileURL } from "node:url";
 import { mkdtemp } from "node:fs/promises";
 import { registerSourceIpc } from "./sourceIpc";
 import { clearSource } from "./sourceRegistry";
+import { registerConversionIpc } from "./conversionIpc";
 
 const rendererCsp = [
   "default-src 'none'",
@@ -245,6 +246,7 @@ function createWindow(): void {
     : "app://easyconvert/";
 
   registerSourceIpc(window, rendererUrl);
+  registerConversionIpc(window, rendererUrl);
   void window.loadURL(rendererUrl);
 
   if (!app.isPackaged) {

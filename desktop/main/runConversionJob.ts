@@ -8,6 +8,7 @@ import { runJpgToPngWorker } from "./runJpgToPngWorker";
 export async function runConversionJob(
   jobId: string,
   inputPath: string,
+  onStateChanged: () => void,
 ): Promise<void> {
   try {
     const directory = await mkdtemp(
@@ -29,11 +30,18 @@ export async function runConversionJob(
     }
 
     const resultId = registerResult(outputPath);
-    succeedJob(jobId, resultId);
+
+    if (succeedJob(jobId, resultId)) {
+      onStateChanged();
+    }
   } catch (error) {
-    failJob(
+    const changed = failJob(
       jobId,
       error instanceof Error ? error.message : "Conversion failed.",
     );
+
+    if (changed) {
+      onStateChanged();
+    }
   }
 }
