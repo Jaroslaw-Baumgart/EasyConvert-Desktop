@@ -12,3 +12,18 @@ export interface EasyConvertApi {
   platform: "desktop";
   selectSource(): Promise<SourceSelection>;
 }
+export type StartConversionRequest = {
+  sourceId: string;
+  conversion: "jpg-to-png";
+};
+
+export type StartConversionResponse = {
+  jobId: string;
+};
+
+export type ConversionJobState =
+  | { status: "idle" }
+  | { status: "running"; jobId: string }
+  | { status: "succeeded"; jobId: string; resultId: string }
+  | { status: "failed"; jobId: string; message: string }
+  | { status: "cancelled"; jobId: string };
