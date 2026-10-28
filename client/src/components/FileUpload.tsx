@@ -105,12 +105,35 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
     setIsDragging(false);
   };
 
-  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (e: DragEvent<HTMLDivElement>): Promise<void> => {
     e.preventDefault();
     setIsDragging(false);
-    if (e.dataTransfer.files.length > 0) {
-      const droppedFile = e.dataTransfer.files[0];
-      handleSelectedFile(droppedFile);
+    if (selectionPendingRef.current || e.dataTransfer.files.length !== 1) {
+      return;
+    }
+    const droppedFile = e.dataTransfer.files[0];
+    const validationError = validateFile(droppedFile);
+
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    selectionPendingRef.current = true;
+    setIsSelecting(true);
+    setError(null);
+    setSelectionError(null);
+
+    try {
+      const source = await window.easyConvert.selectDroppedSource(droppedFile);
+      handleSelectedFile(droppedFile, source.sourceId);
+    } catch (error) {
+      setSelectionError(
+        error instanceof Error ? error.message : "Could not select a file.",
+      );
+    } finally {
+      selectionPendingRef.current = false;
+      setIsSelecting(false);
     }
   };
 

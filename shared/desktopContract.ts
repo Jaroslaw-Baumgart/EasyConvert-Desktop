@@ -11,6 +11,7 @@ export type SourceSelection =
 export interface EasyConvertApi {
   platform: "desktop";
   selectSource(): Promise<SourceSelection>;
+  selectDroppedSource(file: File): Promise<SelectedSource>;
   startConversion(
     request: StartConversionRequest,
   ): Promise<StartConversionResponse>;

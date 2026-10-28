@@ -16,6 +16,7 @@ function setup(
 
   const api: EasyConvertApi = {
     platform: "desktop",
+    selectDroppedSource: vi.fn(),
     selectSource: vi.fn(),
     startConversion: vi.fn(),
     resetSource: vi.fn(),

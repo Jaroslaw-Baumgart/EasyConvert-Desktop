@@ -1,11 +1,13 @@
 import { selectDesktopSource } from "../api/desktopSource";
-import { act, render, screen, fireEvent } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { EasyConvertApi } from "../../../shared/desktopContract";
 
 import FileUpload from "./FileUpload";
 
 beforeEach(() => vi.mocked(selectDesktopSource).mockReset());
+afterEach(() => vi.unstubAllGlobals());
 
 const renderFileUpload = (onFileSelect: (file: File) => void) => {
   render(<FileUpload onFileSelect={onFileSelect} />);
@@ -139,8 +141,23 @@ describe("FileUpload", () => {
     expect(onFileSelect).not.toHaveBeenCalled();
   });
 
-  it("accepts a supported file dropped onto the upload area", () => {
+  it("registers a supported dropped file before forwarding its source identifier", async () => {
     const onFileSelect = vi.fn();
+    let finishRegistration!: (source: Awaited<ReturnType<EasyConvertApi["selectDroppedSource"]>>) => void;
+    const selectDroppedSource = vi.fn<EasyConvertApi["selectDroppedSource"]>(
+      () => new Promise((resolve) => { finishRegistration = resolve; }),
+    );
+    const api: EasyConvertApi = {
+      platform: "desktop",
+      selectSource: vi.fn(),
+      selectDroppedSource,
+      startConversion: vi.fn(),
+      getJobState: vi.fn(),
+      onJobStateChanged: vi.fn(),
+      resetSource: vi.fn(),
+      saveResult: vi.fn(),
+    };
+    vi.stubGlobal("easyConvert", api);
 
     renderFileUpload(onFileSelect);
 
@@ -158,8 +175,19 @@ describe("FileUpload", () => {
       },
     });
 
+    expect(selectDroppedSource).toHaveBeenCalledExactlyOnceWith(supportedFile);
+    expect(onFileSelect).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Choose File" })).toBeDisabled();
+
+    await act(async () => {
+      finishRegistration({ sourceId: "dropped-source-1", name: supportedFile.name, sizeBytes: supportedFile.size });
+    });
+
+    await waitFor(() => {
+      expect(onFileSelect).toHaveBeenCalledExactlyOnceWith(supportedFile, "dropped-source-1");
+    });
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(onFileSelect).toHaveBeenCalledWith(supportedFile, undefined);
+    expect(screen.getByRole("button", { name: "Choose File" })).toBeEnabled();
   });
 
   it("shows the maximum file size and a conversion legend", () => {

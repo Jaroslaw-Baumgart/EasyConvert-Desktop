@@ -16,7 +16,8 @@ const option = {
 
 function setup() {
   const api: EasyConvertApi = {
-    platform: "desktop", selectSource: vi.fn(), startConversion: vi.fn(),
+    platform: "desktop",
+    selectDroppedSource: vi.fn(), selectSource: vi.fn(), startConversion: vi.fn(),
     getJobState: vi.fn(), onJobStateChanged: vi.fn(), resetSource: vi.fn(), saveResult: vi.fn(),
   };
   vi.stubGlobal("easyConvert", api);

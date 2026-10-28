@@ -15,7 +15,7 @@ afterEach(() => {
 function setup() {
   const api: EasyConvertApi = {
     platform: "desktop",
-    selectSource: vi.fn(),
+    selectSource: vi.fn(), selectDroppedSource: vi.fn(),
     startConversion: vi.fn().mockResolvedValue({ jobId: "job-1" }),
     getJobState: vi.fn(),
     onJobStateChanged: vi.fn(),

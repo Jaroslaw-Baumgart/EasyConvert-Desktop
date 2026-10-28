@@ -25,11 +25,14 @@ vi.mock("../main/selectSource", () => ({
   selectSource: mocks.selectSource,
 }));
 
+vi.mock("../main/prepareSource", () => ({
+  prepareSource: vi.fn(),
+}));
+
 import { registerSourceIpc } from "../main/sourceIpc";
 
 beforeEach(() => {
-  mocks.handle.mockReset();
-  mocks.selectSource.mockReset();
+  vi.resetAllMocks();
   mocks.selectSource.mockResolvedValue({ status: "cancelled" });
 });
 
@@ -40,16 +43,19 @@ function setup(rendererUrl = "app://easyconvert/") {
     webContents: { mainFrame: frame },
   };
 
-  // Atrapa okna na potrzeby testu, bez uruchamiania Electrona.
   const owner = windowStub as unknown as BrowserWindow;
 
   registerSourceIpc(owner, rendererUrl);
 
-  expect(mocks.handle).toHaveBeenCalledTimes(1);
-  const registration = mocks.handle.mock.calls[0];
+  expect(mocks.handle).toHaveBeenCalledTimes(2);
 
-  if (!registration) throw new Error("Handler was not registered.");
-  expect(registration[0]).toBe("easyconvert:select-source");
+  const registration = mocks.handle.mock.calls.find(
+    ([channel]) => channel === "easyconvert:select-source",
+  );
+
+  if (!registration) {
+    throw new Error("Source selection handler was not registered.");
+  }
 
   const event: TestEvent = {
     sender: windowStub.webContents,
@@ -158,7 +164,9 @@ describe("registerSourceIpc", () => {
       change(fixture);
 
       await expect(
-        fixture.handler(fixture.event, ...fixture.args),
+        Promise.resolve().then(() =>
+          fixture.handler(fixture.event, ...fixture.args),
+        ),
       ).rejects.toThrow();
 
       expect(mocks.selectSource).not.toHaveBeenCalled();
@@ -167,7 +175,7 @@ describe("registerSourceIpc", () => {
 
   it("propagates a selection failure", async () => {
     const fixture = setup();
-    const error = new Error("Selection failed");
+    const error = new Error("Selection failed.");
     mocks.selectSource.mockRejectedValue(error);
 
     await expect(fixture.handler(fixture.event)).rejects.toBe(error);
