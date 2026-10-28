@@ -1,14 +1,53 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { selectDesktopSource } from "../api/desktopSource";
+import { act, render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import FileUpload from "./FileUpload";
+
+beforeEach(() => vi.mocked(selectDesktopSource).mockReset());
 
 const renderFileUpload = (onFileSelect: (file: File) => void) => {
   render(<FileUpload onFileSelect={onFileSelect} />);
 };
 
 describe("FileUpload", () => {
+  it("preserves the selection when the native dialog is cancelled", async () => {
+    const onFileSelect = vi.fn();
+    vi.mocked(selectDesktopSource).mockResolvedValueOnce(null);
+    renderFileUpload(onFileSelect);
+    await userEvent.click(screen.getByRole("button", { name: "Choose File" }));
+    expect(onFileSelect).not.toHaveBeenCalled();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choose File" })).toBeEnabled();
+  });
+
+  it("blocks another dialog while selection is pending", async () => {
+    let finish!: (value: null) => void;
+    vi.mocked(selectDesktopSource).mockImplementationOnce(
+      () => new Promise((resolve) => { finish = resolve; }),
+    );
+    renderFileUpload(vi.fn());
+    const button = screen.getByRole("button", { name: "Choose File" });
+    await userEvent.click(button);
+    expect(button).toBeDisabled();
+    await userEvent.click(button);
+    expect(selectDesktopSource).toHaveBeenCalledTimes(1);
+    await act(async () => finish(null));
+    expect(button).toBeEnabled();
+  });
+
+  it("reports a native selection failure and allows retry", async () => {
+    vi.mocked(selectDesktopSource).mockRejectedValueOnce(new Error("Dialog failed."));
+    renderFileUpload(vi.fn());
+    const button = screen.getByRole("button", { name: "Choose File" });
+    await userEvent.click(button);
+    expect(screen.getByRole("alert")).toHaveTextContent("Dialog failed.");
+    vi.mocked(selectDesktopSource).mockResolvedValueOnce(null);
+    await userEvent.click(button);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(button).toBeEnabled();
+  });
   it("rejects a file with an unsupported extension", async () => {
     const user = userEvent.setup({
       applyAccept: false,
@@ -18,13 +57,13 @@ describe("FileUpload", () => {
 
     renderFileUpload(onFileSelect);
 
-    const input = screen.getByLabelText("Choose File");
+    const input = screen.getByRole("button", { name: "Choose File" });
 
     const unsupportedFile = new File(["content"], "photo.exe", {
       type: "application/octet-stream",
     });
 
-    await user.upload(input, unsupportedFile);
+    await selectNativeFile(user, input, unsupportedFile);
 
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Unsupported file format. Supported formats: PDF, JPG, PNG, TXT, DOCX, CSV, XLSX, PPTX.",
@@ -39,7 +78,7 @@ describe("FileUpload", () => {
 
     renderFileUpload(onFileSelect);
 
-    const input = screen.getByLabelText("Choose File");
+    const input = screen.getByRole("button", { name: "Choose File" });
 
     const oversizedFile = new File(
       [new Uint8Array(10 * 1024 * 1024 + 1)], // 10 MB + 1 byte
@@ -47,7 +86,7 @@ describe("FileUpload", () => {
       { type: "application/pdf" },
     );
 
-    await user.upload(input, oversizedFile);
+    await selectNativeFile(user, input, oversizedFile);
 
     expect(screen.getByRole("alert")).toHaveTextContent(
       "File is too large. Maximum size is 10 MB.",
@@ -61,7 +100,7 @@ describe("FileUpload", () => {
 
     renderFileUpload(onFileSelect);
 
-    const input = screen.getByLabelText("Choose File");
+    const input = screen.getByRole("button", { name: "Choose File" });
 
     const exactSizeFile = new File(
       [new Uint8Array(10 * 1024 * 1024)], // 10 MB
@@ -69,10 +108,10 @@ describe("FileUpload", () => {
       { type: "application/pdf" },
     );
 
-    await user.upload(input, exactSizeFile);
+    await selectNativeFile(user, input, exactSizeFile);
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(onFileSelect).toHaveBeenCalledWith(exactSizeFile);
+    expect(onFileSelect).toHaveBeenCalledWith(exactSizeFile, "source-1");
   });
 
   it("rejects an unsupported file dropped onto the upload area", () => {
@@ -120,7 +159,7 @@ describe("FileUpload", () => {
     });
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(onFileSelect).toHaveBeenCalledWith(supportedFile);
+    expect(onFileSelect).toHaveBeenCalledWith(supportedFile, undefined);
   });
 
   it("shows the maximum file size and a conversion legend", () => {
@@ -137,16 +176,15 @@ describe("FileUpload", () => {
     ).toBeInTheDocument();
   });
 
-  it("hints supported file extensions to the file picker", () => {
-    const onFileSelect = vi.fn();
-
-    renderFileUpload(onFileSelect);
-
-    expect(screen.getByLabelText("Choose File")).toHaveAttribute(
-      "accept",
-      ".pdf,.jpg,.png,.txt,.docx,.csv,.xlsx,.pptx",
-    );
-  });
+  it("opens the native picker and forwards the source identifier", async () => {
+ const user = userEvent.setup();
+ const onFileSelect = vi.fn();
+ renderFileUpload(onFileSelect);
+ const file = new File(["jpg"], "photo.jpg", { type: "image/jpeg" });
+ await selectNativeFile(user, screen.getByRole("button", { name: "Choose File" }), file);
+ expect(selectDesktopSource).toHaveBeenCalled();
+ expect(onFileSelect).toHaveBeenCalledExactlyOnceWith(file, "source-1");
+ });
 
   it("clears a previous error after selecting a valid file", async () => {
     const user = userEvent.setup({
@@ -156,7 +194,7 @@ describe("FileUpload", () => {
 
     renderFileUpload(onFileSelect);
 
-    const input = screen.getByLabelText("Choose File");
+    const input = screen.getByRole("button", { name: "Choose File" });
     const unsupportedFile = new File(["content"], "photo.exe", {
       type: "application/octet-stream",
     });
@@ -164,15 +202,25 @@ describe("FileUpload", () => {
       type: "application/pdf",
     });
 
-    await user.upload(input, unsupportedFile);
+    await selectNativeFile(user, input, unsupportedFile);
 
     expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(onFileSelect).not.toHaveBeenCalled();
 
-    await user.upload(input, supportedFile);
+    await selectNativeFile(user, input, supportedFile);
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(onFileSelect).toHaveBeenCalledTimes(1);
-    expect(onFileSelect).toHaveBeenCalledWith(supportedFile);
+    expect(onFileSelect).toHaveBeenCalledWith(supportedFile, "source-1");
   });
 });
+
+vi.mock("../api/desktopSource", () => ({ selectDesktopSource: vi.fn() }));
+async function selectNativeFile(
+ user: ReturnType<typeof userEvent.setup>, button: HTMLElement, file: File,
+) {
+ vi.mocked(selectDesktopSource).mockResolvedValueOnce({
+  source: { sourceId: "source-1", name: file.name, sizeBytes: file.size }, file,
+ });
+ await user.click(button);
+}

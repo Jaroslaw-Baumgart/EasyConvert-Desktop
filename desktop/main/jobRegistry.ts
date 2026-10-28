@@ -3,6 +3,11 @@ import type { ConversionJobState } from "../../shared/desktopContract";
 
 let currentJob: ConversionJobState = { status: "idle" };
 
+export function resetJob(): void {
+  if (currentJob.status === "running") throw new Error("A job is already running.");
+  currentJob = { status: "idle" };
+}
+
 export function getJobState(): ConversionJobState {
   return { ...currentJob };
 }

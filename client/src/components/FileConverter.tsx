@@ -52,7 +52,8 @@ export default function FileConverter({
   } = useConversion();
 
   const [hasFormError, setHasFormError] = useState(false);
-  const error = conversionError ?? (hasFormError ? t("converter.uploadFirst") : null);
+  const error =
+    conversionError ?? (hasFormError ? t("converter.uploadFirst") : null);
 
   const previewUrl = useObjectUrl(file);
   const availableOptions = getAvailableOptions(file, conversionOptions);
@@ -84,9 +85,9 @@ export default function FileConverter({
     }
   }, [error]);
 
-  const handleFileSelect = (selectedFile: File) => {
+  const handleFileSelect = (selectedFile: File, sourceId?: string) => {
     setHasFormError(false);
-    selectFile(selectedFile);
+    selectFile(selectedFile, sourceId);
     setSelectedXlsxSheetName(null);
   };
 
@@ -122,10 +123,7 @@ export default function FileConverter({
             className={`${panelStyles.panel} ${styles["source-preview-section"]}`}
             aria-labelledby="source-preview-heading"
           >
-            <h2
-              id="source-preview-heading"
-              className={panelStyles.heading}
-            >
+            <h2 id="source-preview-heading" className={panelStyles.heading}>
               {t("converter.preview")}
             </h2>
 

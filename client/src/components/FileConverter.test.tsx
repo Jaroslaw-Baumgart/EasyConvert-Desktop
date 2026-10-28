@@ -1,3 +1,4 @@
+import { selectDesktopSource } from "../api/desktopSource";
 import {
   render,
   screen,
@@ -102,7 +103,7 @@ const setupFileConverter = () => {
 
   return {
     user,
-    input: screen.getByLabelText("Choose File"),
+    input: screen.getByRole("button", { name: "Choose File" }),
   };
 };
 
@@ -123,7 +124,7 @@ describe("FileConverter", () => {
 
       const { user, input } = setupFileConverter();
 
-      await user.upload(input, file);
+      await selectNativeFile(user, input, file);
 
       expect(screen.getByTitle("PDF Preview")).toBeInTheDocument();
 
@@ -144,7 +145,7 @@ describe("FileConverter", () => {
     const file = createTestFile.png();
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, file);
+    await selectNativeFile(user, input, file);
 
     expect(screen.getByRole("img", { name: "Preview" })).toBeInTheDocument();
 
@@ -161,7 +162,7 @@ describe("FileConverter", () => {
   it("moves focus to settings after choosing a conversion format", async () => {
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, createTestFile.pdf());
+    await selectNativeFile(user, input, createTestFile.pdf());
     await user.click(getOptionCard("PDF→TXT"));
 
     expect(
@@ -175,7 +176,7 @@ describe("FileConverter", () => {
 
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, pdfFile);
+    await selectNativeFile(user, input, pdfFile);
 
     expect(getOptionCard("PDF→JPG")).toBeInTheDocument();
     expect(
@@ -184,8 +185,8 @@ describe("FileConverter", () => {
 
     await user.click(screen.getByRole("button", { name: "Remove file" }));
 
-    const replacementInput = screen.getByLabelText("Choose File");
-    await user.upload(replacementInput, pngFile);
+    const replacementInput = screen.getByRole("button", { name: "Choose File" });
+    await selectNativeFile(user, replacementInput, pngFile);
 
     expect(
       screen.queryByRole("button", { name: "PDF→JPG" }),
@@ -226,7 +227,7 @@ describe("FileConverter", () => {
 
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, initialFile);
+    await selectNativeFile(user, input, initialFile);
 
     await user.click(getConvertButton("JPG→PNG"));
 
@@ -251,8 +252,8 @@ describe("FileConverter", () => {
 
     await user.click(screen.getByRole("button", { name: "Remove file" }));
 
-    const replacementInput = screen.getByLabelText("Choose File");
-    await user.upload(replacementInput, newFile);
+    const replacementInput = screen.getByRole("button", { name: "Choose File" });
+    await selectNativeFile(user, replacementInput, newFile);
 
     expect(
       screen.queryByRole("heading", {
@@ -267,7 +268,7 @@ describe("FileConverter", () => {
     const file = createTestFile.txt();
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, file);
+    await selectNativeFile(user, input, file);
 
     expect(await screen.findByDisplayValue("text content")).toBeInTheDocument();
   });
@@ -276,7 +277,7 @@ describe("FileConverter", () => {
     const file = createTestFile.docx();
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, file);
+    await selectNativeFile(user, input, file);
 
     await screen.findByTestId("docx-preview");
   });
@@ -297,7 +298,7 @@ describe("FileConverter", () => {
 
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, createTestFile.jpg());
+    await selectNativeFile(user, input, createTestFile.jpg());
     await user.click(getConvertButton("JPG→PNG"));
 
     const errorAlert = await screen.findByRole("alert");
@@ -332,7 +333,7 @@ describe("FileConverter", () => {
 
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, createTestFile.jpg());
+    await selectNativeFile(user, input, createTestFile.jpg());
     await user.click(getConvertButton("JPG→PNG"));
 
     expect(screen.getByRole("status")).toHaveTextContent("Converting");
@@ -372,7 +373,7 @@ describe("FileConverter", () => {
 
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, createTestFile.jpg());
+    await selectNativeFile(user, input, createTestFile.jpg());
 
     const convertButton = getConvertButton("JPG→PNG");
 
@@ -403,7 +404,7 @@ describe("FileConverter", () => {
 
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, createTestFile.jpg());
+    await selectNativeFile(user, input, createTestFile.jpg());
     await user.click(getConvertButton("JPG→PNG"));
 
     expect(
@@ -444,7 +445,7 @@ describe("FileConverter", () => {
 
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, createTestFile.jpg());
+    await selectNativeFile(user, input, createTestFile.jpg());
     await user.click(getConvertButton("JPG→PNG"));
 
     expect(
@@ -474,7 +475,7 @@ describe("FileConverter", () => {
 
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, createTestFile.jpg());
+    await selectNativeFile(user, input, createTestFile.jpg());
     await user.click(getConvertButton("JPG→PNG"));
 
     expect(
@@ -524,7 +525,7 @@ describe("FileConverter", () => {
 
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, createTestFile.jpg());
+    await selectNativeFile(user, input, createTestFile.jpg());
     await user.click(getConvertButton("JPG→PNG"));
 
     expect(
@@ -566,7 +567,7 @@ describe("FileConverter", () => {
 
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, createTestFile.docx());
+    await selectNativeFile(user, input, createTestFile.docx());
     await user.click(getConvertButton("DOCX→PDF"));
 
     expect(
@@ -605,7 +606,7 @@ describe("FileConverter", () => {
 
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, createTestFile.jpg());
+    await selectNativeFile(user, input, createTestFile.jpg());
     await user.click(getConvertButton("JPG→PNG"));
 
     const downloadButton = await screen.findByRole("button", {
@@ -660,7 +661,7 @@ describe("FileConverter", () => {
 
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, createTestFile.png());
+    await selectNativeFile(user, input, createTestFile.png());
 
     const pngToJpgCard = getOptionCard("PNG→JPG");
     await user.click(pngToJpgCard);
@@ -736,7 +737,7 @@ describe("FileConverter", () => {
 
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, createTestFile.pdf());
+    await selectNativeFile(user, input, createTestFile.pdf());
     await user.click(getConvertButton("PDF→JPG"));
 
     expect(
@@ -782,7 +783,7 @@ describe("FileConverter", () => {
   it("shows PDF page settings for CSV to PDF", async () => {
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, createTestFile.csv());
+    await selectNativeFile(user, input, createTestFile.csv());
 
     const csvToPdfCard = getOptionCard("CSV→PDF");
     await user.click(csvToPdfCard);
@@ -839,7 +840,7 @@ describe("FileConverter", () => {
 
     const { user, input } = setupFileConverter();
 
-    await user.upload(input, createTestFile.xlsx());
+    await selectNativeFile(user, input, createTestFile.xlsx());
 
     await screen.findByRole("button", { name: "Overview" });
     await user.click(screen.getByRole("button", { name: "Warehouse" }));
@@ -926,3 +927,14 @@ describe("FileConverter", () => {
     expect(allSheetsFormData.get("pageOrientation")).toBe("landscape");
   });
 });
+
+vi.mock("../api/desktopSource", () => ({ selectDesktopSource: vi.fn() }));
+async function selectNativeFile(
+ user: ReturnType<typeof userEvent.setup>, button: HTMLElement, file: File,
+) {
+ vi.mocked(selectDesktopSource).mockResolvedValueOnce({
+  source: { sourceId: "source-1", name: file.name, sizeBytes: file.size }, file,
+ });
+ await user.click(button);
+ await screen.findByText(file.name);
+}

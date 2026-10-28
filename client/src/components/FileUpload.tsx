@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { ChangeEvent, DragEvent } from "react";
+import { useRef, useState } from "react";
+import type { DragEvent } from "react";
 import {
   conversions,
   supportedSourceFormats,
@@ -10,9 +10,10 @@ import stateStyles from "./PreviewState.module.css";
 import panelStyles from "./ConverterPanel.module.css";
 import primaryActionStyles from "./PrimaryAction.module.css";
 import { useTranslation } from "react-i18next";
+import { selectDesktopSource } from "../api/desktopSource";
 
 interface FileUploadProps {
-  onFileSelect: (file: File) => void;
+  onFileSelect: (file: File, sourceId?: string) => void;
 }
 
 const SUPPORTED_FORMATS_LABEL = supportedSourceFormats
@@ -21,9 +22,6 @@ const SUPPORTED_FORMATS_LABEL = supportedSourceFormats
 
 const MAX_FILE_SIZE_MB = 10;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-const ACCEPTED_FILE_EXTENSIONS = supportedSourceFormats
-  .map((format) => `.${format}`)
-  .join(",");
 
 const conversionGroups = supportedSourceFormats.map((sourceFormat) => ({
   sourceFormat,
@@ -55,8 +53,11 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
   const { t } = useTranslation();
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<UploadValidationError | null>(null);
+  const selectionPendingRef = useRef(false);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionError, setSelectionError] = useState<string | null>(null);
 
-  const handleSelectedFile = (selectedFile: File) => {
+  const handleSelectedFile = (selectedFile: File, sourceId?: string) => {
     const validationError = validateFile(selectedFile);
 
     if (validationError) {
@@ -65,13 +66,33 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
     }
 
     setError(null);
-    onFileSelect(selectedFile);
+    onFileSelect(selectedFile, sourceId);
   };
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile) {
-      handleSelectedFile(selectedFile);
+  const handleNativeSelect = async (): Promise<void> => {
+    if (selectionPendingRef.current) {
+      return;
+    }
+
+    selectionPendingRef.current = true;
+    setIsSelecting(true);
+    setSelectionError(null);
+
+    try {
+      const result = await selectDesktopSource(window.easyConvert);
+
+      if (!result) {
+        return;
+      }
+
+      handleSelectedFile(result.file, result.source.sourceId);
+    } catch (error) {
+      setSelectionError(
+        error instanceof Error ? error.message : "Could not select a file.",
+      );
+    } finally {
+      selectionPendingRef.current = false;
+      setIsSelecting(false);
     }
   };
 
@@ -103,15 +124,14 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <label className={primaryActionStyles.button}>
+      <button
+        type="button"
+        className={primaryActionStyles.button}
+        disabled={isSelecting}
+        onClick={() => void handleNativeSelect()}
+      >
         {t("upload.choose")}
-        <input
-          type="file"
-          className={styles["file-input"]}
-          onChange={handleFileChange}
-          accept={ACCEPTED_FILE_EXTENSIONS}
-        />
-      </label>
+      </button>
       <p className={styles["drag-drop-hint"]}>{t("upload.dragHint")}</p>
       <p className={styles["upload-requirements"]}>
         {t("upload.maxSize", { size: MAX_FILE_SIZE_MB })}
@@ -138,6 +158,11 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
           {error === "unsupported"
             ? t("upload.unsupported", { formats: SUPPORTED_FORMATS_LABEL })
             : t("upload.tooLarge", { size: MAX_FILE_SIZE_MB })}
+        </p>
+      )}
+      {selectionError && (
+        <p className={stateStyles["error-message"]} role="alert">
+          {selectionError}
         </p>
       )}
     </section>

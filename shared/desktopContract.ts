@@ -16,6 +16,8 @@ export interface EasyConvertApi {
   ): Promise<StartConversionResponse>;
   getJobState(): Promise<ConversionJobState>;
   onJobStateChanged(listener: (state: ConversionJobState) => void): () => void;
+  resetSource(): Promise<void>;
+  saveResult(resultId: string): Promise<{ status: "saved" | "cancelled" }>;
 }
 
 export type StartConversionRequest = {

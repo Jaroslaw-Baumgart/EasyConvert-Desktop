@@ -1,3 +1,4 @@
+import { selectDesktopSource } from "../api/desktopSource";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -28,12 +29,12 @@ describe("ConverterPage", () => {
 
     render(<ConverterPage />);
 
-    const input = screen.getByLabelText("Choose File");
+    const input = screen.getByRole("button", { name: "Choose File" });
     const file = new File(["content"], "image.png", {
       type: "image/png",
     });
 
-    await user.upload(input, file);
+    await selectNativeFile(user, input, file);
 
     expect(screen.getByText("image.png")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Preview" })).toBeInTheDocument();
@@ -54,8 +55,8 @@ describe("ConverterPage", () => {
       screen.queryByRole("button", { name: "Convert" }),
     ).not.toBeInTheDocument();
 
-    const replacementInput = screen.getByLabelText("Choose File");
-    await user.upload(replacementInput, file);
+    const replacementInput = screen.getByRole("button", { name: "Choose File" });
+    await selectNativeFile(user, replacementInput, file);
 
     expect(screen.getByText("image.png")).toBeInTheDocument();
     expect(
@@ -76,12 +77,12 @@ describe("ConverterPage", () => {
 
     render(<ConverterPage />);
 
-    const input = screen.getByLabelText("Choose File");
+    const input = screen.getByRole("button", { name: "Choose File" });
     const file = new File(["content"], "image.jpg", {
       type: "image/jpeg",
     });
 
-    await user.upload(input, file);
+    await selectNativeFile(user, input, file);
 
     const enabledConvertButton = getEnabledConvertButton();
 
@@ -125,12 +126,12 @@ describe("ConverterPage", () => {
 
     render(<ConverterPage />);
 
-    const input = screen.getByLabelText("Choose File");
+    const input = screen.getByRole("button", { name: "Choose File" });
     const file = new File(["content"], "image.jpg", {
       type: "image/jpeg",
     });
 
-    await user.upload(input, file);
+    await selectNativeFile(user, input, file);
 
     const enabledConvertButton = getEnabledConvertButton();
 
@@ -151,3 +152,14 @@ describe("ConverterPage", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+vi.mock("../api/desktopSource", () => ({ selectDesktopSource: vi.fn() }));
+async function selectNativeFile(
+ user: ReturnType<typeof userEvent.setup>, button: HTMLElement, file: File,
+) {
+ vi.mocked(selectDesktopSource).mockResolvedValueOnce({
+  source: { sourceId: "source-1", name: file.name, sizeBytes: file.size }, file,
+ });
+ await user.click(button);
+ await screen.findByText(file.name);
+}

@@ -7,6 +7,8 @@ import type {
 
 const api: EasyConvertApi = {
   platform: "desktop",
+  resetSource: () => ipcRenderer.invoke("easyconvert:reset-source"),
+  saveResult: (resultId) => ipcRenderer.invoke("easyconvert:save-result", resultId),
   selectSource: () => ipcRenderer.invoke("easyconvert:select-source"),
   startConversion: (request) =>
     ipcRenderer.invoke("easyconvert:start-conversion", request),

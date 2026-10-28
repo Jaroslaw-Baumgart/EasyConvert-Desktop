@@ -3,13 +3,15 @@ import { stat } from "node:fs/promises";
 import { basename } from "node:path";
 import type { SourceSelection } from "../../shared/desktopContract";
 import { registerSource } from "./sourceRegistry";
+import { getJobState, resetJob } from "./jobRegistry";
+import { clearResult } from "./resultRegistry";
 
 export async function selectSourcePath(
   owner: BrowserWindow,
 ): Promise<string | null> {
   const result = await dialog.showOpenDialog(owner, {
     properties: ["openFile"],
-    filters: [{ name: "JPEG images", extensions: ["jpg", "jpeg"] }],
+    filters: [{ name: "Supported files", extensions: ["jpg", "jpeg", "png", "pdf", "txt", "csv", "docx", "xlsx", "pptx"] }],
   });
 
   if (result.canceled) return null;
@@ -22,6 +24,7 @@ export async function selectSourcePath(
 export async function selectSource(
   owner: BrowserWindow,
 ): Promise<SourceSelection> {
+  if (getJobState().status === "running") throw new Error("A job is already running.");
   const sourcePath = await selectSourcePath(owner);
   if (sourcePath === null) {
     return { status: "cancelled" };
@@ -38,6 +41,8 @@ export async function selectSource(
   }
 
   const fileSize = metadata.size;
+  resetJob();
+  clearResult();
   const sourceId = registerSource(sourcePath);
   const fileName = basename(sourcePath);
   return {

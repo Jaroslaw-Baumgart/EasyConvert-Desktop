@@ -7,6 +7,10 @@ type RegisteredSource = {
 
 let currentSource: RegisteredSource | null = null;
 
+export function getCurrentSourcePath(): string | null {
+  return currentSource?.path ?? null;
+}
+
 export function registerSource(path: string): string {
   const newSourceId = randomUUID();
   currentSource = { sourceId: newSourceId, path };

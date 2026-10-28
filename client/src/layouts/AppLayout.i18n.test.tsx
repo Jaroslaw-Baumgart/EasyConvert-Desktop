@@ -1,6 +1,6 @@
 import { afterEach, expect, it } from "vitest";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import AppLayout from "./AppLayout";
 import ConverterPage from "../pages/ConverterPage";
@@ -29,12 +29,9 @@ it("switches the converter workflow and static page to Polish", async () => {
   try {
     render(<RouterProvider router={router} />);
 
-    await user.upload(
-      screen.getByLabelText("Choose File"),
-      new File(["content"], "unsupported.exe", {
+    fireEvent.drop(screen.getByRole("region", { name: "Upload File" }), { dataTransfer: { files: [new File(["content"], "unsupported.exe", {
         type: "application/octet-stream",
-      }),
-    );
+      })] } });
 
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Unsupported file format.",
@@ -42,7 +39,7 @@ it("switches the converter workflow and static page to Polish", async () => {
 
     await user.selectOptions(screen.getByLabelText("Language"), "pl");
 
-    expect(screen.getByLabelText("Wybierz plik")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Wybierz plik" })).toBeInTheDocument();
     expect(i18n.resolvedLanguage).toBe("pl");
     expect(screen.getByRole("alert")).toHaveTextContent(
       "Nieobsługiwany format pliku.",

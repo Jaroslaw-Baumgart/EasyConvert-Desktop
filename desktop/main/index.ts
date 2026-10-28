@@ -12,6 +12,8 @@ import { mkdtemp } from "node:fs/promises";
 import { registerSourceIpc } from "./sourceIpc";
 import { clearSource } from "./sourceRegistry";
 import { registerConversionIpc } from "./conversionIpc";
+import { previewResponse } from "./previewResponse";
+import { registerFileActionsIpc } from "./fileActionsIpc";
 
 const rendererCsp = [
   "default-src 'none'",
@@ -21,7 +23,7 @@ const rendererCsp = [
   "font-src 'self' blob: data:",
   "connect-src 'self' blob: http://localhost:5000",
   "worker-src 'self' blob:",
-  "frame-src blob:",
+  "frame-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'none'",
   "form-action 'none'",
@@ -45,6 +47,8 @@ function registerAppProtocol(): void {
 
   protocol.handle("app", async (request) => {
     const url = new URL(request.url);
+
+    if (url.pathname.startsWith("/preview/")) return previewResponse(request);
 
     if (url.host !== "easyconvert" || request.method !== "GET") {
       return new Response("Forbidden", { status: 403 });
@@ -247,6 +251,7 @@ function createWindow(): void {
 
   registerSourceIpc(window, rendererUrl);
   registerConversionIpc(window, rendererUrl);
+  registerFileActionsIpc(window, rendererUrl);
   void window.loadURL(rendererUrl);
 
   if (!app.isPackaged) {

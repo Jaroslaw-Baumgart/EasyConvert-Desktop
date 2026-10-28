@@ -5,10 +5,7 @@ import {
   initialConversionState,
 } from "../reducers/conversionReducer";
 import type { ConversionOption } from "../types/converter";
-import {
-  ConversionError,
-  isConversionErrorCode,
-} from "../api/conversionError";
+import { ConversionError, isConversionErrorCode } from "../api/conversionError";
 import { downloadFile } from "../utils/downloadFile";
 import { convertFile } from "../api/conversionClient";
 import type { ConversionSettings } from "../schemas/conversionSettings";
@@ -18,6 +15,7 @@ import type {
   ConvertedResults,
 } from "../types/conversionResult";
 import { createZipFile } from "../utils/createZipFile";
+import { convertDesktopFile } from "../api/desktopConversionClient";
 
 type UseConversionResult = {
   file: File | null;
@@ -25,7 +23,7 @@ type UseConversionResult = {
   conversionError: string | null;
   isConverting: boolean;
   isPreparingArchive: boolean;
-  selectFile: (selectedFile: File) => void;
+  selectFile: (selectedFile: File, sourceId?: string) => void;
   removeFile: () => void;
   convert: (
     option: ConversionOption,
@@ -46,18 +44,17 @@ export function useConversion(): UseConversionResult {
   const archiveIdRef = useRef(0);
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
-  useEffect(
-    () => {
-      isMountedRef.current = true;
+  const sourceIdRef = useRef<string | null>(null);
 
-      return () => {
-        isMountedRef.current = false;
-        archiveIdRef.current += 1;
-        abortControllerRef.current?.abort();
-      };
-    },
-    [],
-  );
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+      archiveIdRef.current += 1;
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   const [isPreparingArchive, setIsPreparingArchive] = useState(false);
 
@@ -79,7 +76,8 @@ export function useConversion(): UseConversionResult {
         : conversionState.error
       : null;
 
-  const selectFile = (selectedFile: File) => {
+  const selectFile = (selectedFile: File, sourceId?: string) => {
+    sourceIdRef.current = sourceId ?? null;
     requestIdRef.current += 1;
     archiveIdRef.current += 1;
     abortControllerRef.current?.abort();
@@ -91,6 +89,7 @@ export function useConversion(): UseConversionResult {
   };
 
   const removeFile = () => {
+    sourceIdRef.current = null;
     requestIdRef.current += 1;
     archiveIdRef.current += 1;
     abortControllerRef.current?.abort();
@@ -108,7 +107,10 @@ export function useConversion(): UseConversionResult {
       return;
     }
 
-    if (conversionState.kind === "loading" || (abortControllerRef.current && !abortControllerRef.current.signal.aborted)) {
+    if (
+      conversionState.kind === "loading" ||
+      (abortControllerRef.current && !abortControllerRef.current.signal.aborted)
+    ) {
       return;
     }
 
@@ -121,10 +123,30 @@ export function useConversion(): UseConversionResult {
 
     dispatch({ type: "conversionStarted", requestId });
 
-    const formData = createConversionFormData(file, option, settings);
-
     try {
-      const convertedResults = await convertFile(formData, controller.signal);
+      let convertedResults: ConvertedResults;
+
+      if (window.easyConvert?.platform === "desktop") {
+        const sourceId = sourceIdRef.current;
+
+        if (!sourceId) {
+          throw new Error("Select the file using the native dialog.");
+        }
+
+        if (option.conversionType !== "jpg-to-png") {
+          throw new Error("This desktop conversion is not available yet.");
+        }
+
+        convertedResults = await convertDesktopFile(
+          window.easyConvert,
+          sourceId,
+          file.name,
+          controller.signal,
+        );
+      } else {
+        const formData = createConversionFormData(file, option, settings);
+        convertedResults = await convertFile(formData, controller.signal);
+      }
 
       dispatch({
         type: "conversionSucceeded",
@@ -144,7 +166,8 @@ export function useConversion(): UseConversionResult {
         requestId,
       });
     } finally {
-      if (abortControllerRef.current === controller) abortControllerRef.current = null;
+      if (abortControllerRef.current === controller)
+        abortControllerRef.current = null;
     }
   };
 
