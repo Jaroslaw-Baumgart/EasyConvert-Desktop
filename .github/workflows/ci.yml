@@ -32,10 +32,14 @@ jobs:
       - run: npm run check
         env:
           LIBRE_OFFICE_PATH: /usr/bin/libreoffice
+      - run: npm run desktop:build
+      - run: npm run test:desktop
+      - run: npm run typecheck:e2e
 
   e2e:
-    name: End-to-end tests
-    runs-on: ubuntu-latest
+    name: Desktop end-to-end tests (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -50,9 +54,6 @@ jobs:
 
       - run: npm ci
       - run: npm ci --prefix client
-      - run: npm ci --prefix server
-      - run: npx playwright install --with-deps chromium
-      - run: sudo apt-get update && sudo apt-get install -y poppler-utils
       - run: npm run test:e2e
 
       - name: Upload Playwright report
@@ -62,5 +63,7 @@ jobs:
           name: playwright-report
           path: |
             playwright-report/
-            test-results/
+            test-results/**/*.png
+            test-results/**/trace.zip
+            test-results/**/electron.log
           if-no-files-found: ignore
