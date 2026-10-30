@@ -23,8 +23,9 @@ type UseConversionResult = {
   conversionError: string | null;
   isConverting: boolean;
   isPreparingArchive: boolean;
+  isRemoving: boolean;
   selectFile: (selectedFile: File, sourceId?: string) => void;
-  removeFile: () => void;
+  removeFile: () => Promise<void>;
   convert: (
     option: ConversionOption,
     settings?: ConversionSettings,
@@ -45,6 +46,9 @@ export function useConversion(): UseConversionResult {
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
   const sourceIdRef = useRef<string | null>(null);
+  const removalPendingRef = useRef(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [removalError, setRemovalError] = useState<string | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -69,14 +73,17 @@ export function useConversion(): UseConversionResult {
       : null;
 
   const conversionError =
-    conversionState.kind === "downloadError" ||
+    removalError ??
+    (conversionState.kind === "downloadError" ||
     conversionState.kind === "conversionError"
       ? isConversionErrorCode(conversionState.error)
         ? t(`errors.${conversionState.error}`)
         : conversionState.error
-      : null;
+      : null);
 
   const selectFile = (selectedFile: File, sourceId?: string) => {
+    if (removalPendingRef.current) return;
+    setRemovalError(null);
     sourceIdRef.current = sourceId ?? null;
     requestIdRef.current += 1;
     archiveIdRef.current += 1;
@@ -88,22 +95,60 @@ export function useConversion(): UseConversionResult {
     });
   };
 
-  const removeFile = () => {
-    sourceIdRef.current = null;
-    requestIdRef.current += 1;
-    archiveIdRef.current += 1;
-    abortControllerRef.current?.abort();
-    setIsPreparingArchive(false);
-    dispatch({
-      type: "fileRemoved",
-    });
+  const removeFile = async (): Promise<void> => {
+    if (!file || removalPendingRef.current) {
+      return;
+    }
+
+    const isDesktop = window.easyConvert?.platform === "desktop";
+
+    if (
+      isDesktop &&
+      (isConverting ||
+        (abortControllerRef.current !== null &&
+          !abortControllerRef.current.signal.aborted))
+    ) {
+      return;
+    }
+
+    removalPendingRef.current = true;
+    setIsRemoving(true);
+    setRemovalError(null);
+
+    try {
+      if (isDesktop) {
+        await window.easyConvert.resetSource();
+      }
+
+      if (!isMountedRef.current) return;
+
+      sourceIdRef.current = null;
+      requestIdRef.current += 1;
+      archiveIdRef.current += 1;
+      abortControllerRef.current?.abort();
+      setIsPreparingArchive(false);
+
+      dispatch({ type: "fileRemoved" });
+    } catch (error: unknown) {
+      if (!isMountedRef.current) return;
+
+      setRemovalError(
+        error instanceof Error ? error.message : "Could not remove the file.",
+      );
+    } finally {
+      removalPendingRef.current = false;
+
+      if (isMountedRef.current) {
+        setIsRemoving(false);
+      }
+    }
   };
 
   const convert = async (
     option: ConversionOption,
     settings?: ConversionSettings,
   ) => {
-    if (!file) {
+    if (!file || removalPendingRef.current) {
       return;
     }
 
@@ -223,6 +268,7 @@ export function useConversion(): UseConversionResult {
     convertedResults,
     conversionError,
     isConverting,
+    isRemoving,
     selectFile,
     removeFile,
     convert,

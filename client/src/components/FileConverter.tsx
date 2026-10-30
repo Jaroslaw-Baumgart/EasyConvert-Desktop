@@ -43,6 +43,7 @@ export default function FileConverter({
     convertedResults,
     conversionError,
     isConverting,
+    isRemoving,
     selectFile,
     removeFile,
     convert,
@@ -91,10 +92,9 @@ export default function FileConverter({
     setSelectedXlsxSheetName(null);
   };
 
-  const handleFileRemove = () => {
+  const handleFileRemove = (): void => {
     setHasFormError(false);
-    removeFile();
-    setSelectedXlsxSheetName(null);
+    void removeFile();
   };
 
   const handleConvert = async (
@@ -134,6 +134,10 @@ export default function FileConverter({
                 type="button"
                 className={styles["remove-file-btn"]}
                 onClick={handleFileRemove}
+                disabled={
+                  isRemoving ||
+                  (window.easyConvert?.platform === "desktop" && isConverting)
+                }
               >
                 {t("converter.remove")}
               </button>
@@ -146,7 +150,7 @@ export default function FileConverter({
               />
             </div>
           </section>
-          <aside className={styles["conversion-sidebar"]}>
+          <aside className={styles["conversion-sidebar"]} inert={isRemoving}>
             <ConversionOptions
               options={availableOptions}
               onConvert={handleConvert}
