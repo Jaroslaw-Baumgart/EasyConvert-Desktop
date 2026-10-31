@@ -3,6 +3,9 @@ import type { IpcRendererEvent } from "electron";
 import type {
   ConversionJobState,
   EasyConvertApi,
+  SelectedSource,
+  SourceSelection,
+  StartConversionResponse,
 } from "../../shared/desktopContract";
 
 function parseIdentifier(value: unknown): string {
@@ -11,6 +14,69 @@ function parseIdentifier(value: unknown): string {
   }
 
   return value;
+}
+
+function parseSourceSelection(value: unknown): SourceSelection {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Invalid source selection.");
+  }
+
+  if (!("status" in value)) {
+    throw new Error("Invalid source selection.");
+  }
+
+  if (value.status === "cancelled") {
+    return { status: "cancelled" };
+  }
+
+  if (value.status === "selected") {
+    if (!("source" in value)) {
+      throw new Error("Invalid source selection.");
+    }
+
+    return {
+      status: "selected",
+      source: parseSelectedSource(value.source),
+    };
+  }
+
+  throw new Error("Invalid source selection.");
+}
+
+function parseSelectedSource(value: unknown): SelectedSource {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Invalid selected source.");
+  }
+
+  if (!("sourceId" in value)) {
+    throw new Error("Invalid selected source.");
+  }
+
+  const sourceId = parseIdentifier(value.sourceId);
+
+  if (
+    !("name" in value) ||
+    typeof value.name !== "string" ||
+    value.name.length === 0
+  ) {
+    throw new Error("Invalid selected source.");
+  }
+
+  if (
+    !("sizeBytes" in value) ||
+    typeof value.sizeBytes !== "number" ||
+    !Number.isSafeInteger(value.sizeBytes) ||
+    value.sizeBytes <= 0 ||
+    value.sizeBytes > 10_000_000
+  ) {
+    throw new Error("Invalid selected source.");
+  }
+
+  return {
+    sourceId,
+    name: value.name,
+    sizeBytes: value.sizeBytes,
+  };
 }
 
 function parseConversionJobState(value: unknown): ConversionJobState {
@@ -66,10 +132,31 @@ function parseConversionJobState(value: unknown): ConversionJobState {
   throw new Error("Invalid conversion job state.");
 }
 
+function parseStartConversionResponse(value: unknown): StartConversionResponse {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    !("jobId" in value)
+  ) {
+    throw new Error("Invalid conversion start response.");
+  }
+
+  return {
+    jobId: parseIdentifier(value.jobId),
+  };
+}
+
 const api: EasyConvertApi = {
   platform: "desktop",
 
-  selectSource: () => ipcRenderer.invoke("easyconvert:select-source"),
+  selectSource: async () => {
+    const value: unknown = await ipcRenderer.invoke(
+      "easyconvert:select-source",
+    );
+
+    return parseSourceSelection(value);
+  },
 
   selectDroppedSource: async (file) => {
     const sourcePath = webUtils.getPathForFile(file);
@@ -78,13 +165,24 @@ const api: EasyConvertApi = {
       throw new Error("Dropped file has no filesystem path.");
     }
 
-    return ipcRenderer.invoke("easyconvert:select-dropped-source", sourcePath);
+    const value: unknown = await ipcRenderer.invoke(
+      "easyconvert:select-dropped-source",
+      sourcePath,
+    );
+
+    return parseSelectedSource(value);
   },
 
   resetSource: () => ipcRenderer.invoke("easyconvert:reset-source"),
 
-  startConversion: (request) =>
-    ipcRenderer.invoke("easyconvert:start-conversion", request),
+  startConversion: async (request) => {
+    const value: unknown = await ipcRenderer.invoke(
+      "easyconvert:start-conversion",
+      request,
+    );
+
+    return parseStartConversionResponse(value);
+  },
 
   getJobState: async () => {
     const value: unknown = await ipcRenderer.invoke(
