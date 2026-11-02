@@ -16,6 +16,7 @@ import type {
 } from "../types/conversionResult";
 import { createZipFile } from "../utils/createZipFile";
 import { convertDesktopFile } from "../api/desktopConversionClient";
+import type { StartConversionRequest } from "../../../shared/desktopContract";
 
 type UseConversionResult = {
   file: File | null;
@@ -178,13 +179,33 @@ export function useConversion(): UseConversionResult {
           throw new Error("Select the file using the native dialog.");
         }
 
-        if (option.conversionType !== "jpg-to-png") {
+        let request: StartConversionRequest;
+        if (option.conversionType === "jpg-to-png") {
+          request = { sourceId, conversion: option.conversionType };
+        } else if (option.conversionType === "png-to-jpg") {
+          if (
+            !settings ||
+            !("quality" in settings) ||
+            !("backgroundColor" in settings)
+          ) {
+            throw new Error("Missing PNG to JPG settings.");
+          }
+
+          request = {
+            sourceId,
+            conversion: option.conversionType,
+            options: {
+              quality: settings.quality,
+              backgroundColor: settings.backgroundColor,
+            },
+          };
+        } else {
           throw new Error("This desktop conversion is not available yet.");
         }
 
         convertedResults = await convertDesktopFile(
           window.easyConvert,
-          sourceId,
+          request,
           file.name,
           controller.signal,
         );

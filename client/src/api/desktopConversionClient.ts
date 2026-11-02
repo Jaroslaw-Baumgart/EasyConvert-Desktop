@@ -1,19 +1,19 @@
-import type { EasyConvertApi } from "../../../shared/desktopContract";
+import type {
+  EasyConvertApi,
+  StartConversionRequest,
+} from "../../../shared/desktopContract";
 import type { ConvertedResults } from "../types/conversionResult";
 import { waitForDesktopJob } from "./waitForDesktopJob";
 
 export async function convertDesktopFile(
   api: EasyConvertApi,
-  sourceId: string,
+  request: StartConversionRequest,
   inputName: string,
   signal?: AbortSignal,
 ): Promise<ConvertedResults> {
   signal?.throwIfAborted();
 
-  const { jobId } = await api.startConversion({
-    sourceId,
-    conversion: "jpg-to-png",
-  });
+  const { jobId } = await api.startConversion(request);
   const resultId = await waitForDesktopJob(api, jobId, signal);
 
   signal?.throwIfAborted();
@@ -40,7 +40,8 @@ export async function convertDesktopFile(
     throw new Error("File size does not match the response.");
   }
 
-  const outputName = inputName.replace(/\.[^.]+$/, "") + ".png";
+  const extension = request.conversion === "jpg-to-png" ? ".png" : ".jpg";
+  const outputName = inputName.replace(/\.[^.]+$/, "") + extension;
 
   const file = new File([blob], outputName, {
     type: blob.type,

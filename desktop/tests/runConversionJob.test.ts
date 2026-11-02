@@ -1,5 +1,6 @@
 import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { StartConversionRequest } from "../../shared/desktopContract";
 
 const mocks = vi.hoisted(() => ({
   getPath: vi.fn(),
@@ -18,9 +19,38 @@ vi.mock("node:fs/promises", () => ({
   stat: mocks.stat,
 }));
 
-vi.mock("../main/runJpgToPngWorker", () => ({
-  runJpgToPngWorker: mocks.runWorker,
+vi.mock("../main/runImageWorker", () => ({
+  runImageWorker: mocks.runWorker,
 }));
+
+const jpgRequest: StartConversionRequest = {
+  sourceId: "source-123",
+  conversion: "jpg-to-png",
+};
+
+const successCases: {
+  request: StartConversionRequest;
+  inputPath: string;
+  outputName: string;
+}[] = [
+  {
+    request: jpgRequest,
+    inputPath: "C:/input/photo.jpg",
+    outputName: "result.png",
+  },
+  {
+    request: {
+      sourceId: "source-123",
+      conversion: "png-to-jpg",
+      options: {
+        quality: 72,
+        backgroundColor: "#123456",
+      },
+    },
+    inputPath: "C:/input/photo.png",
+    outputName: "result.jpg",
+  },
+];
 
 async function loadModules() {
   const jobs = await import("../main/jobRegistry");
@@ -44,38 +74,42 @@ beforeEach(() => {
 });
 
 describe("runConversionJob", () => {
-  it("registers the generated file and publishes success", async () => {
-    const { jobs, results, runConversionJob } = await loadModules();
-    const jobId = jobs.startJob();
-    const outputPath = path.join("C:/temp/easyconvert-job-test", "result.png");
+  it.each(successCases)(
+    "registers $outputName and publishes success for $request.conversion",
+    async ({ request, inputPath, outputName }) => {
+      const { jobs, results, runConversionJob } = await loadModules();
+      const jobId = jobs.startJob();
+      const outputPath = path.join("C:/temp/easyconvert-job-test", outputName);
 
-    mocks.onStateChanged.mockImplementation(() => {
-      expect(jobs.getJobState().status).toBe("succeeded");
-    });
+      mocks.onStateChanged.mockImplementation(() => {
+        expect(jobs.getJobState().status).toBe("succeeded");
+      });
 
-    await runConversionJob(jobId, "C:/input/photo.jpg", mocks.onStateChanged);
+      await runConversionJob(jobId, inputPath, mocks.onStateChanged, request);
 
-    expect(mocks.getPath).toHaveBeenCalledWith("temp");
-    expect(mocks.mkdtemp).toHaveBeenCalledWith(
-      path.join("C:/temp", "easyconvert-job-"),
-    );
-    expect(mocks.runWorker).toHaveBeenCalledWith(
-      "C:/input/photo.jpg",
-      outputPath,
-    );
-    expect(mocks.stat).toHaveBeenCalledWith(outputPath);
+      expect(mocks.getPath).toHaveBeenCalledWith("temp");
+      expect(mocks.mkdtemp).toHaveBeenCalledWith(
+        path.join("C:/temp", "easyconvert-job-"),
+      );
+      expect(mocks.runWorker).toHaveBeenCalledExactlyOnceWith(
+        inputPath,
+        outputPath,
+        request,
+      );
+      expect(mocks.stat).toHaveBeenCalledWith(outputPath);
 
-    const state = jobs.getJobState();
+      const state = jobs.getJobState();
 
-    if (state.status !== "succeeded") {
-      throw new Error("Expected success.");
-    }
+      if (state.status !== "succeeded") {
+        throw new Error("Expected success.");
+      }
 
-    expect(state.jobId).toBe(jobId);
-    expect(state.resultId).not.toBe(outputPath);
-    expect(results.getResultPath(state.resultId)).toBe(outputPath);
-    expect(mocks.onStateChanged).toHaveBeenCalledTimes(1);
-  });
+      expect(state.jobId).toBe(jobId);
+      expect(state.resultId).not.toBe(outputPath);
+      expect(results.getResultPath(state.resultId)).toBe(outputPath);
+      expect(mocks.onStateChanged).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it.each(["directory", "empty"] as const)(
     "rejects an invalid output and publishes failure: %s",
@@ -92,7 +126,12 @@ describe("runConversionJob", () => {
         expect(jobs.getJobState().status).toBe("failed");
       });
 
-      await runConversionJob(jobId, "input.jpg", mocks.onStateChanged);
+      await runConversionJob(
+        jobId,
+        "input.jpg",
+        mocks.onStateChanged,
+        jpgRequest,
+      );
 
       expect(jobs.getJobState()).toEqual({
         status: "failed",
@@ -122,7 +161,12 @@ describe("runConversionJob", () => {
         expect(jobs.getJobState().status).toBe("failed");
       });
 
-      await runConversionJob(jobId, "input.jpg", mocks.onStateChanged);
+      await runConversionJob(
+        jobId,
+        "input.jpg",
+        mocks.onStateChanged,
+        jpgRequest,
+      );
 
       expect(jobs.getJobState()).toEqual({
         status: "failed",
@@ -139,7 +183,12 @@ describe("runConversionJob", () => {
 
     mocks.runWorker.mockRejectedValue("unexpected rejection");
 
-    await runConversionJob(jobId, "input.jpg", mocks.onStateChanged);
+    await runConversionJob(
+      jobId,
+      "input.jpg",
+      mocks.onStateChanged,
+      jpgRequest,
+    );
 
     expect(jobs.getJobState()).toEqual({
       status: "failed",
@@ -166,7 +215,12 @@ describe("runConversionJob", () => {
         }
       });
 
-      await runConversionJob(oldJobId, "input.jpg", mocks.onStateChanged);
+      await runConversionJob(
+        oldJobId,
+        "input.jpg",
+        mocks.onStateChanged,
+        jpgRequest,
+      );
 
       expect(jobs.getJobState()).toEqual({
         status: "running",

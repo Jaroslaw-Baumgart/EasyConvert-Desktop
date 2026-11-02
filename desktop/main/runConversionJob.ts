@@ -3,20 +3,25 @@ import { mkdtemp, stat } from "node:fs/promises";
 import path from "node:path";
 import { failJob, getJobState, succeedJob } from "./jobRegistry";
 import { registerResult } from "./resultRegistry";
-import { runJpgToPngWorker } from "./runJpgToPngWorker";
+import { runImageWorker } from "./runImageWorker";
+import type { StartConversionRequest } from "../../shared/desktopContract";
 
 export async function runConversionJob(
   jobId: string,
   inputPath: string,
   onStateChanged: () => void,
+  request: StartConversionRequest,
 ): Promise<void> {
   try {
     const directory = await mkdtemp(
       path.join(app.getPath("temp"), "easyconvert-job-"),
     );
-    const outputPath = path.join(directory, "result.png");
 
-    await runJpgToPngWorker(inputPath, outputPath);
+    const outputName =
+      request.conversion === "jpg-to-png" ? "result.png" : "result.jpg";
+    const outputPath = path.join(directory, outputName);
+
+    await runImageWorker(inputPath, outputPath, request);
 
     const metadata = await stat(outputPath);
 

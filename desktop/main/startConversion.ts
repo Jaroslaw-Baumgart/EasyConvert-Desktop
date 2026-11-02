@@ -14,6 +14,6 @@ export function startConversion(
   const jobId = startJob();
   clearResult();
   onStateChanged();
-  void runConversionJob(jobId, sourcePath, onStateChanged);
+  void runConversionJob(jobId, sourcePath, onStateChanged, request);
   return { jobId };
 }

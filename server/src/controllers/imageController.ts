@@ -14,6 +14,7 @@ import {
   pdfPageSettingsSchema,
 } from "../schemas/conversionSettings";
 import { convertJpgToPng } from "../../../conversion-core/image/convertJpgToPng";
+import { convertPngToJpg } from "../../../conversion-core/image/convertPngToJpg";
 import {
   ImagePixelLimitError,
   validateImagePixels,
@@ -65,11 +66,7 @@ export const pngToJpg = async (req: Request, res: Response) => {
     }
     const settings = settingsResult.data;
 
-    await validateImagePixels(req.file.path);
-    await sharp(req.file.path, { limitInputPixels: MAX_IMAGE_PIXELS })
-      .flatten({ background: settings.backgroundColor })
-      .jpeg({ quality: settings.quality })
-      .toFile(outputPath);
+    await convertPngToJpg(req.file.path, outputPath, settings);
 
     sendSuccessResponse(res, [createOutputFileItem(outputName)]);
   } catch (err: unknown) {

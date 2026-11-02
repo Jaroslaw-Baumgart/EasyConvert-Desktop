@@ -27,6 +27,13 @@ const option = {
   disabled: false,
 } as const;
 
+const pngOption = {
+  conversionType: "png-to-jpg",
+  sourceFormat: "png",
+  targetFormat: "jpg",
+  disabled: false,
+} as const;
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason: unknown) => void;
@@ -90,18 +97,87 @@ async function setupConvertedFile() {
 }
 
 describe("desktop useConversion", () => {
-  it("passes the source ID and signal to the desktop adapter and stores its result", async () => {
+  it("passes the JPG to PNG request and signal and stores the result", async () => {
     const { api, result, output } = await setupConvertedFile();
 
     expect(convertDesktopFile).toHaveBeenCalledExactlyOnceWith(
       api,
-      "source-1",
+      {
+        sourceId: "source-1",
+        conversion: "jpg-to-png",
+      },
       "photo.jpg",
       expect.any(AbortSignal),
     );
 
     expect(convertFile).not.toHaveBeenCalled();
     expect(result.current.convertedResults).toBe(output);
+    expect(result.current.isConverting).toBe(false);
+  });
+
+  it("passes PNG to JPG quality and background to the desktop adapter", async () => {
+    const { api, result } = setup();
+    const file = new File(["png"], "transparent.png", {
+      type: "image/png",
+    });
+    const output: ConvertedResults = [
+      {
+        url: "app://easyconvert/preview/result/result-2",
+        file: new File(["jpg"], "transparent.jpg", {
+          type: "image/jpeg",
+        }),
+      },
+    ];
+
+    vi.mocked(convertDesktopFile).mockResolvedValue(output);
+
+    act(() => {
+      result.current.selectFile(file, "source-2");
+    });
+
+    await act(async () => {
+      await result.current.convert(pngOption, {
+        quality: 72,
+        backgroundColor: "#123456",
+      });
+    });
+
+    expect(convertDesktopFile).toHaveBeenCalledExactlyOnceWith(
+      api,
+      {
+        sourceId: "source-2",
+        conversion: "png-to-jpg",
+        options: {
+          quality: 72,
+          backgroundColor: "#123456",
+        },
+      },
+      "transparent.png",
+      expect.any(AbortSignal),
+    );
+    expect(convertFile).not.toHaveBeenCalled();
+    expect(result.current.convertedResults).toBe(output);
+    expect(result.current.isConverting).toBe(false);
+  });
+
+  it("rejects PNG to JPG without settings before calling either adapter", async () => {
+    const { result } = setup();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    act(() => {
+      result.current.selectFile(
+        new File(["png"], "photo.png", { type: "image/png" }),
+        "source-2",
+      );
+    });
+
+    await act(async () => {
+      await result.current.convert(pngOption);
+    });
+
+    expect(convertDesktopFile).not.toHaveBeenCalled();
+    expect(convertFile).not.toHaveBeenCalled();
+    expect(result.current.conversionError).not.toBeNull();
     expect(result.current.isConverting).toBe(false);
   });
 
@@ -184,7 +260,7 @@ describe("desktop useConversion", () => {
     vi.mocked(api.resetSource).mockReturnValueOnce(reset.promise);
     vi.mocked(convertDesktopFile).mockClear();
 
-    // Te same callbacki sprawdzają blokadę również przed kolejnym renderem.
+    // Te same callbacki sprawdzają blokadę przed kolejnym renderem.
     const actions = result.current;
     let removal!: Promise<void>;
 

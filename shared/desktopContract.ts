@@ -1,3 +1,5 @@
+import type { PngToJpgOptions } from "./conversionOptions";
+
 export type SelectedSource = {
   sourceId: string;
   name: string;
@@ -21,10 +23,9 @@ export interface EasyConvertApi {
   saveResult(resultId: string): Promise<{ status: "saved" | "cancelled" }>;
 }
 
-export type StartConversionRequest = {
-  sourceId: string;
-  conversion: "jpg-to-png";
-};
+export type StartConversionRequest =
+  | { sourceId: string; conversion: "jpg-to-png" }
+  | { sourceId: string; conversion: "png-to-jpg"; options: PngToJpgOptions };
 
 export type StartConversionResponse = {
   jobId: string;

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { StartConversionRequest } from "../../shared/desktopContract";
 
 const mocks = vi.hoisted(() => ({
   runConversionJob: vi.fn(),
@@ -24,34 +25,49 @@ beforeEach(() => {
 });
 
 describe("startConversion", () => {
-  it("publishes running before launching conversion", async () => {
-    const { sources, jobs, results, startConversion } = await loadModules();
-    const sourceId = sources.registerSource("photo.jpg");
-    const previousResultId = results.registerResult("previous.png");
+  it.each(["jpg-to-png", "png-to-jpg"] as const)(
+    "publishes running and forwards the validated %s request",
+    async (conversion) => {
+      const { sources, jobs, results, startConversion } = await loadModules();
 
-    const onStateChanged = vi.fn(() => {
-      expect(jobs.getJobState().status).toBe("running");
-      expect(() => results.getResultPath(previousResultId)).toThrow();
-      expect(mocks.runConversionJob).not.toHaveBeenCalled();
-    });
+      const inputPath = conversion === "jpg-to-png" ? "photo.jpg" : "photo.png";
+      const sourceId = sources.registerSource(inputPath);
+      const previousResultId = results.registerResult("previous.png");
 
-    const response = startConversion(
-      { sourceId, conversion: "jpg-to-png" },
-      onStateChanged,
-    );
+      const request: StartConversionRequest =
+        conversion === "jpg-to-png"
+          ? { sourceId, conversion }
+          : {
+              sourceId,
+              conversion,
+              options: {
+                quality: 72,
+                backgroundColor: "#123456",
+              },
+            };
 
-    expect(response).not.toBeInstanceOf(Promise);
-    expect(jobs.getJobState()).toEqual({
-      status: "running",
-      jobId: response.jobId,
-    });
-    expect(onStateChanged).toHaveBeenCalledTimes(1);
-    expect(mocks.runConversionJob).toHaveBeenCalledExactlyOnceWith(
-      response.jobId,
-      "photo.jpg",
-      onStateChanged,
-    );
-  });
+      const onStateChanged = vi.fn(() => {
+        expect(jobs.getJobState().status).toBe("running");
+        expect(() => results.getResultPath(previousResultId)).toThrow();
+        expect(mocks.runConversionJob).not.toHaveBeenCalled();
+      });
+
+      const response = startConversion(request, onStateChanged);
+
+      expect(response).not.toBeInstanceOf(Promise);
+      expect(jobs.getJobState()).toEqual({
+        status: "running",
+        jobId: response.jobId,
+      });
+      expect(onStateChanged).toHaveBeenCalledTimes(1);
+      expect(mocks.runConversionJob).toHaveBeenCalledExactlyOnceWith(
+        response.jobId,
+        inputPath,
+        onStateChanged,
+        request,
+      );
+    },
+  );
 
   it("returns without waiting for conversion", async () => {
     const { sources, jobs, startConversion } = await loadModules();
@@ -65,6 +81,7 @@ describe("startConversion", () => {
       onStateChanged,
     );
 
+    expect(response).not.toBeInstanceOf(Promise);
     expect(jobs.getJobState()).toEqual({
       status: "running",
       jobId: response.jobId,
@@ -72,10 +89,16 @@ describe("startConversion", () => {
     expect(onStateChanged).toHaveBeenCalledTimes(1);
   });
 
-  it.each(["invalid data", "unknown source", "second start"] as const)(
+  it.each([
+    "invalid data",
+    "invalid PNG options",
+    "unknown source",
+    "second start",
+  ] as const)(
     "rejects %s without publishing or changing state",
     async (scenario) => {
       const { sources, jobs, results, startConversion } = await loadModules();
+
       const sourceId = sources.registerSource("photo.jpg");
       const resultId = results.registerResult("previous.png");
       const onStateChanged = vi.fn();
@@ -85,10 +108,22 @@ describe("startConversion", () => {
       }
 
       const previousState = jobs.getJobState();
-      const request = {
-        sourceId: scenario === "unknown source" ? "unknown" : sourceId,
-        conversion: scenario === "invalid data" ? "unsupported" : "jpg-to-png",
-      };
+
+      const request =
+        scenario === "invalid PNG options"
+          ? {
+              sourceId,
+              conversion: "png-to-jpg",
+              options: {
+                quality: 0,
+                backgroundColor: "#ffffff",
+              },
+            }
+          : {
+              sourceId: scenario === "unknown source" ? "unknown" : sourceId,
+              conversion:
+                scenario === "invalid data" ? "unsupported" : "jpg-to-png",
+            };
 
       expect(() => startConversion(request, onStateChanged)).toThrow();
 

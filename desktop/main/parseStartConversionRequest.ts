@@ -1,4 +1,5 @@
 import type { StartConversionRequest } from "../../shared/desktopContract";
+import { parsePngToJpgOptions } from "../../conversion-core/image/parsePngToJpgOptions";
 
 export function parseStartConversionRequest(
   value: unknown,
@@ -25,12 +26,24 @@ export function parseStartConversionRequest(
     throw new Error("Missing conversion.");
   }
 
-  if (value.conversion !== "jpg-to-png") {
-    throw new Error("Unsupported conversion.");
+  if (value.conversion === "jpg-to-png") {
+    return {
+      sourceId: value.sourceId,
+      conversion: value.conversion,
+    };
   }
 
-  return {
-    sourceId: value.sourceId,
-    conversion: value.conversion,
-  };
+  if (value.conversion === "png-to-jpg") {
+    if (!("options" in value)) {
+      throw new Error("Missing options for PNG to JPG conversion.");
+    }
+
+    return {
+      sourceId: value.sourceId,
+      conversion: value.conversion,
+      options: parsePngToJpgOptions(value.options),
+    };
+  }
+
+  throw new Error("Unsupported conversion.");
 }

@@ -1,11 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { EasyConvertApi } from "../../../shared/desktopContract";
+import type {
+  EasyConvertApi,
+  StartConversionRequest,
+} from "../../../shared/desktopContract";
 import { convertDesktopFile } from "./desktopConversionClient";
 import { waitForDesktopJob } from "./waitForDesktopJob";
 
 vi.mock("./waitForDesktopJob", () => ({
   waitForDesktopJob: vi.fn(),
 }));
+
+const jpgRequest: StartConversionRequest = {
+  sourceId: "source-1",
+  conversion: "jpg-to-png",
+};
 
 afterEach(() => {
   vi.resetAllMocks();
@@ -15,7 +23,8 @@ afterEach(() => {
 function setup() {
   const api: EasyConvertApi = {
     platform: "desktop",
-    selectSource: vi.fn(), selectDroppedSource: vi.fn(),
+    selectSource: vi.fn(),
+    selectDroppedSource: vi.fn(),
     startConversion: vi.fn().mockResolvedValue({ jobId: "job-1" }),
     getJobState: vi.fn(),
     onJobStateChanged: vi.fn(),
@@ -47,19 +56,16 @@ function readFile(file: File): Promise<string> {
 }
 
 describe("convertDesktopFile", () => {
-  it("starts conversion and returns the actual result in the frontend format", async () => {
+  it("starts JPG to PNG and returns the fetched result", async () => {
     const { api, fetchMock } = setup();
 
     const results = await convertDesktopFile(
       api,
-      "source-1",
+      jpgRequest,
       "photo.final.jpg",
     );
 
-    expect(api.startConversion).toHaveBeenCalledExactlyOnceWith({
-      sourceId: "source-1",
-      conversion: "jpg-to-png",
-    });
+    expect(api.startConversion).toHaveBeenCalledExactlyOnceWith(jpgRequest);
     expect(waitForDesktopJob).toHaveBeenCalledExactlyOnceWith(
       api,
       "job-1",
@@ -78,11 +84,34 @@ describe("convertDesktopFile", () => {
     expect(await readFile(results[0].file)).toBe("png");
   });
 
+  it("passes PNG to JPG settings and returns a JPG file", async () => {
+    const { api, response } = setup();
+    const request: StartConversionRequest = {
+      sourceId: "source-1",
+      conversion: "png-to-jpg",
+      options: {
+        quality: 72,
+        backgroundColor: "#123456",
+      },
+    };
+
+    response.blob.mockResolvedValue(new Blob(["jpg"], { type: "image/jpeg" }));
+
+    const results = await convertDesktopFile(api, request, "photo.final.png");
+
+    expect(api.startConversion).toHaveBeenCalledExactlyOnceWith(request);
+    expect(results).toHaveLength(1);
+    expect(results[0].url).toBe("app://easyconvert/preview/result/result-1");
+    expect(results[0].file.name).toBe("photo.final.jpg");
+    expect(results[0].file.type).toBe("image/jpeg");
+    expect(await readFile(results[0].file)).toBe("jpg");
+  });
+
   it("passes the signal to waiting and fetching", async () => {
     const { api, fetchMock } = setup();
     const controller = new AbortController();
 
-    await convertDesktopFile(api, "source-1", "photo.jpg", controller.signal);
+    await convertDesktopFile(api, jpgRequest, "photo.jpg", controller.signal);
 
     expect(waitForDesktopJob).toHaveBeenCalledExactlyOnceWith(
       api,
@@ -102,7 +131,7 @@ describe("convertDesktopFile", () => {
     controller.abort(reason);
 
     await expect(
-      convertDesktopFile(api, "source-1", "photo.jpg", controller.signal),
+      convertDesktopFile(api, jpgRequest, "photo.jpg", controller.signal),
     ).rejects.toBe(reason);
 
     expect(api.startConversion).not.toHaveBeenCalled();
@@ -121,13 +150,13 @@ describe("convertDesktopFile", () => {
     });
 
     await expect(
-      convertDesktopFile(api, "source-1", "photo.jpg", controller.signal),
+      convertDesktopFile(api, jpgRequest, "photo.jpg", controller.signal),
     ).rejects.toBe(reason);
 
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("does not fetch if the signal is aborted as waiting completes", async () => {
+  it("does not fetch if aborted as waiting completes", async () => {
     const { api, fetchMock } = setup();
     const controller = new AbortController();
     const reason = new DOMException("Cancelled.", "AbortError");
@@ -138,7 +167,7 @@ describe("convertDesktopFile", () => {
     });
 
     await expect(
-      convertDesktopFile(api, "source-1", "photo.jpg", controller.signal),
+      convertDesktopFile(api, jpgRequest, "photo.jpg", controller.signal),
     ).rejects.toBe(reason);
 
     expect(fetchMock).not.toHaveBeenCalled();
@@ -155,7 +184,7 @@ describe("convertDesktopFile", () => {
     });
 
     await expect(
-      convertDesktopFile(api, "source-1", "photo.jpg", controller.signal),
+      convertDesktopFile(api, jpgRequest, "photo.jpg", controller.signal),
     ).rejects.toBe(reason);
 
     expect(response.blob).not.toHaveBeenCalled();
@@ -172,7 +201,7 @@ describe("convertDesktopFile", () => {
     });
 
     await expect(
-      convertDesktopFile(api, "source-1", "photo.jpg", controller.signal),
+      convertDesktopFile(api, jpgRequest, "photo.jpg", controller.signal),
     ).rejects.toBe(reason);
   });
 
@@ -181,7 +210,7 @@ describe("convertDesktopFile", () => {
     const error = new Error("Start failed.");
     vi.mocked(api.startConversion).mockRejectedValue(error);
 
-    await expect(convertDesktopFile(api, "source-1", "photo.jpg")).rejects.toBe(
+    await expect(convertDesktopFile(api, jpgRequest, "photo.jpg")).rejects.toBe(
       error,
     );
 
@@ -194,7 +223,7 @@ describe("convertDesktopFile", () => {
     const error = new Error("Worker failed.");
     vi.mocked(waitForDesktopJob).mockRejectedValue(error);
 
-    await expect(convertDesktopFile(api, "source-1", "photo.jpg")).rejects.toBe(
+    await expect(convertDesktopFile(api, jpgRequest, "photo.jpg")).rejects.toBe(
       error,
     );
 
@@ -206,7 +235,7 @@ describe("convertDesktopFile", () => {
     response.ok = false;
 
     await expect(
-      convertDesktopFile(api, "source-1", "photo.jpg"),
+      convertDesktopFile(api, jpgRequest, "photo.jpg"),
     ).rejects.toThrow("Could not load the converted file.");
 
     expect(response.blob).not.toHaveBeenCalled();
@@ -224,7 +253,7 @@ describe("convertDesktopFile", () => {
       }
 
       await expect(
-        convertDesktopFile(api, "source-1", "photo.jpg"),
+        convertDesktopFile(api, jpgRequest, "photo.jpg"),
       ).rejects.toThrow("Invalid result size.");
 
       expect(response.blob).not.toHaveBeenCalled();
@@ -236,7 +265,7 @@ describe("convertDesktopFile", () => {
     response.headers.set("Content-Length", "4");
 
     await expect(
-      convertDesktopFile(api, "source-1", "photo.jpg"),
+      convertDesktopFile(api, jpgRequest, "photo.jpg"),
     ).rejects.toThrow("File size does not match the response.");
   });
 
@@ -245,7 +274,7 @@ describe("convertDesktopFile", () => {
     const error = new Error("Result unavailable.");
     fetchMock.mockRejectedValue(error);
 
-    await expect(convertDesktopFile(api, "source-1", "photo.jpg")).rejects.toBe(
+    await expect(convertDesktopFile(api, jpgRequest, "photo.jpg")).rejects.toBe(
       error,
     );
   });
