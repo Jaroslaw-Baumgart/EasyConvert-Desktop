@@ -10,7 +10,10 @@ export function runImageWorker(
   return new Promise((resolve, reject) => {
     const args = [request.conversion, inputPath, outputPath];
 
-    if (request.conversion === "png-to-jpg") {
+    if (
+      request.conversion === "png-to-jpg" ||
+      request.conversion === "jpg-to-pdf"
+    ) {
       args.push(JSON.stringify(request.options));
     }
     const worker = utilityProcess.fork(

@@ -278,4 +278,28 @@ describe("convertDesktopFile", () => {
       error,
     );
   });
+
+  it("passes PDF page settings and returns a PDF file", async () => {
+    const { api, response } = setup();
+    const request: StartConversionRequest = {
+      sourceId: "source-1",
+      conversion: "jpg-to-pdf",
+      options: {
+        pageSize: "A3",
+        pageOrientation: "landscape",
+      },
+    };
+
+    response.blob.mockResolvedValue(
+      new Blob(["pdf"], { type: "application/pdf" }),
+    );
+
+    const results = await convertDesktopFile(api, request, "photo.final.jpg");
+
+    expect(api.startConversion).toHaveBeenCalledExactlyOnceWith(request);
+    expect(results).toHaveLength(1);
+    expect(results[0].file.name).toBe("photo.final.pdf");
+    expect(results[0].file.type).toBe("application/pdf");
+    expect(await readFile(results[0].file)).toBe("pdf");
+  });
 });

@@ -50,6 +50,18 @@ const successCases: {
     inputPath: "C:/input/photo.png",
     outputName: "result.jpg",
   },
+  {
+    request: {
+      sourceId: "source-123",
+      conversion: "jpg-to-pdf",
+      options: {
+        pageSize: "A3",
+        pageOrientation: "landscape",
+      },
+    },
+    inputPath: "C:/input/photo.jpg",
+    outputName: "result.pdf",
+  },
 ];
 
 async function loadModules() {

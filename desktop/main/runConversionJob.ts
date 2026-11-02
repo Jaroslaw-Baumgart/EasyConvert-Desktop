@@ -17,8 +17,14 @@ export async function runConversionJob(
       path.join(app.getPath("temp"), "easyconvert-job-"),
     );
 
-    const outputName =
-      request.conversion === "jpg-to-png" ? "result.png" : "result.jpg";
+    const outputNames = {
+      "jpg-to-png": "result.png",
+      "png-to-jpg": "result.jpg",
+      "jpg-to-pdf": "result.pdf",
+    } satisfies Record<StartConversionRequest["conversion"], string>;
+
+    const outputName = outputNames[request.conversion];
+
     const outputPath = path.join(directory, outputName);
 
     await runImageWorker(inputPath, outputPath, request);

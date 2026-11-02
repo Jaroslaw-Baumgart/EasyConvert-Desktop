@@ -1,5 +1,6 @@
 import type { StartConversionRequest } from "../../shared/desktopContract";
 import { parsePngToJpgOptions } from "../../conversion-core/image/parsePngToJpgOptions";
+import { parsePdfPageOptions } from "../../conversion-core/image/parsePdfPageOptions";
 
 export function parseStartConversionRequest(
   value: unknown,
@@ -42,6 +43,18 @@ export function parseStartConversionRequest(
       sourceId: value.sourceId,
       conversion: value.conversion,
       options: parsePngToJpgOptions(value.options),
+    };
+  }
+
+  if (value.conversion === "jpg-to-pdf") {
+    if (!("options" in value)) {
+      throw new Error("Missing options for JPG to PDF conversion.");
+    }
+
+    return {
+      sourceId: value.sourceId,
+      conversion: value.conversion,
+      options: parsePdfPageOptions(value.options),
     };
   }
 

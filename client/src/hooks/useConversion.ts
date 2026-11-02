@@ -199,6 +199,23 @@ export function useConversion(): UseConversionResult {
               backgroundColor: settings.backgroundColor,
             },
           };
+        } else if (option.conversionType === "jpg-to-pdf") {
+          if (
+            !settings ||
+            !("pageSize" in settings) ||
+            !("pageOrientation" in settings)
+          ) {
+            throw new Error("Missing JPG to PDF settings.");
+          }
+
+          request = {
+            sourceId,
+            conversion: option.conversionType,
+            options: {
+              pageSize: settings.pageSize,
+              pageOrientation: settings.pageOrientation,
+            },
+          };
         } else {
           throw new Error("This desktop conversion is not available yet.");
         }

@@ -1,92 +1,37 @@
 import type { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const sharpMocks = vi.hoisted(() => {
-  const toFile = vi.fn().mockResolvedValue(undefined);
-  const jpeg = vi.fn(() => ({ toFile }));
-  const flatten = vi.fn(() => ({ jpeg }));
-  const png = vi.fn(() => ({ toFile }));
-  const metadata = vi.fn().mockResolvedValue({ width: 100, height: 100 });
-  const sharp = vi.fn(() => ({ flatten, png, metadata }));
-
-  return {
-    sharp,
-    png,
-    metadata,
-    flatten,
-    jpeg,
-    toFile,
-  };
-});
-
-vi.mock("sharp", () => ({
-  default: sharpMocks.sharp,
+const mocks = vi.hoisted(() => ({
+  jpgToPng: vi.fn(),
+  pngToJpg: vi.fn(),
+  jpgToPdf: vi.fn(),
 }));
 
-const pdfMocks = vi.hoisted(() => {
-  const addPage = vi.fn();
-  const image = vi.fn();
-  const end = vi.fn();
-
-  const stream = {
-    on: vi.fn((event: string, callback: () => void) => {
-      if (event === "finish") {
-        callback();
-      }
-
-      return stream;
-    }),
-  };
-
-  const pipe = vi.fn(() => stream);
-  const PDFDocument = vi.fn(function PDFDocumentMock() {
-    return {
-      addPage,
-      image,
-      pipe,
-      end,
-      page: {
-        width: 1190.55,
-        height: 841.89,
-      },
-    };
-  });
-
-  const createWriteStream = vi.fn(() => ({}));
-
-  return {
-    PDFDocument,
-    addPage,
-    image,
-    pipe,
-    end,
-    createWriteStream,
-  };
-});
-
-vi.mock("pdfkit", () => ({
-  default: pdfMocks.PDFDocument,
+vi.mock("../../../conversion-core/image/convertJpgToPng", () => ({
+  convertJpgToPng: mocks.jpgToPng,
 }));
 
-vi.mock("fs", () => ({
-  default: {
-    createWriteStream: pdfMocks.createWriteStream,
-  },
+vi.mock("../../../conversion-core/image/convertPngToJpg", () => ({
+  convertPngToJpg: mocks.pngToJpg,
+}));
+
+vi.mock("../../../conversion-core/image/convertJpgToPdf", () => ({
+  convertJpgToPdf: mocks.jpgToPdf,
 }));
 
 import { jpgToPdf, jpgToPng, pngToJpg } from "./imageController";
-import { MAX_IMAGE_PIXELS } from "../utils/constants";
 
-const createRequest = (body: unknown): Request =>
-  ({
+function createRequest(body: unknown): Request {
+  return {
     body,
     file: {
-      path: "uploads/image.png",
-      filename: "image.png",
-    } as Express.Multer.File,
-  }) as Request;
+      path: "uploads/image.jpg",
+      filename: "image.jpg",
+    },
+  } as Request;
+}
 
-const createResponse = () => {
+function createResponse() {
   const status = vi.fn();
   const json = vi.fn();
   const response = { status, json };
@@ -98,129 +43,155 @@ const createResponse = () => {
     status,
     json,
   };
-};
+}
 
-describe("image pixel budget", () => {
-  beforeEach(() => { vi.clearAllMocks(); });
-
-  it.each([jpgToPng, pngToJpg, jpgToPdf])("rejects oversized dimensions before conversion", async (convert) => {
-    sharpMocks.metadata.mockResolvedValueOnce({ width: 10_000, height: 10_000 });
-    const { response, status } = createResponse();
-    await convert(createRequest({}), response);
-    expect(status).toHaveBeenCalledWith(400);
-    expect(sharpMocks.toFile).not.toHaveBeenCalled();
-    expect(pdfMocks.PDFDocument).not.toHaveBeenCalled();
-  });
-
-  it("allows an image exactly at the pixel limit", async () => {
-    sharpMocks.metadata.mockResolvedValueOnce({ width: 8_000, height: 5_000 });
-    const { response, status } = createResponse();
-    await jpgToPng(createRequest({}), response);
-    expect(status).toHaveBeenCalledWith(200);
-    expect(sharpMocks.sharp).toHaveBeenCalledWith("uploads/image.png", { limitInputPixels: MAX_IMAGE_PIXELS });
-  });
+beforeEach(() => {
+  vi.resetAllMocks();
+  mocks.jpgToPng.mockResolvedValue(undefined);
+  mocks.pngToJpg.mockResolvedValue(undefined);
+  mocks.jpgToPdf.mockResolvedValue(undefined);
 });
 
-describe("pngToJpg", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+describe("image controllers", () => {
+  it.each([
+    { controller: jpgToPng, engine: mocks.jpgToPng },
+    { controller: pngToJpg, engine: mocks.pngToJpg },
+    { controller: jpgToPdf, engine: mocks.jpgToPdf },
+  ])(
+    "rejects a missing file before calling $controller.name",
+    async ({ controller, engine }) => {
+      const request = { body: {} } as Request;
+      const { response, status } = createResponse();
+
+      await controller(request, response);
+
+      expect(status).toHaveBeenCalledWith(400);
+      expect(engine).not.toHaveBeenCalled();
+    },
+  );
+
+  it("delegates JPG to PNG and returns its output", async () => {
+    const { response, status, json } = createResponse();
+
+    await jpgToPng(createRequest({}), response);
+
+    expect(mocks.jpgToPng).toHaveBeenCalledExactlyOnceWith(
+      "uploads/image.jpg",
+      expect.stringMatching(/image\.png$/),
+    );
+    expect(status).toHaveBeenCalledWith(200);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true }),
+    );
   });
 
-  it("passes validated settings to Sharp", async () => {
-    const request = createRequest({
-      quality: "95",
-      backgroundColor: "#000000",
-    });
+  it("passes coerced PNG to JPG settings to the engine", async () => {
     const { response, status } = createResponse();
 
-    await pngToJpg(request, response);
+    await pngToJpg(
+      createRequest({
+        quality: "95",
+        backgroundColor: "#000000",
+      }),
+      response,
+    );
 
-    expect(sharpMocks.sharp).toHaveBeenCalledWith("uploads/image.png", { limitInputPixels: MAX_IMAGE_PIXELS });
-    expect(sharpMocks.flatten).toHaveBeenCalledWith({
-      background: "#000000",
-    });
-    expect(sharpMocks.jpeg).toHaveBeenCalledWith({
-      quality: 95,
-    });
-    expect(sharpMocks.toFile).toHaveBeenCalledWith(
+    expect(mocks.pngToJpg).toHaveBeenCalledExactlyOnceWith(
+      "uploads/image.jpg",
       expect.stringMatching(/image\.jpg$/),
+      { quality: 95, backgroundColor: "#000000" },
     );
     expect(status).toHaveBeenCalledWith(200);
   });
 
-  it("rejects invalid settings without starting Sharp", async () => {
-    const request = createRequest({
-      quality: "101",
-      backgroundColor: "#ffffff",
-    });
-    const { response, status, json } = createResponse();
-
-    await pngToJpg(request, response);
-
-    expect(sharpMocks.sharp).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(400);
-    expect(json).toHaveBeenCalledWith({
-      success: false,
-      error: "Invalid conversion settings.",
-      code: "conversion-failed",
-    });
-  });
-});
-
-describe("jpgToPdf", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("creates an A3 PDF with the validated landscape orientation", async () => {
-    const request = createRequest({
-      pageSize: "A3",
-      pageOrientation: "landscape",
-    });
-    const { response, status } = createResponse();
-
-    await jpgToPdf(request, response);
-
-    expect(pdfMocks.PDFDocument).toHaveBeenCalledWith({
-      autoFirstPage: false,
-    });
-    expect(pdfMocks.addPage).toHaveBeenCalledWith({
-      size: "A3",
-      layout: "landscape",
-    });
-    expect(status).toHaveBeenCalledWith(200);
-  });
-
-  it("rejects invalid settings without creating a PDF document", async () => {
-    const request = createRequest({
-      pageOrientation: "sideways",
-    });
-    const { response, status, json } = createResponse();
-
-    await jpgToPdf(request, response);
-
-    expect(pdfMocks.PDFDocument).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(400);
-    expect(json).toHaveBeenCalledWith({
-      success: false,
-      error: "Invalid conversion settings.",
-      code: "conversion-failed",
-    });
-  });
-
-  it("fits the image inside the selected A3 page margins", async () => {
-    const request = createRequest({
-      pageSize: "A3",
-      pageOrientation: "landscape",
-    });
+  it("preserves default PNG to JPG settings", async () => {
     const { response } = createResponse();
 
-    await jpgToPdf(request, response);
+    await pngToJpg(createRequest({}), response);
 
-    expect(pdfMocks.image).toHaveBeenCalledWith("uploads/image.png", {
-      fit: [1118.55, 769.89],
-      align: "center",
-      valign: "center",
+    expect(mocks.pngToJpg).toHaveBeenCalledExactlyOnceWith(
+      "uploads/image.jpg",
+      expect.any(String),
+      { quality: 85, backgroundColor: "#ffffff" },
+    );
+  });
+
+  it("rejects invalid PNG settings before calling the engine", async () => {
+    const { response, status, json } = createResponse();
+
+    await pngToJpg(createRequest({ quality: "101" }), response);
+
+    expect(mocks.pngToJpg).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      error: "Invalid conversion settings.",
+      code: "conversion-failed",
+    });
+  });
+
+  it("passes A3 landscape settings and returns PDF success", async () => {
+    const { response, status, json } = createResponse();
+
+    await jpgToPdf(
+      createRequest({
+        pageSize: "A3",
+        pageOrientation: "landscape",
+      }),
+      response,
+    );
+
+    expect(mocks.jpgToPdf).toHaveBeenCalledExactlyOnceWith(
+      "uploads/image.jpg",
+      expect.stringMatching(/image\.pdf$/),
+      { pageSize: "A3", pageOrientation: "landscape" },
+    );
+    expect(status).toHaveBeenCalledWith(200);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true }),
+    );
+  });
+
+  it("preserves default PDF page settings", async () => {
+    const { response } = createResponse();
+
+    await jpgToPdf(createRequest({}), response);
+
+    expect(mocks.jpgToPdf).toHaveBeenCalledExactlyOnceWith(
+      "uploads/image.jpg",
+      expect.any(String),
+      { pageSize: "A4", pageOrientation: "portrait" },
+    );
+  });
+
+  it.each([{ pageOrientation: "sideways" }, { pageSize: "A5" }])(
+    "rejects invalid PDF settings: %j",
+    async (settings) => {
+      const { response, status, json } = createResponse();
+
+      await jpgToPdf(createRequest(settings), response);
+
+      expect(mocks.jpgToPdf).not.toHaveBeenCalled();
+      expect(status).toHaveBeenCalledWith(400);
+      expect(json).toHaveBeenCalledWith({
+        success: false,
+        error: "Invalid conversion settings.",
+        code: "conversion-failed",
+      });
+    },
+  );
+
+  it("returns an HTTP error when PDF conversion fails", async () => {
+    mocks.jpgToPdf.mockRejectedValue(new Error("PDF creation failed."));
+    const { response, status, json } = createResponse();
+
+    await jpgToPdf(createRequest({}), response);
+
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      error: "PDF creation failed.",
+      code: "conversion-failed",
     });
   });
 });

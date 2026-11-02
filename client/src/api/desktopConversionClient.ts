@@ -40,7 +40,13 @@ export async function convertDesktopFile(
     throw new Error("File size does not match the response.");
   }
 
-  const extension = request.conversion === "jpg-to-png" ? ".png" : ".jpg";
+  const extensions = {
+    "jpg-to-png": ".png",
+    "png-to-jpg": ".jpg",
+    "jpg-to-pdf": ".pdf",
+  } satisfies Record<StartConversionRequest["conversion"], string>;
+
+  const extension = extensions[request.conversion];
   const outputName = inputName.replace(/\.[^.]+$/, "") + extension;
 
   const file = new File([blob], outputName, {

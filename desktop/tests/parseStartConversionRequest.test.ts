@@ -90,7 +90,7 @@ describe("parseStartConversionRequest", () => {
     expect(() =>
       parseStartConversionRequest({
         sourceId: "source-123",
-        conversion: "jpg-to-pdf",
+        conversion: "unsupported",
       }),
     ).toThrow("Unsupported conversion.");
   });
@@ -118,5 +118,62 @@ describe("parseStartConversionRequest", () => {
         options,
       }),
     ).toThrow("Invalid PNG to JPG options.");
+  });
+
+  it("returns a JPG to PDF request containing only validated fields", () => {
+    const input = {
+      sourceId: "source-123",
+      conversion: "jpg-to-pdf",
+      options: {
+        pageSize: "A3",
+        pageOrientation: "landscape",
+        extra: "ignored",
+      },
+      extra: "ignored",
+    };
+
+    const result = parseStartConversionRequest(input);
+
+    expect(result).toEqual({
+      sourceId: "source-123",
+      conversion: "jpg-to-pdf",
+      options: {
+        pageSize: "A3",
+        pageOrientation: "landscape",
+      },
+    });
+    expect(result).not.toBe(input);
+
+    if (result.conversion !== "jpg-to-pdf") {
+      throw new Error("Expected JPG to PDF request.");
+    }
+
+    expect(result.options).not.toBe(input.options);
+  });
+
+  it("rejects JPG to PDF without options", () => {
+    expect(() =>
+      parseStartConversionRequest({
+        sourceId: "source-123",
+        conversion: "jpg-to-pdf",
+      }),
+    ).toThrow("Missing options for JPG to PDF conversion.");
+  });
+
+  it.each([
+    null,
+    {},
+    { pageSize: "A3" },
+    { pageOrientation: "landscape" },
+    { pageSize: "A5", pageOrientation: "portrait" },
+    { pageSize: "A4", pageOrientation: "sideways" },
+  ])("rejects invalid JPG to PDF options: %j", (options) => {
+    expect(() =>
+      parseStartConversionRequest({
+        sourceId: "source-123",
+        conversion: "jpg-to-pdf",
+        options,
+      }),
+    ).toThrow("Invalid PDF page options.");
   });
 });

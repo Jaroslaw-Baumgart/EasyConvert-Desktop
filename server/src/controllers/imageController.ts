@@ -1,9 +1,6 @@
 import { Request, Response } from "express";
 import path from "path";
-import sharp from "sharp";
-import PDFDocument from "pdfkit";
-import { MAX_IMAGE_PIXELS, OUTPUT_DIR } from "../utils/constants";
-import fs from "fs";
+import { OUTPUT_DIR } from "../utils/constants";
 import {
   createOutputFileItem,
   sendErrorResponse,
@@ -15,10 +12,8 @@ import {
 } from "../schemas/conversionSettings";
 import { convertJpgToPng } from "../../../conversion-core/image/convertJpgToPng";
 import { convertPngToJpg } from "../../../conversion-core/image/convertPngToJpg";
-import {
-  ImagePixelLimitError,
-  validateImagePixels,
-} from "../../../conversion-core/image/imageLimits";
+import { ImagePixelLimitError } from "../../../conversion-core/image/imageLimits";
+import { convertJpgToPdf } from "../../../conversion-core/image/convertJpgToPdf";
 
 const getBaseFileName = (file: Express.Multer.File) => {
   return path.parse(file.filename).name;
@@ -98,24 +93,7 @@ export const jpgToPdf = async (req: Request, res: Response) => {
     }
     const settings = settingsResult.data;
 
-    await validateImagePixels(req.file.path);
-    const doc = new PDFDocument({ autoFirstPage: false });
-    doc.addPage({ size: settings.pageSize, layout: settings.pageOrientation });
-    const pageMargin = 36;
-    const imageWidth = doc.page.width - pageMargin * 2;
-    const imageHeight = doc.page.height - pageMargin * 2;
-    doc.image(req.file.path, {
-      fit: [imageWidth, imageHeight],
-      align: "center",
-      valign: "center",
-    });
-
-    await new Promise<void>((resolve, reject) => {
-      const stream = doc.pipe(fs.createWriteStream(outputPath));
-      stream.on("finish", resolve);
-      stream.on("error", reject);
-      doc.end();
-    });
+    await convertJpgToPdf(req.file.path, outputPath, settings);
 
     sendSuccessResponse(res, [createOutputFileItem(outputName)]);
   } catch (err: unknown) {

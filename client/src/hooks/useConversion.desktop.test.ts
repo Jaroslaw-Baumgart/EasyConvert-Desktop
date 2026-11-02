@@ -339,4 +339,54 @@ describe("desktop useConversion", () => {
     expect(result.current.file).toBeNull();
     expect(result.current.isRemoving).toBe(false);
   });
+
+  it("passes JPG to PDF page settings to the desktop adapter", async () => {
+    const { api, result, file } = setup();
+    const output: ConvertedResults = [
+      {
+        url: "app://easyconvert/preview/result/result-pdf",
+        file: new File(["pdf"], "photo.pdf", {
+          type: "application/pdf",
+        }),
+      },
+    ];
+
+    vi.mocked(convertDesktopFile).mockResolvedValue(output);
+
+    act(() => {
+      result.current.selectFile(file, "source-1");
+    });
+
+    await act(async () => {
+      await result.current.convert(
+        {
+          conversionType: "jpg-to-pdf",
+          sourceFormat: "jpg",
+          targetFormat: "pdf",
+          disabled: false,
+        },
+        {
+          pageSize: "A3",
+          pageOrientation: "landscape",
+        },
+      );
+    });
+
+    expect(convertDesktopFile).toHaveBeenCalledExactlyOnceWith(
+      api,
+      {
+        sourceId: "source-1",
+        conversion: "jpg-to-pdf",
+        options: {
+          pageSize: "A3",
+          pageOrientation: "landscape",
+        },
+      },
+      "photo.jpg",
+      expect.any(AbortSignal),
+    );
+    expect(convertFile).not.toHaveBeenCalled();
+    expect(result.current.convertedResults).toBe(output);
+    expect(result.current.isConverting).toBe(false);
+  });
 });

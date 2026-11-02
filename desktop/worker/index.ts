@@ -3,6 +3,8 @@ import { convertLibreOfficeToPdf } from "../../conversion-core/office/convertLib
 import { pdfToImages } from "../../conversion-core/pdf/poppler";
 import { convertPngToJpg } from "../../conversion-core/image/convertPngToJpg";
 import { parsePngToJpgOptions } from "../../conversion-core/image/parsePngToJpgOptions";
+import { convertJpgToPdf } from "../../conversion-core/image/convertJpgToPdf";
+import { parsePdfPageOptions } from "../../conversion-core/image/parsePdfPageOptions";
 
 async function run(): Promise<void> {
   const [conversion, inputPath, outputPath, conversionArgument] =
@@ -42,6 +44,15 @@ async function run(): Promise<void> {
     const options = parsePngToJpgOptions(value);
 
     await convertPngToJpg(inputPath, outputPath, options);
+  } else if (conversion === "jpg-to-pdf") {
+    if (!conversionArgument) {
+      throw new Error("Expected JPG to PDF options.");
+    }
+
+    const value: unknown = JSON.parse(conversionArgument);
+    const options = parsePdfPageOptions(value);
+
+    await convertJpgToPdf(inputPath, outputPath, options);
   } else {
     throw new Error("Unsupported probe conversion.");
   }

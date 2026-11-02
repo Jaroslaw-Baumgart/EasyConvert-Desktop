@@ -53,6 +53,27 @@ const cases: {
       }),
     ],
   },
+  {
+    request: {
+      sourceId: "source-123",
+      conversion: "jpg-to-pdf",
+      options: {
+        pageSize: "A3",
+        pageOrientation: "landscape",
+      },
+    },
+    inputPath: "C:/input/photo.jpg",
+    outputPath: "C:/output/result.pdf",
+    expectedArgs: [
+      "jpg-to-pdf",
+      "C:/input/photo.jpg",
+      "C:/output/result.pdf",
+      JSON.stringify({
+        pageSize: "A3",
+        pageOrientation: "landscape",
+      }),
+    ],
+  },
 ];
 
 describe("runImageWorker", () => {
