@@ -5,9 +5,10 @@ import { convertPngToJpg } from "../../conversion-core/image/convertPngToJpg";
 import { parsePngToJpgOptions } from "../../conversion-core/image/parsePngToJpgOptions";
 import { convertJpgToPdf } from "../../conversion-core/image/convertJpgToPdf";
 import { parsePdfPageOptions } from "../../conversion-core/image/parsePdfPageOptions";
+import { convertTxtToPdf } from "../../conversion-core/pdf/convertTxtToPdf";
 
 async function run(): Promise<void> {
-  const [conversion, inputPath, outputPath, conversionArgument] =
+  const [conversion, inputPath, outputPath, conversionArgument, fontPath] =
     process.argv.slice(2);
 
   if (!inputPath || !outputPath) {
@@ -53,6 +54,19 @@ async function run(): Promise<void> {
     const options = parsePdfPageOptions(value);
 
     await convertJpgToPdf(inputPath, outputPath, options);
+  } else if (conversion === "txt-to-pdf") {
+    if (!conversionArgument) {
+      throw new Error("Expected TXT to PDF options.");
+    }
+
+    if (!fontPath) {
+      throw new Error("Expected a font path for TXT to PDF conversion.");
+    }
+
+    const value: unknown = JSON.parse(conversionArgument);
+    const options = parsePdfPageOptions(value);
+
+    await convertTxtToPdf(inputPath, outputPath, options, fontPath);
   } else {
     throw new Error("Unsupported probe conversion.");
   }

@@ -389,4 +389,57 @@ describe("desktop useConversion", () => {
     expect(result.current.convertedResults).toBe(output);
     expect(result.current.isConverting).toBe(false);
   });
+
+  it("passes TXT to PDF page settings to the desktop adapter", async () => {
+    const { api, result } = setup();
+    const file = new File(["Zażółć gęślą jaźń"], "polski-tekst.txt", {
+      type: "text/plain",
+    });
+    const output: ConvertedResults = [
+      {
+        url: "app://easyconvert/preview/result/result-txt",
+        file: new File(["pdf"], "polski-tekst.pdf", {
+          type: "application/pdf",
+        }),
+      },
+    ];
+
+    vi.mocked(convertDesktopFile).mockResolvedValue(output);
+
+    act(() => {
+      result.current.selectFile(file, "source-txt");
+    });
+
+    await act(async () => {
+      await result.current.convert(
+        {
+          conversionType: "txt-to-pdf",
+          sourceFormat: "txt",
+          targetFormat: "pdf",
+          disabled: false,
+        },
+        {
+          pageSize: "A3",
+          pageOrientation: "landscape",
+        },
+      );
+    });
+
+    expect(convertDesktopFile).toHaveBeenCalledExactlyOnceWith(
+      api,
+      {
+        sourceId: "source-txt",
+        conversion: "txt-to-pdf",
+        options: {
+          pageSize: "A3",
+          pageOrientation: "landscape",
+        },
+      },
+      "polski-tekst.txt",
+      expect.any(AbortSignal),
+    );
+    expect(convertFile).not.toHaveBeenCalled();
+    expect(result.current.convertedResults).toBe(output);
+    expect(result.current.isConverting).toBe(false);
+  });
 });

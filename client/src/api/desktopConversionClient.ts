@@ -44,6 +44,7 @@ export async function convertDesktopFile(
     "jpg-to-png": ".png",
     "png-to-jpg": ".jpg",
     "jpg-to-pdf": ".pdf",
+    "txt-to-pdf": ".pdf",
   } satisfies Record<StartConversionRequest["conversion"], string>;
 
   const extension = extensions[request.conversion];

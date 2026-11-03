@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
-import fsSync from "fs";
-import PDFDocument from "pdfkit";
 import fs from "fs/promises";
 import path from "path";
-import { pdfToImages, runPoppler, validatePdfPageCount } from "../utils/poppler";
+import {
+  pdfToImages,
+  runPoppler,
+  validatePdfPageCount,
+} from "../utils/poppler";
 import { OUTPUT_DIR } from "../utils/constants";
 import {
   createOutputFileItem,
@@ -11,7 +13,7 @@ import {
   sendSuccessResponse,
 } from "../utils/response";
 import { pdfPageSettingsSchema } from "../schemas/conversionSettings";
-import { limitPdfPages } from "../utils/pdfLimits";
+import { convertTxtToPdf } from "../../../conversion-core/pdf/convertTxtToPdf";
 
 const getBaseFileName = (file: Express.Multer.File) => {
   return path.parse(file.filename).name;
@@ -38,9 +40,9 @@ export const pdfToJpg = async (req: Request, res: Response) => {
       await pdfToImages(pdfPath, outputSubdir);
     }
 
-    const jpgFiles = (await fs.readdir(outputSubdir)).filter((f) =>
-      f.endsWith(".jpg"),
-    ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const jpgFiles = (await fs.readdir(outputSubdir))
+      .filter((f) => f.endsWith(".jpg"))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
     const files = jpgFiles.map((name) => ({
       url: `/output/${baseName}/${name}`,
@@ -117,21 +119,12 @@ export const txtToPdf = async (req: Request, res: Response) => {
     }
     const settings = settingsResult.data;
 
-    const text = await fs.readFile(file.path, "utf8");
-
-    const doc = new PDFDocument({
-      size: settings.pageSize,
-      layout: settings.pageOrientation,
-    });
-    limitPdfPages(doc);
-    doc.font(path.join(__dirname, "../assets/fonts/NotoSans-Regular.ttf"));
-    doc.fontSize(12).text(text, { align: "left" });
-    await new Promise<void>((resolve, reject) => {
-      const stream = doc.pipe(fsSync.createWriteStream(outputPath));
-      stream.on("finish", resolve);
-      stream.on("error", reject);
-      doc.end();
-    });
+    await convertTxtToPdf(
+      file.path,
+      outputPath,
+      settings,
+      path.join(__dirname, "../../../assets/fonts/NotoSans-Regular.ttf"),
+    );
 
     return sendSuccessResponse(res, [createOutputFileItem(outputName)]);
   } catch (err: unknown) {

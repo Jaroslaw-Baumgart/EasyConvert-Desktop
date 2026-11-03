@@ -1,8 +1,8 @@
-import { utilityProcess } from "electron";
+import { app, utilityProcess } from "electron";
 import path from "node:path";
 import type { StartConversionRequest } from "../../shared/desktopContract";
 
-export function runImageWorker(
+export function runConversionWorker(
   inputPath: string,
   outputPath: string,
   request: StartConversionRequest,
@@ -12,10 +12,23 @@ export function runImageWorker(
 
     if (
       request.conversion === "png-to-jpg" ||
-      request.conversion === "jpg-to-pdf"
+      request.conversion === "jpg-to-pdf" ||
+      request.conversion === "txt-to-pdf"
     ) {
       args.push(JSON.stringify(request.options));
     }
+
+    if (request.conversion === "txt-to-pdf") {
+      const fontPath = app.isPackaged
+        ? path.join(process.resourcesPath, "fonts/NotoSans-Regular.ttf")
+        : path.resolve(
+            __dirname,
+            "../../../assets/fonts/NotoSans-Regular.ttf",
+          );
+
+      args.push(fontPath);
+    }
+
     const worker = utilityProcess.fork(
       path.join(__dirname, "../worker/index.js"),
       args,

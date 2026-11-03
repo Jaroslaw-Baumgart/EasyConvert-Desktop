@@ -26,7 +26,8 @@ export interface EasyConvertApi {
 export type StartConversionRequest =
   | { sourceId: string; conversion: "jpg-to-png" }
   | { sourceId: string; conversion: "png-to-jpg"; options: PngToJpgOptions }
-  | { sourceId: string; conversion: "jpg-to-pdf"; options: PdfPageOptions };
+  | { sourceId: string; conversion: "jpg-to-pdf"; options: PdfPageOptions }
+  | { sourceId: string; conversion: "txt-to-pdf"; options: PdfPageOptions };
 
 export type StartConversionResponse = {
   jobId: string;

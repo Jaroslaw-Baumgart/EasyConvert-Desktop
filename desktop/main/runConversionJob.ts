@@ -3,7 +3,7 @@ import { mkdtemp, stat } from "node:fs/promises";
 import path from "node:path";
 import { failJob, getJobState, succeedJob } from "./jobRegistry";
 import { registerResult } from "./resultRegistry";
-import { runImageWorker } from "./runImageWorker";
+import { runConversionWorker } from "./runConversionWorker";
 import type { StartConversionRequest } from "../../shared/desktopContract";
 
 export async function runConversionJob(
@@ -21,13 +21,14 @@ export async function runConversionJob(
       "jpg-to-png": "result.png",
       "png-to-jpg": "result.jpg",
       "jpg-to-pdf": "result.pdf",
+      "txt-to-pdf": "result.pdf",
     } satisfies Record<StartConversionRequest["conversion"], string>;
 
     const outputName = outputNames[request.conversion];
 
     const outputPath = path.join(directory, outputName);
 
-    await runImageWorker(inputPath, outputPath, request);
+    await runConversionWorker(inputPath, outputPath, request);
 
     const metadata = await stat(outputPath);
 

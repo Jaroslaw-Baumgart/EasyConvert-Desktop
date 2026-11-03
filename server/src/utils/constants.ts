@@ -9,7 +9,7 @@ export const LIBRE_OFFICE_PATH =
 export const LIBRE_OFFICE_TIMEOUT_MS = 2 * 60 * 1000;
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 export { MAX_IMAGE_PIXELS } from "../../../conversion-core/image/imageLimits";
-export const MAX_PDF_PAGES = 100;
+export { MAX_PDF_PAGES } from "../../../conversion-core/pdf/pdfLimits";
 export const MAX_OFFICE_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
 export const MAX_OFFICE_ENTRIES = 2000;
 export const MAX_CSV_ROWS = 10000;

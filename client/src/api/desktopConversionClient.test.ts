@@ -302,4 +302,28 @@ describe("convertDesktopFile", () => {
     expect(results[0].file.type).toBe("application/pdf");
     expect(await readFile(results[0].file)).toBe("pdf");
   });
+
+  it("passes TXT page settings and returns a PDF file", async () => {
+    const { api, response } = setup();
+    const request: StartConversionRequest = {
+      sourceId: "source-txt",
+      conversion: "txt-to-pdf",
+      options: {
+        pageSize: "A3",
+        pageOrientation: "landscape",
+      },
+    };
+
+    response.blob.mockResolvedValue(
+      new Blob(["pdf"], { type: "application/pdf" }),
+    );
+
+    const results = await convertDesktopFile(api, request, "polski.tekst.txt");
+
+    expect(api.startConversion).toHaveBeenCalledExactlyOnceWith(request);
+    expect(results).toHaveLength(1);
+    expect(results[0].file.name).toBe("polski.tekst.pdf");
+    expect(results[0].file.type).toBe("application/pdf");
+    expect(await readFile(results[0].file)).toBe("pdf");
+  });
 });

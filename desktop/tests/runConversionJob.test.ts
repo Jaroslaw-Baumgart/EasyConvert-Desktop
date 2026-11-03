@@ -19,8 +19,8 @@ vi.mock("node:fs/promises", () => ({
   stat: mocks.stat,
 }));
 
-vi.mock("../main/runImageWorker", () => ({
-  runImageWorker: mocks.runWorker,
+vi.mock("../main/runConversionWorker", () => ({
+  runConversionWorker: mocks.runWorker,
 }));
 
 const jpgRequest: StartConversionRequest = {
@@ -60,6 +60,18 @@ const successCases: {
       },
     },
     inputPath: "C:/input/photo.jpg",
+    outputName: "result.pdf",
+  },
+  {
+    request: {
+      sourceId: "source-123",
+      conversion: "txt-to-pdf",
+      options: {
+        pageSize: "A3",
+        pageOrientation: "landscape",
+      },
+    },
+    inputPath: "C:/input/document.txt",
     outputName: "result.pdf",
   },
 ];

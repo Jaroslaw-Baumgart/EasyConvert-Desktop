@@ -1,0 +1,22 @@
+TEST KONWERSJI TXT → PDF
+
+Polskie znaki
+Zażółć gęślą jaźń.
+Ąą Ćć Ęę Łł Ńń Óó Śś Źź Żż
+Pchnąć w tę łódź jeża lub ośm skrzyń fig.
+
+Podział na akapity
+To jest pierwszy akapit. Tekst powinien być czytelny, a polskie litery nie powinny znikać ani zmieniać się w puste prostokąty.
+
+To jest drugi akapit, oddzielony pustą linią. Sprawdź, czy odstęp między akapitami został zachowany w podglądzie oraz w pobranym pliku PDF.
+
+Zawijanie długiej linii
+Ta linia celowo zawiera dłuższy opis: użytkownik wybiera lokalny plik tekstowy, ustawia rozmiar strony i jej orientację, uruchamia konwersję, ogląda podgląd wyniku, a następnie zapisuje dokument. Całe zdanie powinno zawijać się wewnątrz marginesów strony, bez ucinania końcowych słów i bez wychodzenia poza prawą krawędź. Sprawdź zachowanie zarówno dla A4 pionowo, jak i dla A3 poziomo.
+
+Liczby i znaki interpunkcyjne
+0123456789
+Cena: 123,45 zł. Data: 2026-11-03.
+Nawiasy: (tekst), [tekst], {tekst}.
+Cudzysłowy: „Zażółć gęślą jaźń”.
+
+KONIEC PLIKU — ta linia również powinna być widoczna.

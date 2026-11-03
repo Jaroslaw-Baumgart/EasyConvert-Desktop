@@ -78,12 +78,12 @@ export const csvToPdf = async (req: Request, res: Response) => {
 
     const regularFontPath = path.join(
       __dirname,
-      "../assets/fonts/NotoSans-Regular.ttf",
+      "../../../assets/fonts/NotoSans-Regular.ttf",
     );
 
     const boldFontPath = path.join(
       __dirname,
-      "../assets/fonts/NotoSans-Bold.ttf",
+      "../../../assets/fonts/NotoSans-Bold.ttf",
     );
 
     await renderCsvTable({

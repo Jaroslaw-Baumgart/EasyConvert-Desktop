@@ -21,7 +21,7 @@ extraResources:
     filter:
       - "**/*"
 
-  - from: server/src/assets/fonts
+  - from: assets/fonts
     to: fonts
     filter:
       - "**/*"

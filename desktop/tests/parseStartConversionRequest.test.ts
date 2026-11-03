@@ -176,4 +176,61 @@ describe("parseStartConversionRequest", () => {
       }),
     ).toThrow("Invalid PDF page options.");
   });
+
+  it("returns a TXT to PDF request containing only validated fields", () => {
+    const input = {
+      sourceId: "source-123",
+      conversion: "txt-to-pdf",
+      options: {
+        pageSize: "A3",
+        pageOrientation: "landscape",
+        extra: "ignored",
+      },
+      extra: "ignored",
+    };
+
+    const result = parseStartConversionRequest(input);
+
+    expect(result).toEqual({
+      sourceId: "source-123",
+      conversion: "txt-to-pdf",
+      options: {
+        pageSize: "A3",
+        pageOrientation: "landscape",
+      },
+    });
+    expect(result).not.toBe(input);
+
+    if (result.conversion !== "txt-to-pdf") {
+      throw new Error("Expected TXT to PDF request.");
+    }
+
+    expect(result.options).not.toBe(input.options);
+  });
+
+  it("rejects TXT to PDF without options", () => {
+    expect(() =>
+      parseStartConversionRequest({
+        sourceId: "source-123",
+        conversion: "txt-to-pdf",
+      }),
+    ).toThrow("Missing options for TXT to PDF conversion.");
+  });
+
+  it.each([
+    null,
+    {},
+    { pageSize: "A3" },
+    { pageOrientation: "landscape" },
+    { pageSize: "A5", pageOrientation: "portrait" },
+    { pageSize: "A4", pageOrientation: "sideways" },
+  ])("rejects invalid TXT to PDF options: %j", (options) => {
+    expect(() =>
+      parseStartConversionRequest({
+        sourceId: "source-123",
+        conversion: "txt-to-pdf",
+        options,
+      }),
+    ).toThrow("Invalid PDF page options.");
+  });
 });

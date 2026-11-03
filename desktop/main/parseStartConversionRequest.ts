@@ -46,9 +46,12 @@ export function parseStartConversionRequest(
     };
   }
 
-  if (value.conversion === "jpg-to-pdf") {
+  if (value.conversion === "jpg-to-pdf" || value.conversion === "txt-to-pdf") {
     if (!("options" in value)) {
-      throw new Error("Missing options for JPG to PDF conversion.");
+      const conversionName =
+        value.conversion === "jpg-to-pdf" ? "JPG to PDF" : "TXT to PDF";
+
+      throw new Error(`Missing options for ${conversionName} conversion.`);
     }
 
     return {

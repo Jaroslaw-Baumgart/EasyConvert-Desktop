@@ -258,8 +258,18 @@ function createWindow(): void {
     window.webContents.on("before-input-event", (event, input) => {
       if (input.type !== "keyDown" || input.isAutoRepeat) return;
 
-      const isF12 = input.key === "F12" && !input.control && !input.shift && !input.alt && !input.meta;
-      const isCtrlShiftI = input.control && input.shift && input.key.toLowerCase() === "i" && !input.alt && !input.meta;
+      const isF12 =
+        input.key === "F12" &&
+        !input.control &&
+        !input.shift &&
+        !input.alt &&
+        !input.meta;
+      const isCtrlShiftI =
+        input.control &&
+        input.shift &&
+        input.key.toLowerCase() === "i" &&
+        !input.alt &&
+        !input.meta;
 
       if (isF12 || isCtrlShiftI) {
         event.preventDefault();

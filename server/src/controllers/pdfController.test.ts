@@ -1,76 +1,28 @@
 import type { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => {
-  const readFile = vi.fn().mockResolvedValue("example text");
-
-  const stream = {
-    on: vi.fn((event: string, callback: () => void) => {
-      if (event === "finish") {
-        callback();
-      }
-
-      return stream;
-    }),
-  };
-
-  const createWriteStream = vi.fn(() => stream);
-  const text = vi.fn();
-  const fontSize = vi.fn(() => ({ text }));
-  const font = vi.fn();
-  const pipe = vi.fn(() => stream);
-  const end = vi.fn();
-
-  const PDFDocument = vi.fn(function PDFDocumentMock() {
-    return {
-      pipe,
-      fontSize,
-      font,
-      end,
-    };
-  });
-
-  return {
-    readFile,
-    createWriteStream,
-    text,
-    fontSize,
-    font,
-    pipe,
-    end,
-    PDFDocument,
-  };
-});
-
-vi.mock("fs/promises", () => ({
-  default: {
-    readFile: mocks.readFile,
-  },
+const mocks = vi.hoisted(() => ({
+  convertTxtToPdf: vi.fn(),
 }));
 
-vi.mock("fs", () => ({
-  default: {
-    createWriteStream: mocks.createWriteStream,
-  },
-}));
-
-vi.mock("pdfkit", () => ({
-  default: mocks.PDFDocument,
+vi.mock("../../../conversion-core/pdf/convertTxtToPdf", () => ({
+  convertTxtToPdf: mocks.convertTxtToPdf,
 }));
 
 import { txtToPdf } from "./pdfController";
 
-const createRequest = (body: unknown): Request =>
-  ({
+function createRequest(body: unknown): Request {
+  return {
     body,
     file: {
       path: "uploads/document.txt",
       filename: "document.txt",
       originalname: "document.txt",
-    } as Express.Multer.File,
-  }) as Request;
+    },
+  } as Request;
+}
 
-const createResponse = () => {
+function createResponse() {
   const status = vi.fn();
   const json = vi.fn();
   const response = { status, json };
@@ -82,48 +34,114 @@ const createResponse = () => {
     status,
     json,
   };
-};
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  mocks.convertTxtToPdf.mockResolvedValue(undefined);
+});
 
 describe("txtToPdf", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  it("passes page settings and the font path to the engine", async () => {
+    const { response, status, json } = createResponse();
+
+    await txtToPdf(
+      createRequest({
+        pageSize: "A3",
+        pageOrientation: "landscape",
+      }),
+      response,
+    );
+
+    expect(mocks.convertTxtToPdf).toHaveBeenCalledExactlyOnceWith(
+      "uploads/document.txt",
+      expect.stringMatching(/document\.pdf$/),
+      {
+        pageSize: "A3",
+        pageOrientation: "landscape",
+      },
+      expect.stringMatching(/[/\\]assets[/\\]fonts[/\\]NotoSans-Regular\.ttf$/),
+    );
+    expect(status).toHaveBeenCalledWith(200);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true }),
+    );
   });
 
-  it("creates an A3 PDF with the validated landscape orientation", async () => {
-    const request = createRequest({
-      pageSize: "A3",
-      pageOrientation: "landscape",
-    });
+  it("preserves default A4 portrait settings", async () => {
+    const { response } = createResponse();
+
+    await txtToPdf(createRequest({}), response);
+
+    expect(mocks.convertTxtToPdf).toHaveBeenCalledExactlyOnceWith(
+      "uploads/document.txt",
+      expect.any(String),
+      {
+        pageSize: "A4",
+        pageOrientation: "portrait",
+      },
+      expect.any(String),
+    );
+  });
+
+  it("rejects a missing file before calling the engine", async () => {
+    const { response, status } = createResponse();
+
+    await txtToPdf({ body: {} } as Request, response);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(mocks.convertTxtToPdf).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unsupported file extension", async () => {
+    const request = createRequest({});
+    request.file!.originalname = "document.csv";
     const { response, status } = createResponse();
 
     await txtToPdf(request, response);
 
-    expect(mocks.readFile).toHaveBeenCalledWith("uploads/document.txt", "utf8");
-    expect(mocks.PDFDocument).toHaveBeenCalledWith({
-      size: "A3",
-      layout: "landscape",
-    });
-    expect(mocks.fontSize).toHaveBeenCalledWith(12);
-    expect(mocks.text).toHaveBeenCalledWith("example text", {
-      align: "left",
-    });
-    expect(status).toHaveBeenCalledWith(200);
+    expect(status).toHaveBeenCalledWith(400);
+    expect(mocks.convertTxtToPdf).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid settings before reading the text file", async () => {
-    const request = createRequest({
-      pageOrientation: "sideways",
-    });
-    const { response, status, json } = createResponse();
+  it("accepts an uppercase TXT extension", async () => {
+    const request = createRequest({});
+    request.file!.originalname = "document.TXT";
+    const { response, status } = createResponse();
 
     await txtToPdf(request, response);
 
-    expect(mocks.readFile).not.toHaveBeenCalled();
-    expect(mocks.PDFDocument).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(400);
+    expect(mocks.convertTxtToPdf).toHaveBeenCalledTimes(1);
+    expect(status).toHaveBeenCalledWith(200);
+  });
+
+  it.each([{ pageOrientation: "sideways" }, { pageSize: "A5" }])(
+    "rejects invalid settings: %j",
+    async (settings) => {
+      const { response, status, json } = createResponse();
+
+      await txtToPdf(createRequest(settings), response);
+
+      expect(mocks.convertTxtToPdf).not.toHaveBeenCalled();
+      expect(status).toHaveBeenCalledWith(400);
+      expect(json).toHaveBeenCalledWith({
+        success: false,
+        error: "Invalid conversion settings.",
+        code: "conversion-failed",
+      });
+    },
+  );
+
+  it("returns an HTTP error when the engine fails", async () => {
+    mocks.convertTxtToPdf.mockRejectedValue(new Error("Could not write PDF."));
+    const { response, status, json } = createResponse();
+
+    await txtToPdf(createRequest({}), response);
+
+    expect(status).toHaveBeenCalledWith(500);
     expect(json).toHaveBeenCalledWith({
       success: false,
-      error: "Invalid conversion settings.",
+      error: "Could not write PDF.",
       code: "conversion-failed",
     });
   });

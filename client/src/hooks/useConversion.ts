@@ -199,13 +199,16 @@ export function useConversion(): UseConversionResult {
               backgroundColor: settings.backgroundColor,
             },
           };
-        } else if (option.conversionType === "jpg-to-pdf") {
+        } else if (
+          option.conversionType === "jpg-to-pdf" ||
+          option.conversionType === "txt-to-pdf"
+        ) {
           if (
             !settings ||
             !("pageSize" in settings) ||
             !("pageOrientation" in settings)
           ) {
-            throw new Error("Missing JPG to PDF settings.");
+            throw new Error("Missing PDF page settings.");
           }
 
           request = {

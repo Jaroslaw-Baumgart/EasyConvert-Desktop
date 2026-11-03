@@ -1,20 +1,47 @@
 import { EventEmitter } from "node:events";
 import path from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { StartConversionRequest } from "../../shared/desktopContract";
 
 const mocks = vi.hoisted(() => ({
   fork: vi.fn(),
+  app: {
+    isPackaged: false,
+    getAppPath: vi.fn(),
+  },
 }));
 
 vi.mock("electron", () => ({
+  app: mocks.app,
   utilityProcess: { fork: mocks.fork },
 }));
 
-import { runImageWorker } from "../main/runImageWorker";
+import { runConversionWorker } from "../main/runConversionWorker";
+
+const originalResourcesPath = Object.getOwnPropertyDescriptor(
+  process,
+  "resourcesPath",
+);
 
 beforeEach(() => {
-  mocks.fork.mockReset();
+  vi.resetAllMocks();
+
+  mocks.app.isPackaged = false;
+  mocks.app.getAppPath.mockReturnValue("C:/projects/EasyConvert");
+
+  Object.defineProperty(process, "resourcesPath", {
+    configurable: true,
+    writable: true,
+    value: "C:/installed/EasyConvert/resources",
+  });
+});
+
+afterEach(() => {
+  if (originalResourcesPath) {
+    Object.defineProperty(process, "resourcesPath", originalResourcesPath);
+  } else {
+    Reflect.deleteProperty(process, "resourcesPath");
+  }
 });
 
 const cases: {
@@ -76,14 +103,14 @@ const cases: {
   },
 ];
 
-describe("runImageWorker", () => {
+describe("runConversionWorker", () => {
   it.each(cases)(
     "starts $request.conversion with its paths and settings",
     async ({ request, inputPath, outputPath, expectedArgs }) => {
       const worker = new EventEmitter();
       mocks.fork.mockReturnValue(worker);
 
-      const completion = runImageWorker(inputPath, outputPath, request);
+      const completion = runConversionWorker(inputPath, outputPath, request);
 
       expect(mocks.fork).toHaveBeenCalledTimes(1);
 
@@ -104,13 +131,71 @@ describe("runImageWorker", () => {
     },
   );
 
+  it.each([
+    {
+      label: "development",
+      isPackaged: false,
+      expectedFontPath: path.resolve(
+        __dirname,
+        "../../../assets/fonts/NotoSans-Regular.ttf",
+      ),
+    },
+    {
+      label: "packaged application",
+      isPackaged: true,
+      expectedFontPath: path.join(
+        "C:/installed/EasyConvert/resources",
+        "fonts/NotoSans-Regular.ttf",
+      ),
+    },
+  ])(
+    "passes TXT settings and the font path for $label",
+    async ({ isPackaged, expectedFontPath }) => {
+      mocks.app.isPackaged = isPackaged;
+
+      const worker = new EventEmitter();
+      mocks.fork.mockReturnValue(worker);
+
+      const completion = runConversionWorker(
+        "C:/input/document.txt",
+        "C:/output/result.pdf",
+        {
+          sourceId: "source-123",
+          conversion: "txt-to-pdf",
+          options: {
+            pageSize: "A3",
+            pageOrientation: "landscape",
+          },
+        },
+      );
+
+      expect(mocks.fork).toHaveBeenCalledTimes(1);
+      expect(mocks.fork.mock.calls[0][1]).toEqual([
+        "txt-to-pdf",
+        "C:/input/document.txt",
+        "C:/output/result.pdf",
+        JSON.stringify({
+          pageSize: "A3",
+          pageOrientation: "landscape",
+        }),
+        expectedFontPath,
+      ]);
+
+      expect(mocks.app.getAppPath).not.toHaveBeenCalled();
+
+      worker.emit("exit", 0);
+
+      await expect(completion).resolves.toBeUndefined();
+    },
+  );
+
   it.each([1, 2])(
     "rejects when the worker exits with code %i",
     async (code) => {
       const worker = new EventEmitter();
       mocks.fork.mockReturnValue(worker);
 
-      const completion = runImageWorker("input.jpg", "result.png", {
+      const completion = runConversionWorker("input.jpg", "result.png", {
         sourceId: "source-123",
         conversion: "jpg-to-png",
       });
@@ -133,7 +218,7 @@ describe("runImageWorker", () => {
     });
 
     await expect(
-      runImageWorker("input.jpg", "result.png", {
+      runConversionWorker("input.jpg", "result.png", {
         sourceId: "source-123",
         conversion: "jpg-to-png",
       }),
