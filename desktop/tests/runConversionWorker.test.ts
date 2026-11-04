@@ -189,6 +189,48 @@ describe("runConversionWorker", () => {
     },
   );
 
+  it.each([false, true])(
+    "passes CSV settings and both fonts when isPackaged=%s",
+    async (isPackaged) => {
+      mocks.app.isPackaged = isPackaged;
+      const worker = new EventEmitter();
+      mocks.fork.mockReturnValue(worker);
+
+      const completion = runConversionWorker(
+        "C:/input/table.csv",
+        "C:/output/result.pdf",
+        {
+          sourceId: "source-csv",
+          conversion: "csv-to-pdf",
+          options: {
+            pageSize: "A3",
+            pageOrientation: "landscape",
+          },
+        },
+      );
+
+      const fontsDirectory = isPackaged
+        ? path.join("C:/installed/EasyConvert/resources", "fonts")
+        : path.resolve(__dirname, "../../../assets/fonts");
+
+      expect(mocks.fork).toHaveBeenCalledTimes(1);
+      expect(mocks.fork.mock.calls[0][1]).toEqual([
+        "csv-to-pdf",
+        "C:/input/table.csv",
+        "C:/output/result.pdf",
+        JSON.stringify({
+          pageSize: "A3",
+          pageOrientation: "landscape",
+        }),
+        path.join(fontsDirectory, "NotoSans-Regular.ttf"),
+        path.join(fontsDirectory, "NotoSans-Bold.ttf"),
+      ]);
+
+      worker.emit("exit", 0);
+      await expect(completion).resolves.toBeUndefined();
+    },
+  );
+
   it.each([1, 2])(
     "rejects when the worker exits with code %i",
     async (code) => {

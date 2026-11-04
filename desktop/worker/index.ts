@@ -6,10 +6,17 @@ import { parsePngToJpgOptions } from "../../conversion-core/image/parsePngToJpgO
 import { convertJpgToPdf } from "../../conversion-core/image/convertJpgToPdf";
 import { parsePdfPageOptions } from "../../conversion-core/image/parsePdfPageOptions";
 import { convertTxtToPdf } from "../../conversion-core/pdf/convertTxtToPdf";
+import { convertCsvToPdf } from "../../conversion-core/pdf/convertCsvToPdf";
 
 async function run(): Promise<void> {
-  const [conversion, inputPath, outputPath, conversionArgument, fontPath] =
-    process.argv.slice(2);
+  const [
+    conversion,
+    inputPath,
+    outputPath,
+    conversionArgument,
+    fontPath,
+    boldFontPath,
+  ] = process.argv.slice(2);
 
   if (!inputPath || !outputPath) {
     throw new Error("Expected input and output file paths.");
@@ -67,6 +74,29 @@ async function run(): Promise<void> {
     const options = parsePdfPageOptions(value);
 
     await convertTxtToPdf(inputPath, outputPath, options, fontPath);
+  } else if (conversion === "csv-to-pdf") {
+    if (!conversionArgument) {
+      throw new Error("Expected CSV to PDF options.");
+    }
+
+    if (!fontPath) {
+      throw new Error("Expected a font path for CSV to PDF conversion.");
+    }
+
+    if (!boldFontPath) {
+      throw new Error("Expected a bold font path for CSV to PDF conversion.");
+    }
+
+    const value: unknown = JSON.parse(conversionArgument);
+    const options = parsePdfPageOptions(value);
+
+    await convertCsvToPdf(
+      inputPath,
+      outputPath,
+      options,
+      fontPath,
+      boldFontPath,
+    );
   } else {
     throw new Error("Unsupported probe conversion.");
   }

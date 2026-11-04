@@ -234,7 +234,7 @@ describe("POST /convert with the real dispatcher", () => {
       .field("conversionType", "csv-to-pdf")
       .attach(
         "file",
-        fsSync.readFileSync(path.resolve(__dirname, "fixtures/sample.csv")),
+        fsSync.readFileSync(path.resolve(__dirname, "../../fixtures/sample.csv")),
         {
           filename: "sample.csv",
           contentType: "text/csv",

@@ -1,7 +1,6 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it } from "vitest";
-import { limitPdfPages } from "./pdfLimits";
-import { MAX_PDF_PAGES } from "./constants";
+import { limitPdfPages, MAX_PDF_PAGES } from "../../pdf/pdfLimits";
 
 describe("PDF output page limit", () => {
   it("stops processing before an excessive number of pages is generated", () => {

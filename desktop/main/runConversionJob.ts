@@ -22,6 +22,7 @@ export async function runConversionJob(
       "png-to-jpg": "result.jpg",
       "jpg-to-pdf": "result.pdf",
       "txt-to-pdf": "result.pdf",
+      "csv-to-pdf": "result.pdf",
     } satisfies Record<StartConversionRequest["conversion"], string>;
 
     const outputName = outputNames[request.conversion];

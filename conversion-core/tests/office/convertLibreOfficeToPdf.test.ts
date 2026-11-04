@@ -8,7 +8,7 @@ vi.mock("child_process", () => ({
   execFile: mocks.execFile,
 }));
 
-import { convertLibreOfficeToPdf } from "./convertLibreOfficeToPdf";
+import { convertLibreOfficeToPdf } from "../../office/convertLibreOfficeToPdf";
 
 it("uses the supplied LibreOffice executable and timeout", async () => {
   const processError = new Error("Probe stopped intentionally");

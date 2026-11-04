@@ -71,7 +71,7 @@ async function chooseFile(app: ElectronApplication, filePath: string | null) {
   }, filePath);
 }
 
-const fixture = (name: string) => path.resolve("e2e", "fixtures", name);
+const fixture = (name: string) => path.resolve("fixtures", name);
 
 test("converts JPG through IPC and downloads a real PNG without an HTTP server", async ({ electronApp, page }, testInfo) => {
   await chooseFile(electronApp, fixture("sample.jpg"));

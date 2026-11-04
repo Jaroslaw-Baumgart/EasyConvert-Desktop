@@ -2,6 +2,40 @@ import { describe, expect, it } from "vitest";
 import { parseStartConversionRequest } from "../main/parseStartConversionRequest";
 
 describe("parseStartConversionRequest", () => {
+  it("returns a CSV to PDF request with validated options", () => {
+    expect(parseStartConversionRequest({
+      sourceId: "source-csv",
+      conversion: "csv-to-pdf",
+      options: {
+        pageSize: "A3",
+        pageOrientation: "landscape",
+        extra: "ignored",
+      },
+      extra: "ignored",
+    })).toEqual({
+      sourceId: "source-csv",
+      conversion: "csv-to-pdf",
+      options: { pageSize: "A3", pageOrientation: "landscape" },
+    });
+  });
+
+  it("rejects CSV to PDF without options", () => {
+    expect(() => parseStartConversionRequest({
+      sourceId: "source-csv", conversion: "csv-to-pdf",
+    })).toThrow("Missing options for CSV to PDF conversion.");
+  });
+
+  it.each([
+    null,
+    {},
+    { pageSize: "A5", pageOrientation: "portrait" },
+    { pageSize: "A4", pageOrientation: "sideways" },
+  ])("rejects invalid CSV to PDF options: %j", (options) => {
+    expect(() => parseStartConversionRequest({
+      sourceId: "source-csv", conversion: "csv-to-pdf", options,
+    })).toThrow("Invalid PDF page options.");
+  });
+
   it("returns a new JPG to PNG request containing only allowed fields", () => {
     const input = {
       sourceId: "source-123",

@@ -35,6 +35,10 @@ tools/*
 !tools/.gitkeep
 
 # Manual files used for local conversion checks
-server/src/fixtures/
+fixtures/*
+!fixtures/sample.csv
+!fixtures/sample.jpg
+!fixtures/two-pages.pdf
+!fixtures/unsupported.exe
 
 /release/

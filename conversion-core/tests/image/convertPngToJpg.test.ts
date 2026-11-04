@@ -3,8 +3,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { convertPngToJpg } from "./convertPngToJpg";
-import * as imageLimits from "./imageLimits";
+import { convertPngToJpg } from "../../image/convertPngToJpg";
+import * as imageLimits from "../../image/imageLimits";
 
 let directory: string | undefined;
 

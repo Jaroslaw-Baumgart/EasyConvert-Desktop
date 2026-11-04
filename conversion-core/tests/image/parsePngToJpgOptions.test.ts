@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePngToJpgOptions } from "./parsePngToJpgOptions";
+import { parsePngToJpgOptions } from "../../image/parsePngToJpgOptions";
 
 describe("parsePngToJpgOptions", () => {
   it.each([1, 85, 100])("accepts quality %i", (quality) => {

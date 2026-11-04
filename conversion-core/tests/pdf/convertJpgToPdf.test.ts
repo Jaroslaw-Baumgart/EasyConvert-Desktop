@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   PDFDocument: vi.fn(),
 }));
 
-vi.mock("./imageLimits", () => ({
+vi.mock("../../image/imageLimits", () => ({
   validateImagePixels: mocks.validateImagePixels,
 }));
 
@@ -19,7 +19,7 @@ vi.mock("pdfkit", () => ({
   default: mocks.PDFDocument,
 }));
 
-import { convertJpgToPdf } from "./convertJpgToPdf";
+import { convertJpgToPdf } from "../../image/convertJpgToPdf";
 
 function setupDocument() {
   const stream = new EventEmitter();

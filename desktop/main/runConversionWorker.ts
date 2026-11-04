@@ -13,20 +13,25 @@ export function runConversionWorker(
     if (
       request.conversion === "png-to-jpg" ||
       request.conversion === "jpg-to-pdf" ||
-      request.conversion === "txt-to-pdf"
+      request.conversion === "txt-to-pdf" ||
+      request.conversion === "csv-to-pdf"
     ) {
       args.push(JSON.stringify(request.options));
     }
 
-    if (request.conversion === "txt-to-pdf") {
-      const fontPath = app.isPackaged
-        ? path.join(process.resourcesPath, "fonts/NotoSans-Regular.ttf")
-        : path.resolve(
-            __dirname,
-            "../../../assets/fonts/NotoSans-Regular.ttf",
-          );
+    if (
+      request.conversion === "txt-to-pdf" ||
+      request.conversion === "csv-to-pdf"
+    ) {
+      const fontsDirectory = app.isPackaged
+        ? path.join(process.resourcesPath, "fonts")
+        : path.resolve(__dirname, "../../../assets/fonts");
 
-      args.push(fontPath);
+      args.push(path.join(fontsDirectory, "NotoSans-Regular.ttf"));
+
+      if (request.conversion === "csv-to-pdf") {
+        args.push(path.join(fontsDirectory, "NotoSans-Bold.ttf"));
+      }
     }
 
     const worker = utilityProcess.fork(

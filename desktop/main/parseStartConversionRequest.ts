@@ -46,12 +46,21 @@ export function parseStartConversionRequest(
     };
   }
 
-  if (value.conversion === "jpg-to-pdf" || value.conversion === "txt-to-pdf") {
+  if (
+    value.conversion === "jpg-to-pdf" ||
+    value.conversion === "txt-to-pdf" ||
+    value.conversion === "csv-to-pdf"
+  ) {
     if (!("options" in value)) {
-      const conversionName =
-        value.conversion === "jpg-to-pdf" ? "JPG to PDF" : "TXT to PDF";
+      const conversionNames = {
+        "jpg-to-pdf": "JPG to PDF",
+        "txt-to-pdf": "TXT to PDF",
+        "csv-to-pdf": "CSV to PDF",
+      };
 
-      throw new Error(`Missing options for ${conversionName} conversion.`);
+      throw new Error(
+        `Missing options for ${conversionNames[value.conversion]} conversion.`,
+      );
     }
 
     return {

@@ -56,6 +56,26 @@ function readFile(file: File): Promise<string> {
 }
 
 describe("convertDesktopFile", () => {
+  it("passes CSV page settings and returns a PDF file", async () => {
+    const { api, response } = setup();
+    const request: StartConversionRequest = {
+      sourceId: "source-csv",
+      conversion: "csv-to-pdf",
+      options: { pageSize: "A3", pageOrientation: "landscape" },
+    };
+    response.blob.mockResolvedValue(
+      new Blob(["pdf"], { type: "application/pdf" }),
+    );
+
+    const results = await convertDesktopFile(api, request, "table.v2.csv");
+
+    expect(api.startConversion).toHaveBeenCalledExactlyOnceWith(request);
+    expect(results).toHaveLength(1);
+    expect(results[0].file.name).toBe("table.v2.pdf");
+    expect(results[0].file.type).toBe("application/pdf");
+    expect(await readFile(results[0].file)).toBe("pdf");
+  });
+
   it("starts JPG to PNG and returns the fetched result", async () => {
     const { api, fetchMock } = setup();
 

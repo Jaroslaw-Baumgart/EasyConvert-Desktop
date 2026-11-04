@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { inflateRawSync } from "node:zlib";
 
 const fixturePath = (name: string) =>
-  path.join(process.cwd(), "e2e", "fixtures", name);
+  path.join(process.cwd(), "fixtures", name);
 
 const jpgToPngButton = /JPG.*PNG/;
 const pdfToJpgButton = /PDF.*JPG/;

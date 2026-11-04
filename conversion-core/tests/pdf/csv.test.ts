@@ -1,16 +1,11 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { CsvLimitError, parseCsv } from "./csv";
+import { CsvLimitError, parseCsv } from "../../pdf/csv";
 
 describe("parseCsv", () => {
   it("parses headers, quoted separators and Polish characters", async () => {
-    const fixturePath = path.join(
-      process.cwd(),
-      "src",
-      "fixtures",
-      "sample.csv",
-    );
+    const fixturePath = path.resolve(__dirname, "../../../fixtures/sample.csv");
     const csv = await readFile(fixturePath, "utf8");
 
     expect(parseCsv(csv)).toEqual([

@@ -1,141 +1,48 @@
 import type { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => {
-  const readFile = vi.fn();
-  const mkdir = vi.fn();
-  const parseCsv = vi.fn();
-
-  const stream = {
-    on: vi.fn((event: string, callback: () => void) => {
-      if (event === "finish") {
-        callback();
-      }
-
-      return stream;
-    }),
-  };
-
-  const createWriteStream = vi.fn(() => stream);
-  const pipe = vi.fn();
-  const font = vi.fn();
-  const text = vi.fn();
-  const rect = vi.fn();
-  const fill = vi.fn();
-  const stroke = vi.fn();
-  const lineWidth = vi.fn();
-  const strokeColor = vi.fn();
-  const fillColor = vi.fn();
-  const end = vi.fn();
-  const addPage = vi.fn();
-
-  let currentFontSize = 10;
-
-  const widthOfString = vi.fn(
-    (value: string) => value.length * currentFontSize * 0.5,
-  );
-
-  const heightOfString = vi.fn((_value?: string) => 12);
-
-  const fontSize = vi.fn((size: number) => {
-    currentFontSize = size;
-
-    return document;
-  });
-
-  const document = {
-    pipe,
-    font,
-    fontSize,
-    text,
-    rect,
-    fill,
-    stroke,
-    lineWidth,
-    strokeColor,
-    fillColor,
-    end,
-    addPage,
-    widthOfString,
-    heightOfString,
-    page: {
-      width: 841.89,
-      height: 595.28,
-    },
-  };
-
-  pipe.mockReturnValue(stream);
-  font.mockReturnValue(document);
-  text.mockReturnValue(document);
-  rect.mockReturnValue(document);
-  fill.mockReturnValue(document);
-  stroke.mockReturnValue(document);
-  lineWidth.mockReturnValue(document);
-  strokeColor.mockReturnValue(document);
-  fillColor.mockReturnValue(document);
-  addPage.mockReturnValue(document);
-
-  const PDFDocument = vi.fn(function PDFDocumentMock() {
-    return document;
-  });
-
-  return {
-    readFile,
-    mkdir,
-    parseCsv,
-    createWriteStream,
-    pipe,
-    font,
-    fontSize,
-    text,
-    rect,
-    fill,
-    stroke,
-    lineWidth,
-    strokeColor,
-    fillColor,
-    end,
-    addPage,
-    widthOfString,
-    heightOfString,
-    PDFDocument,
-  };
-});
+const mocks = vi.hoisted(() => ({
+  mkdir: vi.fn(),
+  convertCsvToPdf: vi.fn(),
+}));
 
 vi.mock("fs/promises", () => ({
   default: {
     mkdir: mocks.mkdir,
-    readFile: mocks.readFile,
   },
 }));
 
-vi.mock("fs", () => ({
-  default: {
-    createWriteStream: mocks.createWriteStream,
+vi.mock(
+  "../../../conversion-core/pdf/convertCsvToPdf",
+  async (importOriginal) => {
+    const original =
+      await importOriginal<
+        typeof import("../../../conversion-core/pdf/convertCsvToPdf")
+      >();
+
+    return {
+      ...original,
+      convertCsvToPdf: mocks.convertCsvToPdf,
+    };
   },
-}));
+);
 
-vi.mock("pdfkit", () => ({
-  default: mocks.PDFDocument,
-}));
-
-vi.mock("../utils/csv", () => ({
-  parseCsv: mocks.parseCsv,
-}));
-
+import { CsvInputError } from "../../../conversion-core/pdf/convertCsvToPdf";
+import { CsvPdfTableError } from "../utils/csvPdfTable";
 import { csvToPdf } from "./csvController";
 
-const createRequest = (body: unknown): Request =>
-  ({
+function createRequest(body: unknown): Request {
+  return {
     body,
     file: {
       path: "uploads/payroll.csv",
       filename: "payroll.csv",
       originalname: "payroll.csv",
-    } as Express.Multer.File,
-  }) as Request;
+    },
+  } as Request;
+}
 
-const createResponse = () => {
+function createResponse() {
   const status = vi.fn();
   const json = vi.fn();
   const response = { status, json };
@@ -147,123 +54,144 @@ const createResponse = () => {
     status,
     json,
   };
-};
+}
 
-describe("csvToPdf", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+beforeEach(() => {
+  vi.resetAllMocks();
+  mocks.mkdir.mockResolvedValue(undefined);
+  mocks.convertCsvToPdf.mockResolvedValue(undefined);
+});
 
-    mocks.mkdir.mockResolvedValue(undefined);
-    mocks.readFile.mockResolvedValue("ID,Name\n1,Ada");
-    mocks.parseCsv.mockReturnValue([
-      { ID: "1", Name: "Ada" },
-      { ID: "2", Name: "Jan" },
-    ]);
-  });
-
-  it("renders CSV headers and values as individual table cells", async () => {
-    const { response, status } = createResponse();
+describe("csvToPdf HTTP adapter", () => {
+  it("passes page settings and both fonts to the engine", async () => {
+    const { response, status, json } = createResponse();
 
     await csvToPdf(
-      createRequest({ pageSize: "A3", pageOrientation: "landscape" }),
+      createRequest({
+        pageSize: "A3",
+        pageOrientation: "landscape",
+      }),
       response,
     );
 
-    expect(mocks.PDFDocument).toHaveBeenCalledWith({
-      size: "A3",
-      layout: "landscape",
+    expect(mocks.mkdir).toHaveBeenCalledExactlyOnceWith(expect.any(String), {
+      recursive: true,
     });
-
-    const renderedValues = mocks.text.mock.calls.map(([value]) => value);
-
-    expect(renderedValues).toEqual(
-      expect.arrayContaining(["ID", "Name", "1", "Ada", "2", "Jan"]),
+    expect(mocks.convertCsvToPdf).toHaveBeenCalledExactlyOnceWith(
+      "uploads/payroll.csv",
+      expect.stringMatching(/payroll\.pdf$/),
+      {
+        pageSize: "A3",
+        pageOrientation: "landscape",
+      },
+      expect.stringMatching(/[/\\]assets[/\\]fonts[/\\]NotoSans-Regular\.ttf$/),
+      expect.stringMatching(/[/\\]assets[/\\]fonts[/\\]NotoSans-Bold\.ttf$/),
     );
-    expect(mocks.rect).toHaveBeenCalled();
-    expect(mocks.end).toHaveBeenCalledOnce();
     expect(status).toHaveBeenCalledWith(200);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ success: true }),
+    );
   });
 
-  it("rejects an empty CSV as invalid input", async () => {
-    mocks.parseCsv.mockReturnValue([]);
+  it("preserves default A4 portrait settings", async () => {
+    const { response } = createResponse();
 
+    await csvToPdf(createRequest({}), response);
+
+    expect(mocks.convertCsvToPdf).toHaveBeenCalledExactlyOnceWith(
+      "uploads/payroll.csv",
+      expect.any(String),
+      {
+        pageSize: "A4",
+        pageOrientation: "portrait",
+      },
+      expect.any(String),
+      expect.any(String),
+    );
+  });
+
+  it("rejects a missing file before creating output", async () => {
+    const { response, status } = createResponse();
+
+    await csvToPdf({ body: {} } as Request, response);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(mocks.mkdir).not.toHaveBeenCalled();
+    expect(mocks.convertCsvToPdf).not.toHaveBeenCalled();
+  });
+
+  it.each([{ pageSize: "A5" }, { pageOrientation: "sideways" }])(
+    "rejects invalid page settings: %j",
+    async (settings) => {
+      const { response, status, json } = createResponse();
+
+      await csvToPdf(createRequest(settings), response);
+
+      expect(mocks.mkdir).not.toHaveBeenCalled();
+      expect(mocks.convertCsvToPdf).not.toHaveBeenCalled();
+      expect(status).toHaveBeenCalledWith(400);
+      expect(json).toHaveBeenCalledWith({
+        success: false,
+        error: "Invalid conversion settings.",
+        code: "conversion-failed",
+      });
+    },
+  );
+
+  it.each([
+    "CSV file is empty.",
+    "Invalid CSV data.",
+    "CSV exceeds processing limits.",
+  ])("returns 400 for input error: %s", async (message) => {
+    mocks.convertCsvToPdf.mockRejectedValue(new CsvInputError(message));
     const { response, status, json } = createResponse();
 
     await csvToPdf(createRequest({}), response);
 
-    expect(mocks.PDFDocument).not.toHaveBeenCalled();
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith({
       success: false,
-      error: "CSV file is empty.",
+      error: message,
       code: "conversion-failed",
     });
   });
 
-  it("starts a new page and repeats headers when rows exceed the page height", async () => {
-    mocks.parseCsv.mockReturnValue(
-      Array.from({ length: 25 }, (_, index) => ({
-        ID: String(index + 1),
-        Name: `Employee ${index + 1}`,
-      })),
-    );
+  it("returns invalid-settings for a table layout error", async () => {
+    const message = "Too many CSV columns for this page.";
+    mocks.convertCsvToPdf.mockRejectedValue(new CsvPdfTableError(message));
+    const { response, status, json } = createResponse();
 
+    await csvToPdf(createRequest({}), response);
+
+    expect(status).toHaveBeenCalledWith(400);
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      error: message,
+      code: "invalid-settings",
+    });
+  });
+
+  it("returns 500 for an output failure", async () => {
+    mocks.convertCsvToPdf.mockRejectedValue(new Error("Disk full."));
+    const { response, status, json } = createResponse();
+
+    await csvToPdf(createRequest({}), response);
+
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({
+      success: false,
+      error: "Disk full.",
+      code: "conversion-failed",
+    });
+  });
+
+  it("does not start conversion when creating the directory fails", async () => {
+    mocks.mkdir.mockRejectedValue(new Error("Permission denied."));
     const { response, status } = createResponse();
 
     await csvToPdf(createRequest({}), response);
 
-    expect(mocks.addPage).toHaveBeenCalledOnce();
-
-    const renderedValues = mocks.text.mock.calls.map(([value]) => value);
-
-    expect(renderedValues.filter((value) => value === "ID")).toHaveLength(2);
-    expect(renderedValues.filter((value) => value === "Name")).toHaveLength(2);
-    expect(status).toHaveBeenCalledWith(200);
-  });
-
-  it("continues a tall row on following pages without losing its content", async () => {
-    const longDescription = "A".repeat(1_000);
-    mocks.heightOfString.mockImplementation(
-      (value?: string) => value?.length ?? 0,
-    );
-    mocks.parseCsv.mockReturnValue([{ Description: longDescription }]);
-
-    const { response, status } = createResponse();
-
-    await csvToPdf(createRequest({}), response);
-
-    const renderedDescription = mocks.text.mock.calls
-      .map(([value]) => value)
-      .filter((value) => typeof value === "string" && /^A+$/.test(value))
-      .join("");
-
-    expect(mocks.addPage).toHaveBeenCalled();
-    expect(renderedDescription).toBe(longDescription);
-    expect(status).toHaveBeenCalledWith(200);
-  });
-
-  it("shrinks the font to keep a wide CSV on one page", async () => {
-    mocks.parseCsv.mockReturnValue([
-      {
-        "Column 1": "abcdefghijklmnopqrst",
-        "Column 2": "abcdefghijklmnopqrst",
-        "Column 3": "abcdefghijklmnopqrst",
-        "Column 4": "abcdefghijklmnopqrst",
-        "Column 5": "abcdefghijklmnopqrst",
-        "Column 6": "abcdefghijklmnopqrst",
-        "Column 7": "abcdefghijklmnopqrst",
-        "Column 8": "abcdefghijklmnopqrst",
-        "Column 9": "abcdefghijklmnopqrst",
-        "Column 10": "abcdefghijklmnopqrst",
-      },
-    ]);
-
-    const { response, status } = createResponse();
-
-    await csvToPdf(createRequest({ pageOrientation: "landscape" }), response);
-
-    expect(mocks.fontSize).toHaveBeenCalledWith(6);
-    expect(mocks.addPage).not.toHaveBeenCalled();
-    expect(status).toHaveBeenCalledWith(200);
+    expect(mocks.convertCsvToPdf).not.toHaveBeenCalled();
+    expect(status).toHaveBeenCalledWith(500);
   });
 });

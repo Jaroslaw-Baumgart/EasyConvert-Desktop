@@ -201,7 +201,8 @@ export function useConversion(): UseConversionResult {
           };
         } else if (
           option.conversionType === "jpg-to-pdf" ||
-          option.conversionType === "txt-to-pdf"
+          option.conversionType === "txt-to-pdf" ||
+          option.conversionType === "csv-to-pdf"
         ) {
           if (
             !settings ||

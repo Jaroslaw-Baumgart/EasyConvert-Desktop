@@ -74,6 +74,18 @@ const successCases: {
     inputPath: "C:/input/document.txt",
     outputName: "result.pdf",
   },
+  {
+    request: {
+      sourceId: "source-csv",
+      conversion: "csv-to-pdf",
+      options: {
+        pageSize: "A3",
+        pageOrientation: "landscape",
+      },
+    },
+    inputPath: "C:/input/table.csv",
+    outputName: "result.pdf",
+  },
 ];
 
 async function loadModules() {

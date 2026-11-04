@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import sharp from "sharp";
-import { convertJpgToPng } from "./convertJpgToPng";
+import { convertJpgToPng } from "../../image/convertJpgToPng";
 
 const temporaryDirectories: string[] = [];
 

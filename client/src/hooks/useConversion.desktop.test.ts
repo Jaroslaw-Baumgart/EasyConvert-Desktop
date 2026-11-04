@@ -97,6 +97,44 @@ async function setupConvertedFile() {
 }
 
 describe("desktop useConversion", () => {
+  it("passes CSV to PDF page settings to the desktop adapter", async () => {
+    const { api, result } = setup();
+    const file = new File(["ID,Name\n1,Łukasz"], "table.csv", {
+      type: "text/csv",
+    });
+    const output: ConvertedResults = [{
+      url: "app://easyconvert/preview/result/result-csv",
+      file: new File(["pdf"], "table.pdf", { type: "application/pdf" }),
+    }];
+    vi.mocked(convertDesktopFile).mockResolvedValue(output);
+
+    act(() => {
+      result.current.selectFile(file, "source-csv");
+    });
+    await act(async () => {
+      await result.current.convert({
+        conversionType: "csv-to-pdf",
+        sourceFormat: "csv",
+        targetFormat: "pdf",
+        disabled: false,
+      }, { pageSize: "A3", pageOrientation: "landscape" });
+    });
+
+    expect(convertDesktopFile).toHaveBeenCalledExactlyOnceWith(
+      api,
+      {
+        sourceId: "source-csv",
+        conversion: "csv-to-pdf",
+        options: { pageSize: "A3", pageOrientation: "landscape" },
+      },
+      "table.csv",
+      expect.any(AbortSignal),
+    );
+    expect(convertFile).not.toHaveBeenCalled();
+    expect(result.current.convertedResults).toBe(output);
+    expect(result.current.isConverting).toBe(false);
+  });
+
   it("passes the JPG to PNG request and signal and stores the result", async () => {
     const { api, result, output } = await setupConvertedFile();
 
