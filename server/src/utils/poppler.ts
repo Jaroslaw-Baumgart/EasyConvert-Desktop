@@ -6,6 +6,7 @@ import {
   type PopplerOptions,
 } from "../../../conversion-core/pdf/poppler";
 import { LIBRE_OFFICE_TIMEOUT_MS, MAX_PDF_PAGES } from "./constants";
+import { convertPdfToJpg as convertCorePdfToJpg } from "../../../conversion-core/pdf/convertPdfToJpg";
 
 function options(): PopplerOptions {
   const binDirectory =
@@ -45,4 +46,12 @@ export function pdfToImages(
   signal?: AbortSignal,
 ): Promise<void> {
   return convertPdfToImages(input, outputDirectory, options(), signal);
+}
+
+export function convertPdfToJpg(
+  input: string,
+  outputDirectory: string,
+  signal?: AbortSignal,
+): Promise<string[]> {
+  return convertCorePdfToJpg(input, outputDirectory, options(), signal);
 }

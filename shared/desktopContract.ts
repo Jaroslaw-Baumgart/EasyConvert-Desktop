@@ -28,7 +28,8 @@ export type StartConversionRequest =
   | { sourceId: string; conversion: "png-to-jpg"; options: PngToJpgOptions }
   | { sourceId: string; conversion: "jpg-to-pdf"; options: PdfPageOptions }
   | { sourceId: string; conversion: "txt-to-pdf"; options: PdfPageOptions }
-  | { sourceId: string; conversion: "csv-to-pdf"; options: PdfPageOptions };
+  | { sourceId: string; conversion: "csv-to-pdf"; options: PdfPageOptions }
+  | { sourceId: string; conversion: "pdf-to-jpg" };
 
 export type StartConversionResponse = {
   jobId: string;
@@ -37,6 +38,6 @@ export type StartConversionResponse = {
 export type ConversionJobState =
   | { status: "idle" }
   | { status: "running"; jobId: string }
-  | { status: "succeeded"; jobId: string; resultId: string }
+  | { status: "succeeded"; jobId: string; resultIds: string[] }
   | { status: "failed"; jobId: string; message: string }
   | { status: "cancelled"; jobId: string };

@@ -106,14 +106,24 @@ function parseConversionJobState(value: unknown): ConversionJobState {
   }
 
   if (value.status === "succeeded") {
-    if (!("resultId" in value)) {
+    if (!("resultIds" in value)) {
       throw new Error("Invalid conversion job state.");
     }
+
+    if (
+      !Array.isArray(value.resultIds) ||
+      value.resultIds.length === 0 ||
+      value.resultIds.length > 100
+    ) {
+      throw new Error("Invalid conversion job state.");
+    }
+
+    const resultIds = value.resultIds.map(parseIdentifier);
 
     return {
       status: "succeeded",
       jobId,
-      resultId: parseIdentifier(value.resultId),
+      resultIds,
     };
   }
 

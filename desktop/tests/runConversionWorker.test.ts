@@ -266,4 +266,41 @@ describe("runConversionWorker", () => {
       }),
     ).rejects.toBe(error);
   });
+
+  it.each([false, true])(
+    "passes the Poppler directory when isPackaged=%s",
+    async (isPackaged) => {
+      mocks.app.isPackaged = isPackaged;
+
+      const worker = new EventEmitter();
+      mocks.fork.mockReturnValue(worker);
+
+      const completion = runConversionWorker(
+        "C:/input/document.pdf",
+        "C:/output/pages",
+        {
+          sourceId: "source-pdf",
+          conversion: "pdf-to-jpg",
+        },
+      );
+
+      const binDirectory = isPackaged
+        ? path.join("C:/installed/EasyConvert/resources", "poppler/bin")
+        : path.resolve(
+            __dirname,
+            "../../../server/node_modules/pdf-poppler/lib/win/poppler-0.51/bin",
+          );
+
+      expect(mocks.fork).toHaveBeenCalledTimes(1);
+      expect(mocks.fork.mock.calls[0][1]).toEqual([
+        "pdf-to-jpg",
+        "C:/input/document.pdf",
+        "C:/output/pages",
+        binDirectory,
+      ]);
+
+      worker.emit("exit", 0);
+      await expect(completion).resolves.toBeUndefined();
+    },
+  );
 });

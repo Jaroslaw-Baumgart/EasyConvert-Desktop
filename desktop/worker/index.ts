@@ -1,12 +1,12 @@
 import { convertJpgToPng } from "../../conversion-core/image/convertJpgToPng";
 import { convertLibreOfficeToPdf } from "../../conversion-core/office/convertLibreOfficeToPdf";
-import { pdfToImages } from "../../conversion-core/pdf/poppler";
 import { convertPngToJpg } from "../../conversion-core/image/convertPngToJpg";
 import { parsePngToJpgOptions } from "../../conversion-core/image/parsePngToJpgOptions";
 import { convertJpgToPdf } from "../../conversion-core/image/convertJpgToPdf";
 import { parsePdfPageOptions } from "../../conversion-core/image/parsePdfPageOptions";
 import { convertTxtToPdf } from "../../conversion-core/pdf/convertTxtToPdf";
 import { convertCsvToPdf } from "../../conversion-core/pdf/convertCsvToPdf";
+import { convertPdfToJpg } from "../../conversion-core/pdf/convertPdfToJpg";
 
 async function run(): Promise<void> {
   const [
@@ -38,7 +38,7 @@ async function run(): Promise<void> {
       throw new Error("Expected a Poppler binary directory.");
     }
 
-    await pdfToImages(inputPath, outputPath, {
+    await convertPdfToJpg(inputPath, outputPath, {
       binDirectory: conversionArgument,
       timeoutMs: 120_000,
       maxPages: 100,

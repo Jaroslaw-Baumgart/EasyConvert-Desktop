@@ -63,19 +63,48 @@ afterEach(() => {
 });
 
 const validStates: ConversionJobState[] = [
+  {
+    status: "succeeded",
+    jobId: "job-1",
+    resultIds: ["result-1", "result-2"],
+  },
+  {
+    status: "succeeded",
+    jobId: "job-1",
+    resultIds: Array.from({ length: 100 }, (_, index) => `result-${index}`),
+  },
   { status: "idle" },
   { status: "running", jobId: "job-1" },
-  { status: "succeeded", jobId: "job-1", resultId: "result-1" },
+  { status: "succeeded", jobId: "job-1", resultIds: ["result-1"] },
   { status: "failed", jobId: "job-1", message: "Conversion failed." },
   { status: "cancelled", jobId: "job-1" },
   {
     status: "succeeded",
     jobId: "j".repeat(128),
-    resultId: "r".repeat(128),
+    resultIds: ["r".repeat(128)],
   },
 ];
 
 const invalidStates: { label: string; value: unknown }[] = [
+  {
+    label: "legacy single resultId",
+    value: { status: "succeeded", jobId: "job-1", resultId: "result-1" },
+  },
+  {
+    label: "resultIds is not an array",
+    value: { status: "succeeded", jobId: "job-1", resultIds: "result-1" },
+  },
+  {
+    label: "empty resultIds array",
+    value: { status: "succeeded", jobId: "job-1", resultIds: [] },
+  },
+  {
+    label: "more than 100 resultIds",
+    value: {
+      status: "succeeded", jobId: "job-1",
+      resultIds: Array.from({ length: 101 }, (_, index) => `result-${index}`),
+    },
+  },
   { label: "null", value: null },
   { label: "undefined", value: undefined },
   { label: "a primitive", value: "running" },
@@ -102,23 +131,23 @@ const invalidStates: { label: string; value: unknown }[] = [
     value: { status: "running", jobId: "j".repeat(129) },
   },
   {
-    label: "missing resultId",
+    label: "missing resultIds",
     value: { status: "succeeded", jobId: "job-1" },
   },
   {
-    label: "non-string resultId",
-    value: { status: "succeeded", jobId: "job-1", resultId: 123 },
+    label: "non-string result ID",
+    value: { status: "succeeded", jobId: "job-1", resultIds: [123] },
   },
   {
-    label: "empty resultId",
-    value: { status: "succeeded", jobId: "job-1", resultId: "" },
+    label: "empty result ID",
+    value: { status: "succeeded", jobId: "job-1", resultIds: [""] },
   },
   {
-    label: "oversized resultId",
+    label: "oversized result ID",
     value: {
       status: "succeeded",
       jobId: "job-1",
-      resultId: "r".repeat(129),
+      resultIds: ["r".repeat(129)],
     },
   },
   {
@@ -132,6 +161,22 @@ const invalidStates: { label: string; value: unknown }[] = [
 ];
 
 describe("preload getJobState", () => {
+  it("returns a new validated result ID array", async () => {
+    const { api } = await setup();
+    const value = {
+      status: "succeeded", jobId: "job-1", resultIds: ["result-1", "result-2"],
+    };
+    mocks.invoke.mockResolvedValueOnce(value);
+
+    const received = await api.getJobState();
+    if (received.status !== "succeeded") throw new Error("Expected success.");
+
+    expect(received.resultIds).toEqual(value.resultIds);
+    expect(received.resultIds).not.toBe(value.resultIds);
+    received.resultIds.push("changed-by-renderer");
+    expect(value.resultIds).toEqual(["result-1", "result-2"]);
+  });
+
   it.each(validStates)("accepts a valid state: %j", async (state) => {
     const { api } = await setup();
     mocks.invoke.mockResolvedValueOnce(state);

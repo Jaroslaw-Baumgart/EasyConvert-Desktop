@@ -28,7 +28,7 @@ beforeEach(async () => {
   resultPath = path.join(directory, "result.png");
   await writeFile(sourcePath, "source bytes"); await writeFile(resultPath, "PNG result");
   sourceId = registerSource(sourcePath); resultId = registerResult(resultPath);
-  succeedJob(startJob(), resultId);
+  succeedJob(startJob(), [resultId]);
   registerFileActionsIpc({} as BrowserWindow, "app://easyconvert/");
 });
 afterEach(async () => {

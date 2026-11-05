@@ -34,6 +34,17 @@ export function runConversionWorker(
       }
     }
 
+    if (request.conversion === "pdf-to-jpg") {
+      const binDirectory = app.isPackaged
+        ? path.join(process.resourcesPath, "poppler/bin")
+        : path.resolve(
+            __dirname,
+            "../../../server/node_modules/pdf-poppler/lib/win/poppler-0.51/bin",
+          );
+
+      args.push(binDirectory);
+    }
+
     const worker = utilityProcess.fork(
       path.join(__dirname, "../worker/index.js"),
       args,

@@ -3,16 +3,18 @@ import { parseStartConversionRequest } from "../main/parseStartConversionRequest
 
 describe("parseStartConversionRequest", () => {
   it("returns a CSV to PDF request with validated options", () => {
-    expect(parseStartConversionRequest({
-      sourceId: "source-csv",
-      conversion: "csv-to-pdf",
-      options: {
-        pageSize: "A3",
-        pageOrientation: "landscape",
+    expect(
+      parseStartConversionRequest({
+        sourceId: "source-csv",
+        conversion: "csv-to-pdf",
+        options: {
+          pageSize: "A3",
+          pageOrientation: "landscape",
+          extra: "ignored",
+        },
         extra: "ignored",
-      },
-      extra: "ignored",
-    })).toEqual({
+      }),
+    ).toEqual({
       sourceId: "source-csv",
       conversion: "csv-to-pdf",
       options: { pageSize: "A3", pageOrientation: "landscape" },
@@ -20,9 +22,12 @@ describe("parseStartConversionRequest", () => {
   });
 
   it("rejects CSV to PDF without options", () => {
-    expect(() => parseStartConversionRequest({
-      sourceId: "source-csv", conversion: "csv-to-pdf",
-    })).toThrow("Missing options for CSV to PDF conversion.");
+    expect(() =>
+      parseStartConversionRequest({
+        sourceId: "source-csv",
+        conversion: "csv-to-pdf",
+      }),
+    ).toThrow("Missing options for CSV to PDF conversion.");
   });
 
   it.each([
@@ -31,9 +36,13 @@ describe("parseStartConversionRequest", () => {
     { pageSize: "A5", pageOrientation: "portrait" },
     { pageSize: "A4", pageOrientation: "sideways" },
   ])("rejects invalid CSV to PDF options: %j", (options) => {
-    expect(() => parseStartConversionRequest({
-      sourceId: "source-csv", conversion: "csv-to-pdf", options,
-    })).toThrow("Invalid PDF page options.");
+    expect(() =>
+      parseStartConversionRequest({
+        sourceId: "source-csv",
+        conversion: "csv-to-pdf",
+        options,
+      }),
+    ).toThrow("Invalid PDF page options.");
   });
 
   it("returns a new JPG to PNG request containing only allowed fields", () => {
@@ -266,5 +275,18 @@ describe("parseStartConversionRequest", () => {
         options,
       }),
     ).toThrow("Invalid PDF page options.");
+  });
+
+  it("accepts PDF to JPG without options and strips extra fields", () => {
+    expect(
+      parseStartConversionRequest({
+        sourceId: "source-pdf",
+        conversion: "pdf-to-jpg",
+        extra: "ignored",
+      }),
+    ).toEqual({
+      sourceId: "source-pdf",
+      conversion: "pdf-to-jpg",
+    });
   });
 });

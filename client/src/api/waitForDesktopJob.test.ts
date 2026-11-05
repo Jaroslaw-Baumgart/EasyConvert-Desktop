@@ -44,17 +44,31 @@ function setup(
 }
 
 describe("waitForDesktopJob", () => {
-  it("returns the result ID after a success notification", async () => {
+  it("returns all result IDs in their original order", async () => {
+    const { api, emit, unsubscribe } = setup();
+    const completion = waitForDesktopJob(api, "job-1");
+
+    emit({
+      status: "succeeded",
+      jobId: "job-1",
+      resultIds: ["page-1", "page-2", "page-3"],
+    });
+
+    await expect(completion).resolves.toEqual(["page-1", "page-2", "page-3"]);
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns the result IDs after a success notification", async () => {
     const { api, emit, unsubscribe, listeners } = setup();
     const completion = waitForDesktopJob(api, "job-1");
 
     emit({
       status: "succeeded",
       jobId: "job-1",
-      resultId: "result-1",
+      resultIds: ["result-1"],
     });
 
-    await expect(completion).resolves.toBe("result-1");
+    await expect(completion).resolves.toEqual(["result-1"]);
     expect(unsubscribe).toHaveBeenCalledTimes(1);
     expect(listeners.size).toBe(0);
   });
@@ -63,10 +77,10 @@ describe("waitForDesktopJob", () => {
     const { api, unsubscribe } = setup({
       status: "succeeded",
       jobId: "job-1",
-      resultId: "result-1",
+      resultIds: ["result-1"],
     });
 
-    await expect(waitForDesktopJob(api, "job-1")).resolves.toBe("result-1");
+    await expect(waitForDesktopJob(api, "job-1")).resolves.toEqual(["result-1"]);
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
@@ -83,7 +97,7 @@ describe("waitForDesktopJob", () => {
     emit({
       status: "succeeded",
       jobId: "foreign",
-      resultId: "wrong-result",
+      resultIds: ["wrong-result"],
     });
 
     await Promise.resolve();
@@ -94,10 +108,10 @@ describe("waitForDesktopJob", () => {
     emit({
       status: "succeeded",
       jobId: "job-1",
-      resultId: "correct-result",
+      resultIds: ["correct-result"],
     });
 
-    await expect(completion).resolves.toBe("correct-result");
+    await expect(completion).resolves.toEqual(["correct-result"]);
   });
 
   it("rejects a failed job and unsubscribes", async () => {
@@ -194,10 +208,10 @@ describe("waitForDesktopJob", () => {
     emit({
       status: "succeeded",
       jobId: "job-1",
-      resultId: "result-1",
+      resultIds: ["result-1"],
     });
 
-    await expect(completion).resolves.toBe("result-1");
+    await expect(completion).resolves.toEqual(["result-1"]);
 
     expect(removeListener).toHaveBeenCalledExactlyOnceWith(
       "abort",

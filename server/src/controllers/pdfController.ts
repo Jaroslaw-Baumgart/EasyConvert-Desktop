@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import fs from "fs/promises";
 import path from "path";
 import {
-  pdfToImages,
+  convertPdfToJpg,
   runPoppler,
   validatePdfPageCount,
 } from "../utils/poppler";
@@ -34,20 +34,16 @@ export const pdfToJpg = async (req: Request, res: Response) => {
   try {
     await fs.mkdir(outputSubdir, { recursive: true });
 
-    if (signal) {
-      await pdfToImages(pdfPath, outputSubdir, signal);
-    } else {
-      await pdfToImages(pdfPath, outputSubdir);
-    }
+    const outputPaths = await convertPdfToJpg(pdfPath, outputSubdir, signal);
 
-    const jpgFiles = (await fs.readdir(outputSubdir))
-      .filter((f) => f.endsWith(".jpg"))
-      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    const files = outputPaths.map((outputPath) => {
+      const name = path.basename(outputPath);
 
-    const files = jpgFiles.map((name) => ({
-      url: `/output/${baseName}/${name}`,
-      name,
-    }));
+      return {
+        url: `/output/${baseName}/${name}`,
+        name,
+      };
+    });
 
     const [firstFile, ...remainingFiles] = files;
 

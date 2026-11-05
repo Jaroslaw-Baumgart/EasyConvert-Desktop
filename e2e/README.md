@@ -15,7 +15,7 @@ these together with the HTML report, excluding the temporary browser profiles.
 
 `legacy/converter.web.ts` preserves the former HTTP/browser scenarios for
 reference and is intentionally outside the active test pattern. PDF-to-JPG,
-multiple results and ZIP export are not covered by desktop E2E yet: those
-conversions have not been wired to the desktop UI. Existing client tests continue
-to cover their frontend behavior; restore real desktop E2E coverage when the
-engine integration is implemented. These scenarios are not counted as passing.
+multiple results and ZIP export are not covered by desktop E2E yet, although
+they are now available in the desktop UI and have been checked manually.
+Engine and client tests cover their respective layers; this does not count as
+automated end-to-end coverage of those workflows.

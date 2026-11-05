@@ -1,10 +1,11 @@
 import { app } from "electron";
 import { mkdtemp, stat } from "node:fs/promises";
 import path from "node:path";
-import { failJob, getJobState, succeedJob } from "./jobRegistry";
-import { registerResult } from "./resultRegistry";
-import { runConversionWorker } from "./runConversionWorker";
 import type { StartConversionRequest } from "../../shared/desktopContract";
+import { getPdfPagePaths } from "../../conversion-core/pdf/convertPdfToJpg";
+import { failJob, getJobState, succeedJob } from "./jobRegistry";
+import { registerResults } from "./resultRegistry";
+import { runConversionWorker } from "./runConversionWorker";
 
 export async function runConversionJob(
   jobId: string,
@@ -17,34 +18,46 @@ export async function runConversionJob(
       path.join(app.getPath("temp"), "easyconvert-job-"),
     );
 
-    const outputNames = {
-      "jpg-to-png": "result.png",
-      "png-to-jpg": "result.jpg",
-      "jpg-to-pdf": "result.pdf",
-      "txt-to-pdf": "result.pdf",
-      "csv-to-pdf": "result.pdf",
-    } satisfies Record<StartConversionRequest["conversion"], string>;
+    let outputPaths: string[];
 
-    const outputName = outputNames[request.conversion];
+    if (request.conversion === "pdf-to-jpg") {
+      await runConversionWorker(inputPath, directory, request);
+      outputPaths = await getPdfPagePaths(directory);
+    } else {
+      const outputNames = {
+        "jpg-to-png": "result.png",
+        "png-to-jpg": "result.jpg",
+        "jpg-to-pdf": "result.pdf",
+        "txt-to-pdf": "result.pdf",
+        "csv-to-pdf": "result.pdf",
+      } satisfies Record<
+        Exclude<StartConversionRequest["conversion"], "pdf-to-jpg">,
+        string
+      >;
 
-    const outputPath = path.join(directory, outputName);
+      const outputPath = path.join(directory, outputNames[request.conversion]);
 
-    await runConversionWorker(inputPath, outputPath, request);
-
-    const metadata = await stat(outputPath);
-
-    if (!metadata.isFile() || metadata.size === 0) {
-      throw new Error("Output file is empty or not a file.");
+      await runConversionWorker(inputPath, outputPath, request);
+      outputPaths = [outputPath];
     }
 
-    const resultState = getJobState();
-    if (resultState.status !== "running" || resultState.jobId !== jobId) {
+    for (const outputPath of outputPaths) {
+      const metadata = await stat(outputPath);
+
+      if (!metadata.isFile() || metadata.size === 0) {
+        throw new Error("Output file is empty or not a file.");
+      }
+    }
+
+    const currentJob = getJobState();
+
+    if (currentJob.status !== "running" || currentJob.jobId !== jobId) {
       return;
     }
 
-    const resultId = registerResult(outputPath);
+    const resultIds = registerResults(outputPaths);
 
-    if (succeedJob(jobId, resultId)) {
+    if (succeedJob(jobId, resultIds)) {
       onStateChanged();
     }
   } catch (error) {

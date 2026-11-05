@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   mkdtemp: vi.fn(),
   stat: vi.fn(),
   runWorker: vi.fn(),
+  getPdfPagePaths: vi.fn(),
   onStateChanged: vi.fn(),
 }));
 
@@ -21,6 +22,10 @@ vi.mock("node:fs/promises", () => ({
 
 vi.mock("../main/runConversionWorker", () => ({
   runConversionWorker: mocks.runWorker,
+}));
+
+vi.mock("../../conversion-core/pdf/convertPdfToJpg", () => ({
+  getPdfPagePaths: mocks.getPdfPagePaths,
 }));
 
 const jpgRequest: StartConversionRequest = {
@@ -141,8 +146,9 @@ describe("runConversionJob", () => {
       }
 
       expect(state.jobId).toBe(jobId);
-      expect(state.resultId).not.toBe(outputPath);
-      expect(results.getResultPath(state.resultId)).toBe(outputPath);
+      expect(state.resultIds).toHaveLength(1);
+      expect(state.resultIds[0]).not.toBe(outputPath);
+      expect(results.getResultPath(state.resultIds[0]!)).toBe(outputPath);
       expect(mocks.onStateChanged).toHaveBeenCalledTimes(1);
     },
   );
@@ -266,4 +272,102 @@ describe("runConversionJob", () => {
       expect(mocks.onStateChanged).not.toHaveBeenCalled();
     },
   );
+});
+
+const pdfDirectory = path.resolve("temporary-pdf-job");
+const pdfPages = [
+  path.join(pdfDirectory, "page-1.jpg"),
+  path.join(pdfDirectory, "page-2.jpg"),
+];
+const pdfRequest = { sourceId: "source-pdf", conversion: "pdf-to-jpg" } as const;
+
+async function setupPdfJob() {
+  const modules = await loadModules();
+  mocks.mkdtemp.mockResolvedValue(pdfDirectory);
+  mocks.getPdfPagePaths.mockResolvedValue(pdfPages);
+  return { ...modules, jobId: modules.jobs.startJob(), publish: vi.fn() };
+}
+
+describe("PDF conversion job", () => {
+  it("registers every page in order and publishes the complete result", async () => {
+    const { jobs, results, runConversionJob, jobId, publish } = await setupPdfJob();
+
+    await runConversionJob(jobId, "input.pdf", publish, pdfRequest);
+
+    expect(mocks.runWorker).toHaveBeenCalledExactlyOnceWith(
+      "input.pdf",
+      pdfDirectory,
+      pdfRequest,
+    );
+    expect(mocks.getPdfPagePaths).toHaveBeenCalledExactlyOnceWith(pdfDirectory);
+    expect(mocks.stat).toHaveBeenCalledTimes(2);
+
+    const state = jobs.getJobState();
+
+    if (state.status !== "succeeded") {
+      throw new Error("Expected success.");
+    }
+
+    expect(state.jobId).toBe(jobId);
+    expect(state.resultIds).toHaveLength(2);
+    expect(new Set(state.resultIds).size).toBe(2);
+    expect(state.resultIds.map(results.getResultPath)).toEqual(pdfPages);
+    expect(publish).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not register a partial result when a later page is empty", async () => {
+    const { jobs, results, runConversionJob, jobId, publish } = await setupPdfJob();
+    const previousId = results.registerResult("previous.png");
+
+    mocks.stat
+      .mockResolvedValueOnce({ isFile: () => true, size: 123 })
+      .mockResolvedValueOnce({ isFile: () => true, size: 0 });
+
+    await runConversionJob(jobId, "input.pdf", publish, pdfRequest);
+
+    expect(jobs.getJobState()).toEqual({
+      status: "failed",
+      jobId,
+      message: "Output file is empty or not a file.",
+    });
+    expect(results.getResultPath(previousId)).toBe("previous.png");
+    expect(publish).toHaveBeenCalledTimes(1);
+  });
+
+  it("marks the job failed when collecting page paths fails", async () => {
+    const { jobs, runConversionJob, jobId, publish } = await setupPdfJob();
+    mocks.getPdfPagePaths.mockRejectedValue(
+      new Error("PDF conversion produced no JPG files."),
+    );
+
+    await runConversionJob(jobId, "input.pdf", publish, pdfRequest);
+
+    expect(jobs.getJobState()).toEqual({
+      status: "failed",
+      jobId,
+      message: "PDF conversion produced no JPG files.",
+    });
+    expect(mocks.stat).not.toHaveBeenCalled();
+    expect(publish).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores late pages after another job has started", async () => {
+    const { jobs, results, runConversionJob, jobId, publish } = await setupPdfJob();
+    const previousId = results.registerResult("previous.png");
+    let nextJobId = "";
+
+    mocks.runWorker.mockImplementation(async () => {
+      jobs.failJob(jobId, "Previous job ended.");
+      nextJobId = jobs.startJob();
+    });
+
+    await runConversionJob(jobId, "input.pdf", publish, pdfRequest);
+
+    expect(jobs.getJobState()).toEqual({
+      status: "running",
+      jobId: nextJobId,
+    });
+    expect(results.getResultPath(previousId)).toBe("previous.png");
+    expect(publish).not.toHaveBeenCalled();
+  });
 });

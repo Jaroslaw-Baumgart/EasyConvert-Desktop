@@ -7,13 +7,13 @@ export async function waitForDesktopJob(
   api: EasyConvertApi,
   jobId: string,
   signal?: AbortSignal,
-): Promise<string> {
+): Promise<string[]> {
   let removeAbortListener: () => void = () => {};
   let unsubscribe: () => void = () => {};
   signal?.throwIfAborted();
 
   try {
-    return await new Promise<string>((resolve, reject) => {
+    return await new Promise<string[]>((resolve, reject) => {
       const handleAbort = (): void => {
         reject(
           signal?.reason ??
@@ -37,7 +37,7 @@ export async function waitForDesktopJob(
         }
 
         if (state.status === "succeeded") {
-          resolve(state.resultId);
+          resolve(state.resultIds);
           return;
         }
 

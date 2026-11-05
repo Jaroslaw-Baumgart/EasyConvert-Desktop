@@ -9,6 +9,38 @@ beforeEach(() => {
 });
 
 describe("jobRegistry", () => {
+  it("copies the supplied result IDs when completing a job", async () => {
+    const registry = await loadRegistry();
+    const jobId = registry.startJob();
+    const resultIds = ["result-1", "result-2"];
+
+    expect(registry.succeedJob(jobId, resultIds)).toBe(true);
+    resultIds[0] = "changed-outside-registry";
+    resultIds.push("foreign-result");
+
+    expect(registry.getJobState()).toEqual({
+      status: "succeeded", jobId, resultIds: ["result-1", "result-2"],
+    });
+  });
+
+  it("returns a separate result ID array in every success snapshot", async () => {
+    const registry = await loadRegistry();
+    const jobId = registry.startJob();
+    registry.succeedJob(jobId, ["result-1", "result-2"]);
+    const snapshot = registry.getJobState();
+
+    if (snapshot.status !== "succeeded") throw new Error("Expected success.");
+    snapshot.resultIds.splice(0, 1, "foreign-result");
+    snapshot.resultIds.push("extra-result");
+
+    const nextSnapshot = registry.getJobState();
+    expect(nextSnapshot).toEqual({
+      status: "succeeded", jobId, resultIds: ["result-1", "result-2"],
+    });
+    if (nextSnapshot.status !== "succeeded") throw new Error("Expected success.");
+    expect(nextSnapshot.resultIds).not.toBe(snapshot.resultIds);
+  });
+
   it("starts idle", async () => {
     const { getJobState } = await loadRegistry();
 
@@ -56,19 +88,19 @@ describe("jobRegistry", () => {
 
       const accepted =
         outcome === "success"
-          ? registry.succeedJob(jobId, "result-123")
+          ? registry.succeedJob(jobId, ["result-123"])
           : registry.failJob(jobId, "Conversion failed.");
 
       expect(accepted).toBe(true);
       expect(registry.getJobState()).toEqual(
         outcome === "success"
-          ? { status: "succeeded", jobId, resultId: "result-123" }
+          ? { status: "succeeded", jobId, resultIds: ["result-123"] }
           : { status: "failed", jobId, message: "Conversion failed." },
       );
 
       // Zakończonego zadania nie można zakończyć ponownie.
       const finishedState = registry.getJobState();
-      expect(registry.succeedJob(jobId, "another-result")).toBe(false);
+      expect(registry.succeedJob(jobId, ["another-result"])).toBe(false);
       expect(registry.failJob(jobId, "Late error")).toBe(false);
       expect(registry.getJobState()).toEqual(finishedState);
     },
@@ -77,7 +109,7 @@ describe("jobRegistry", () => {
   it("ignores completion when no job is running", async () => {
     const registry = await loadRegistry();
 
-    expect(registry.succeedJob("unknown", "result-123")).toBe(false);
+    expect(registry.succeedJob("unknown", ["result-123"])).toBe(false);
     expect(registry.failJob("unknown", "Error")).toBe(false);
     expect(registry.getJobState()).toEqual({ status: "idle" });
   });
@@ -86,7 +118,7 @@ describe("jobRegistry", () => {
     const registry = await loadRegistry();
     const jobId = registry.startJob();
 
-    expect(registry.succeedJob("foreign", "result-123")).toBe(false);
+    expect(registry.succeedJob("foreign", ["result-123"])).toBe(false);
     expect(registry.failJob("foreign", "Error")).toBe(false);
     expect(registry.getJobState()).toEqual({ status: "running", jobId });
   });
@@ -94,11 +126,11 @@ describe("jobRegistry", () => {
   it("ignores an old completion after another job starts", async () => {
     const registry = await loadRegistry();
     const oldJobId = registry.startJob();
-    registry.succeedJob(oldJobId, "old-result");
+    registry.succeedJob(oldJobId, ["old-result"]);
 
     const newJobId = registry.startJob();
     expect(newJobId).not.toBe(oldJobId);
-    expect(registry.succeedJob(oldJobId, "late-result")).toBe(false);
+    expect(registry.succeedJob(oldJobId, ["late-result"])).toBe(false);
     expect(registry.failJob(oldJobId, "Late error")).toBe(false);
     expect(registry.getJobState()).toEqual({
       status: "running",

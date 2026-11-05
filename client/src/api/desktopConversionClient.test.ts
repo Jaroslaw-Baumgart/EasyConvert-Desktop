@@ -32,7 +32,7 @@ function setup() {
     saveResult: vi.fn(),
   };
 
-  vi.mocked(waitForDesktopJob).mockResolvedValue("result-1");
+  vi.mocked(waitForDesktopJob).mockResolvedValue(["result-1"]);
 
   const response = {
     ok: true,
@@ -56,6 +56,52 @@ function readFile(file: File): Promise<string> {
 }
 
 describe("convertDesktopFile", () => {
+  it("downloads PDF pages in order and numbers their JPG names", async () => {
+    const { api, response, fetchMock } = setup();
+    vi.mocked(waitForDesktopJob).mockResolvedValue(["result-1", "result-2"]);
+    response.blob
+      .mockResolvedValueOnce(new Blob(["one"], { type: "image/jpeg" }))
+      .mockResolvedValueOnce(new Blob(["two"], { type: "image/jpeg" }));
+
+    const results = await convertDesktopFile(api, { sourceId: "source-pdf", conversion: "pdf-to-jpg" }, "document.pdf");
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1, "app://easyconvert/preview/result/result-1", { signal: undefined },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2, "app://easyconvert/preview/result/result-2", { signal: undefined },
+    );
+    expect(results.map(({ file }) => file.name)).toEqual([
+      "document-page-1.jpg", "document-page-2.jpg",
+    ]);
+    expect(await readFile(results[0].file)).toBe("one");
+    expect(await readFile(results[1]!.file)).toBe("two");
+  });
+
+  it.each([0, 101])("rejects %i results before fetching", async (count) => {
+    const { api, fetchMock } = setup();
+    vi.mocked(waitForDesktopJob).mockResolvedValue(
+      Array.from({ length: count }, (_, index) => `result-${index}`),
+    );
+
+    await expect(convertDesktopFile(api, jpgRequest, "photo.jpg"))
+      .rejects.toThrow("Invalid number of conversion results.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not return partial results when a later fetch fails", async () => {
+    const { api, response, fetchMock } = setup();
+    const error = new Error("Second result unavailable.");
+    vi.mocked(waitForDesktopJob).mockResolvedValue(["result-1", "result-2"]);
+    fetchMock.mockResolvedValueOnce(response);
+    fetchMock.mockRejectedValueOnce(error);
+
+    await expect(convertDesktopFile(api, jpgRequest, "photo.jpg"))
+      .rejects.toBe(error);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("passes CSV page settings and returns a PDF file", async () => {
     const { api, response } = setup();
     const request: StartConversionRequest = {
@@ -183,7 +229,7 @@ describe("convertDesktopFile", () => {
 
     vi.mocked(waitForDesktopJob).mockImplementationOnce(async () => {
       controller.abort(reason);
-      return "result-1";
+      return ["result-1"];
     });
 
     await expect(
