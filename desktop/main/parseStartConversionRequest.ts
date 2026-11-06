@@ -27,7 +27,11 @@ export function parseStartConversionRequest(
     throw new Error("Missing conversion.");
   }
 
-  if (value.conversion === "jpg-to-png" || value.conversion === "pdf-to-jpg") {
+  if (
+    value.conversion === "jpg-to-png" ||
+    value.conversion === "pdf-to-jpg" ||
+    value.conversion === "pdf-to-txt"
+  ) {
     return {
       sourceId: value.sourceId,
       conversion: value.conversion,

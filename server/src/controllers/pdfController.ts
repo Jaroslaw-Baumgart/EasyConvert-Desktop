@@ -1,11 +1,7 @@
 import { Request, Response } from "express";
 import fs from "fs/promises";
 import path from "path";
-import {
-  convertPdfToJpg,
-  runPoppler,
-  validatePdfPageCount,
-} from "../utils/poppler";
+import { convertPdfToJpg, convertPdfToTxt } from "../utils/poppler";
 import { OUTPUT_DIR } from "../utils/constants";
 import {
   createOutputFileItem,
@@ -76,13 +72,7 @@ export const pdfToTxt = async (req: Request, res: Response) => {
   const signal = res.locals?.conversionAbortSignal as AbortSignal | undefined;
 
   try {
-    if (signal) {
-      await validatePdfPageCount(file.path, signal);
-      await runPoppler("pdftotext", [file.path, outputPath], signal);
-    } else {
-      await validatePdfPageCount(file.path);
-      await runPoppler("pdftotext", [file.path, outputPath]);
-    }
+    await convertPdfToTxt(file.path, outputPath, signal);
 
     return sendSuccessResponse(res, [createOutputFileItem(outputName)]);
   } catch (err: unknown) {

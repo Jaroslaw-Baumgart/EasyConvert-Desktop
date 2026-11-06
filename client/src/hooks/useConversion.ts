@@ -182,7 +182,8 @@ export function useConversion(): UseConversionResult {
         let request: StartConversionRequest;
         if (
           option.conversionType === "jpg-to-png" ||
-          option.conversionType === "pdf-to-jpg"
+          option.conversionType === "pdf-to-jpg" ||
+          option.conversionType === "pdf-to-txt"
         ) {
           request = {
             sourceId,

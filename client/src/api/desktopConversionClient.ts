@@ -32,6 +32,7 @@ export async function convertDesktopFile(
     "txt-to-pdf": ".pdf",
     "csv-to-pdf": ".pdf",
     "pdf-to-jpg": ".jpg",
+    "pdf-to-txt": ".txt",
   } satisfies Record<StartConversionRequest["conversion"], string>;
 
   const extension = extensions[request.conversion];

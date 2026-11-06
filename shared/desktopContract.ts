@@ -29,7 +29,8 @@ export type StartConversionRequest =
   | { sourceId: string; conversion: "jpg-to-pdf"; options: PdfPageOptions }
   | { sourceId: string; conversion: "txt-to-pdf"; options: PdfPageOptions }
   | { sourceId: string; conversion: "csv-to-pdf"; options: PdfPageOptions }
-  | { sourceId: string; conversion: "pdf-to-jpg" };
+  | { sourceId: string; conversion: "pdf-to-jpg" }
+  | { sourceId: string; conversion: "pdf-to-txt" };
 
 export type StartConversionResponse = {
   jobId: string;

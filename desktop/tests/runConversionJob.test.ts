@@ -39,6 +39,11 @@ const successCases: {
   outputName: string;
 }[] = [
   {
+    request: { sourceId: "source-pdf", conversion: "pdf-to-txt" },
+    inputPath: "C:/input/document.pdf",
+    outputName: "result.txt",
+  },
+  {
     request: jpgRequest,
     inputPath: "C:/input/photo.jpg",
     outputName: "result.png",

@@ -7,6 +7,7 @@ import { parsePdfPageOptions } from "../../conversion-core/image/parsePdfPageOpt
 import { convertTxtToPdf } from "../../conversion-core/pdf/convertTxtToPdf";
 import { convertCsvToPdf } from "../../conversion-core/pdf/convertCsvToPdf";
 import { convertPdfToJpg } from "../../conversion-core/pdf/convertPdfToJpg";
+import { convertPdfToTxt } from "../../conversion-core/pdf/convertPdfToTxt";
 
 async function run(): Promise<void> {
   const [
@@ -39,6 +40,16 @@ async function run(): Promise<void> {
     }
 
     await convertPdfToJpg(inputPath, outputPath, {
+      binDirectory: conversionArgument,
+      timeoutMs: 120_000,
+      maxPages: 100,
+    });
+  } else if (conversion === "pdf-to-txt") {
+    if (!conversionArgument) {
+      throw new Error("Expected a Poppler binary directory.");
+    }
+
+    await convertPdfToTxt(inputPath, outputPath, {
       binDirectory: conversionArgument,
       timeoutMs: 120_000,
       maxPages: 100,

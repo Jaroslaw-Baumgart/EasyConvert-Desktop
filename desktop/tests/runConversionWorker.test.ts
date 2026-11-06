@@ -267,9 +267,14 @@ describe("runConversionWorker", () => {
     ).rejects.toBe(error);
   });
 
-  it.each([false, true])(
-    "passes the Poppler directory when isPackaged=%s",
-    async (isPackaged) => {
+  it.each([
+    { conversion: "pdf-to-jpg", outputPath: "C:/output/pages", isPackaged: false },
+    { conversion: "pdf-to-jpg", outputPath: "C:/output/pages", isPackaged: true },
+    { conversion: "pdf-to-txt", outputPath: "C:/output/result.txt", isPackaged: false },
+    { conversion: "pdf-to-txt", outputPath: "C:/output/result.txt", isPackaged: true },
+  ] as const)(
+    "passes the Poppler directory for $conversion when isPackaged=$isPackaged",
+    async ({ conversion, outputPath, isPackaged }) => {
       mocks.app.isPackaged = isPackaged;
 
       const worker = new EventEmitter();
@@ -277,10 +282,10 @@ describe("runConversionWorker", () => {
 
       const completion = runConversionWorker(
         "C:/input/document.pdf",
-        "C:/output/pages",
+        outputPath,
         {
           sourceId: "source-pdf",
-          conversion: "pdf-to-jpg",
+          conversion,
         },
       );
 
@@ -293,9 +298,9 @@ describe("runConversionWorker", () => {
 
       expect(mocks.fork).toHaveBeenCalledTimes(1);
       expect(mocks.fork.mock.calls[0][1]).toEqual([
-        "pdf-to-jpg",
+        conversion,
         "C:/input/document.pdf",
-        "C:/output/pages",
+        outputPath,
         binDirectory,
       ]);
 

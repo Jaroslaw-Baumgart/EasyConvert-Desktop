@@ -277,16 +277,16 @@ describe("parseStartConversionRequest", () => {
     ).toThrow("Invalid PDF page options.");
   });
 
-  it("accepts PDF to JPG without options and strips extra fields", () => {
+  it.each(["pdf-to-jpg", "pdf-to-txt"])("accepts %s without options and strips extra fields", (conversion) => {
     expect(
       parseStartConversionRequest({
         sourceId: "source-pdf",
-        conversion: "pdf-to-jpg",
+        conversion,
         extra: "ignored",
       }),
     ).toEqual({
       sourceId: "source-pdf",
-      conversion: "pdf-to-jpg",
+      conversion,
     });
   });
 });

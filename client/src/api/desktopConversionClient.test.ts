@@ -56,6 +56,25 @@ function readFile(file: File): Promise<string> {
 }
 
 describe("convertDesktopFile", () => {
+  it("returns extracted PDF text with the TXT name and MIME type", async () => {
+    const { api, response } = setup();
+    const request: StartConversionRequest = {
+      sourceId: "source-pdf",
+      conversion: "pdf-to-txt",
+    };
+    const text = "Page 1\n\fPage 2\n";
+    const blob = new Blob([text], { type: "text/plain" });
+    response.headers.set("Content-Length", String(blob.size));
+    response.blob.mockResolvedValue(blob);
+
+    const results = await convertDesktopFile(api, request, "document.v2.pdf");
+
+    expect(api.startConversion).toHaveBeenCalledExactlyOnceWith(request);
+    expect(results).toHaveLength(1);
+    expect(results[0].file.name).toBe("document.v2.txt");
+    expect(results[0].file.type).toBe("text/plain");
+    expect(await readFile(results[0].file)).toBe(text);
+  });
   it("downloads PDF pages in order and numbers their JPG names", async () => {
     const { api, response, fetchMock } = setup();
     vi.mocked(waitForDesktopJob).mockResolvedValue(["result-1", "result-2"]);

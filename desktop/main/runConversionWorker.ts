@@ -34,7 +34,10 @@ export function runConversionWorker(
       }
     }
 
-    if (request.conversion === "pdf-to-jpg") {
+    if (
+      request.conversion === "pdf-to-jpg" ||
+      request.conversion === "pdf-to-txt"
+    ) {
       const binDirectory = app.isPackaged
         ? path.join(process.resourcesPath, "poppler/bin")
         : path.resolve(

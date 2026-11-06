@@ -5,7 +5,7 @@ An offline file converter for Windows, built around Electron, React and TypeScri
 **Status: desktop migration in progress.** The Electron shell runs the existing
 React frontend locally, including file previews, navigation and Polish/English support.
 The project is adapted from [OnlineConverter-app](https://github.com/Jaroslaw-Baumgart/OnlineConverter-app).
-JPG → PNG, PNG → JPG, JPG → PDF, TXT → PDF, CSV → PDF and PDF → JPG run locally in an Electron utility
+JPG → PNG, PNG → JPG, JPG → PDF, TXT → PDF, CSV → PDF, PDF → JPG and PDF → TXT run locally in an Electron utility
 process without an HTTP server. The remaining conversions are still being migrated.
 No public desktop release or installer is available yet.
 
@@ -17,6 +17,7 @@ No public desktop release or installer is available yet.
 - Convert PNG → JPG with quality and background-color settings.
 - Convert JPG, TXT or CSV → PDF with A4/A3 and portrait/landscape settings.
 - Convert PDF → JPG with one result per page, in page order.
+- Extract text from PDF → TXT (text-based PDFs; no OCR).
 - Preserve Polish characters in TXT PDFs using the bundled Noto Sans font.
 - Download conversion results and clear the current source and result.
 - Download multiple results as ZIP using the existing frontend export.
@@ -47,8 +48,7 @@ The status below describes integration with the desktop interface:
 | PNG | JPG | Available |
 | TXT | PDF | Available |
 | CSV | PDF | Available |
-| PDF | JPG | Available |
-| PDF | TXT | Planned |
+| PDF | JPG, TXT | Available |
 | DOCX, XLSX, PPTX | PDF | Planned |
 
 ## Run from source
@@ -64,7 +64,7 @@ npm.cmd run desktop:start
 
 `desktop:start` compiles the Electron code and opens the built frontend locally.
 Rebuild the client after frontend changes. The available desktop conversions do
-not require starting Express or Vite. PDF → JPG launches Poppler as a local tool;
+not require starting Express or Vite. PDF → JPG and PDF → TXT launch Poppler as a local tool;
 in the current development setup its binaries are installed by
 `npm.cmd ci --prefix server`. Image and TXT/CSV conversions do not require
 LibreOffice or Poppler.

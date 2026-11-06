@@ -428,6 +428,36 @@ describe("desktop useConversion", () => {
     expect(result.current.isConverting).toBe(false);
   });
 
+  it("passes PDF to TXT without settings and stores the text result", async () => {
+    const { api, result } = setup();
+    const file = new File(["pdf"], "document.pdf", { type: "application/pdf" });
+    const output: ConvertedResults = [{
+      url: "app://easyconvert/preview/result/result-text",
+      file: new File(["Page 1\n\fPage 2"], "document.txt", { type: "text/plain" }),
+    }];
+    vi.mocked(convertDesktopFile).mockResolvedValue(output);
+
+    act(() => result.current.selectFile(file, "source-pdf"));
+    await act(async () => {
+      await result.current.convert({
+        conversionType: "pdf-to-txt",
+        sourceFormat: "pdf",
+        targetFormat: "txt",
+        disabled: false,
+      });
+    });
+
+    expect(convertDesktopFile).toHaveBeenCalledExactlyOnceWith(
+      api,
+      { sourceId: "source-pdf", conversion: "pdf-to-txt" },
+      "document.pdf",
+      expect.any(AbortSignal),
+    );
+    expect(convertFile).not.toHaveBeenCalled();
+    expect(result.current.convertedResults).toBe(output);
+    expect(result.current.isConverting).toBe(false);
+  });
+
   it("passes TXT to PDF page settings to the desktop adapter", async () => {
     const { api, result } = setup();
     const file = new File(["Zażółć gęślą jaźń"], "polski-tekst.txt", {
