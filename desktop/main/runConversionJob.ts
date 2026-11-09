@@ -31,6 +31,9 @@ export async function runConversionJob(
         "txt-to-pdf": "result.pdf",
         "csv-to-pdf": "result.pdf",
         "pdf-to-txt": "result.txt",
+        "docx-to-pdf": "result.pdf",
+        "pptx-to-pdf": "result.pdf",
+        "xlsx-to-pdf": "result.pdf",
       } satisfies Record<
         Exclude<StartConversionRequest["conversion"], "pdf-to-jpg">,
         string

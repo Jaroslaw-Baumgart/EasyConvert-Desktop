@@ -98,7 +98,6 @@ describe("jobRegistry", () => {
           : { status: "failed", jobId, message: "Conversion failed." },
       );
 
-      // Zakończonego zadania nie można zakończyć ponownie.
       const finishedState = registry.getJobState();
       expect(registry.succeedJob(jobId, ["another-result"])).toBe(false);
       expect(registry.failJob(jobId, "Late error")).toBe(false);

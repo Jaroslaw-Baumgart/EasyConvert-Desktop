@@ -1,7 +1,11 @@
 import { Request, Response } from "express";
 import path from "path";
 import fs from "fs/promises";
-import { OUTPUT_DIR } from "../utils/constants";
+import {
+  OUTPUT_DIR,
+  LIBRE_OFFICE_PATH,
+  LIBRE_OFFICE_TIMEOUT_MS,
+} from "../utils/constants";
 import { safeUnlink } from "../utils/file";
 import {
   createOutputFileItem,
@@ -10,8 +14,7 @@ import {
 } from "../utils/response";
 import { getConversionFailureCode } from "../utils/conversionError";
 import { xlsxPdfSettingsSchema } from "../schemas/conversionSettings";
-import { convertLibreOfficeToPdf } from "../utils/libreOffice";
-import { applyXlsxPageSetup } from "../utils/xlsxPageSetup";
+import { convertXlsxToPdf } from "../../../conversion-core/office/convertXlsxToPdf";
 
 const getBaseFileName = (file: Express.Multer.File) => {
   return path.parse(file.filename).name;
@@ -29,7 +32,6 @@ export const xlsxToPdf = async (req: Request, res: Response) => {
   const baseName = getBaseFileName(file);
   const outputName = `${baseName}.pdf`;
   const outputPath = path.join(OUTPUT_DIR, outputName);
-  const preparedPath = path.join(OUTPUT_DIR, `${baseName}.xlsx`);
 
   try {
     const settingsResult = xlsxPdfSettingsSchema.safeParse(req.body);
@@ -38,26 +40,20 @@ export const xlsxToPdf = async (req: Request, res: Response) => {
       return sendErrorResponse(res, 400, "Invalid conversion settings.");
     }
 
-    const { sheetName, ...pageSettings } = settingsResult.data;
-
     await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
-    const inputBytes = await fs.readFile(file.path);
-
-    const preparedBytes = await applyXlsxPageSetup(
-      inputBytes,
-      sheetName,
-      pageSettings,
-    );
-
-    await fs.writeFile(preparedPath, preparedBytes);
-
     const signal = res.locals?.conversionAbortSignal as AbortSignal | undefined;
-    if (signal) {
-      await convertLibreOfficeToPdf(preparedPath, outputPath, signal);
-    } else {
-      await convertLibreOfficeToPdf(preparedPath, outputPath);
-    }
+
+    await convertXlsxToPdf(
+      file.path,
+      outputPath,
+      settingsResult.data,
+      {
+        executablePath: LIBRE_OFFICE_PATH,
+        timeoutMs: LIBRE_OFFICE_TIMEOUT_MS,
+      },
+      signal,
+    );
 
     return sendSuccessResponse(res, [createOutputFileItem(outputName)]);
   } catch (err: unknown) {
@@ -69,7 +65,5 @@ export const xlsxToPdf = async (req: Request, res: Response) => {
     await safeUnlink(outputPath);
 
     return sendErrorResponse(res, 500, errorMessage, errorCode);
-  } finally {
-    await safeUnlink(preparedPath);
   }
 };

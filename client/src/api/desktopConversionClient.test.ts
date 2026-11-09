@@ -56,6 +56,34 @@ function readFile(file: File): Promise<string> {
 }
 
 describe("convertDesktopFile", () => {
+  it("passes XLSX sheet settings and returns a PDF file", async () => {
+    const { api, response } = setup();
+    const request: StartConversionRequest = {
+      sourceId: "source-xlsx", conversion: "xlsx-to-pdf",
+      options: { pageSize: "A3", pageOrientation: "landscape", sheetName: "Koszty" },
+    };
+    response.blob.mockResolvedValue(new Blob(["pdf"], { type: "application/pdf" }));
+    const results = await convertDesktopFile(api, request, "workbook.v2.xlsx");
+    expect(api.startConversion).toHaveBeenCalledExactlyOnceWith(request);
+    expect(results).toHaveLength(1);
+    expect(results[0].file.name).toBe("workbook.v2.pdf");
+    expect(results[0].file.type).toBe("application/pdf");
+    expect(await readFile(results[0].file)).toBe("pdf");
+  });
+  it.each([
+    { conversion: "docx-to-pdf", extension: "docx" },
+    { conversion: "pptx-to-pdf", extension: "pptx" },
+  ] as const)("returns $conversion as a PDF with the original base name", async ({ conversion, extension }) => {
+    const { api, response } = setup();
+    const request: StartConversionRequest = { sourceId: "source-office", conversion };
+    response.blob.mockResolvedValue(new Blob(["pdf"], { type: "application/pdf" }));
+    const results = await convertDesktopFile(api, request, `document.v2.${extension}`);
+    expect(api.startConversion).toHaveBeenCalledExactlyOnceWith(request);
+    expect(results).toHaveLength(1);
+    expect(results[0].file.name).toBe("document.v2.pdf");
+    expect(results[0].file.type).toBe("application/pdf");
+    expect(await readFile(results[0].file)).toBe("pdf");
+  });
   it("returns extracted PDF text with the TXT name and MIME type", async () => {
     const { api, response } = setup();
     const request: StartConversionRequest = {

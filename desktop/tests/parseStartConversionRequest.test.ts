@@ -2,6 +2,23 @@ import { describe, expect, it } from "vitest";
 import { parseStartConversionRequest } from "../main/parseStartConversionRequest";
 
 describe("parseStartConversionRequest", () => {
+  it.each([
+    { pageSize: "A3", pageOrientation: "landscape", sheetName: "Koszty" },
+    { pageSize: "A4", pageOrientation: "portrait" },
+  ])("preserves XLSX settings %j and removes extra fields", (options) => {
+    expect(parseStartConversionRequest({ sourceId: "source-xlsx", conversion: "xlsx-to-pdf", options: { ...options, extra: true }, extra: true }))
+      .toEqual({ sourceId: "source-xlsx", conversion: "xlsx-to-pdf", options });
+  });
+
+  it("rejects XLSX without options", () => {
+    expect(() => parseStartConversionRequest({ sourceId: "source-xlsx", conversion: "xlsx-to-pdf" }))
+      .toThrow("Missing options for XLSX to PDF conversion.");
+  });
+
+  it.each(["", null, 42])("rejects an invalid XLSX sheet name %j", (sheetName) => {
+    expect(() => parseStartConversionRequest({ sourceId: "source-xlsx", conversion: "xlsx-to-pdf", options: { pageSize: "A4", pageOrientation: "portrait", sheetName } }))
+      .toThrow("Invalid XLSX sheet name.");
+  });
   it("returns a CSV to PDF request with validated options", () => {
     expect(
       parseStartConversionRequest({
@@ -277,7 +294,7 @@ describe("parseStartConversionRequest", () => {
     ).toThrow("Invalid PDF page options.");
   });
 
-  it.each(["pdf-to-jpg", "pdf-to-txt"])("accepts %s without options and strips extra fields", (conversion) => {
+  it.each(["pdf-to-jpg", "pdf-to-txt", "docx-to-pdf", "pptx-to-pdf"])("accepts %s without options and strips extra fields", (conversion) => {
     expect(
       parseStartConversionRequest({
         sourceId: "source-pdf",

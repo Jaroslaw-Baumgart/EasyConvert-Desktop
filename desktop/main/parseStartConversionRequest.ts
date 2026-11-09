@@ -1,6 +1,7 @@
 import type { StartConversionRequest } from "../../shared/desktopContract";
 import { parsePngToJpgOptions } from "../../conversion-core/image/parsePngToJpgOptions";
 import { parsePdfPageOptions } from "../../conversion-core/image/parsePdfPageOptions";
+import { parseXlsxToPdfOptions } from "../../conversion-core/office/parseXlsxToPdfOptions";
 
 export function parseStartConversionRequest(
   value: unknown,
@@ -30,7 +31,9 @@ export function parseStartConversionRequest(
   if (
     value.conversion === "jpg-to-png" ||
     value.conversion === "pdf-to-jpg" ||
-    value.conversion === "pdf-to-txt"
+    value.conversion === "pdf-to-txt" ||
+    value.conversion === "docx-to-pdf" ||
+    value.conversion === "pptx-to-pdf"
   ) {
     return {
       sourceId: value.sourceId,
@@ -74,5 +77,16 @@ export function parseStartConversionRequest(
     };
   }
 
+  if (value.conversion === "xlsx-to-pdf") {
+    if (!("options" in value)) {
+      throw new Error("Missing options for XLSX to PDF conversion.");
+    }
+
+    return {
+      sourceId: value.sourceId,
+      conversion: value.conversion,
+      options: parseXlsxToPdfOptions(value.options),
+    };
+  }
   throw new Error("Unsupported conversion.");
 }

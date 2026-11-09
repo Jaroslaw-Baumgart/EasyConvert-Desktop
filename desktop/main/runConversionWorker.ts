@@ -14,7 +14,8 @@ export function runConversionWorker(
       request.conversion === "png-to-jpg" ||
       request.conversion === "jpg-to-pdf" ||
       request.conversion === "txt-to-pdf" ||
-      request.conversion === "csv-to-pdf"
+      request.conversion === "csv-to-pdf" ||
+      request.conversion === "xlsx-to-pdf"
     ) {
       args.push(JSON.stringify(request.options));
     }
@@ -46,6 +47,21 @@ export function runConversionWorker(
           );
 
       args.push(binDirectory);
+    }
+
+    if (
+      request.conversion === "docx-to-pdf" ||
+      request.conversion === "pptx-to-pdf" ||
+      request.conversion === "xlsx-to-pdf"
+    ) {
+      const executablePath = app.isPackaged
+        ? path.join(process.resourcesPath, "libreoffice/program/soffice.com")
+        : path.resolve(
+            __dirname,
+            "../../../tools/libreoffice/program/soffice.com",
+          );
+
+      args.push(executablePath);
     }
 
     const worker = utilityProcess.fork(

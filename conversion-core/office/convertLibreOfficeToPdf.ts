@@ -67,6 +67,14 @@ export async function convertLibreOfficeToPdf(
         },
       );
     });
+    const generatedPath = path.join(
+      path.dirname(outputPath),
+      `${path.parse(inputPath).name}.pdf`,
+    );
+
+    if (generatedPath !== outputPath) {
+      await fs.rename(generatedPath, outputPath);
+    }
     const handle = await fs.open(outputPath, "r").catch((error: unknown) => {
       if (
         typeof error === "object" &&

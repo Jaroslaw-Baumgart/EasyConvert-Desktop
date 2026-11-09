@@ -13,7 +13,6 @@ vi.mock("electron", () => ({
 
 import { selectSourcePath } from "../main/selectSource";
 
-// Atrapa właściciela dialogu — nie tworzymy prawdziwego okna.
 const owner = {} as BrowserWindow;
 
 beforeEach(() => {

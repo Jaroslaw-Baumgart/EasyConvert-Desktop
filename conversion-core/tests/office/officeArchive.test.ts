@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { zipSync } from "fflate";
-import { unzipOfficeArchive } from "./officeArchive";
-import { MAX_OFFICE_UNCOMPRESSED_BYTES, MAX_OFFICE_ENTRIES } from "./constants";
+import { unzipOfficeArchive } from "../../office/officeArchive";
+import { MAX_OFFICE_UNCOMPRESSED_BYTES, MAX_OFFICE_ENTRIES } from "../../office/officeLimits";
 
 describe("Office archive budget", () => {
   it("rejects declared uncompressed sizes before decompressing", async () => {

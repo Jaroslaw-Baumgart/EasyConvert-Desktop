@@ -8,6 +8,8 @@ import { convertTxtToPdf } from "../../conversion-core/pdf/convertTxtToPdf";
 import { convertCsvToPdf } from "../../conversion-core/pdf/convertCsvToPdf";
 import { convertPdfToJpg } from "../../conversion-core/pdf/convertPdfToJpg";
 import { convertPdfToTxt } from "../../conversion-core/pdf/convertPdfToTxt";
+import { convertXlsxToPdf } from "../../conversion-core/office/convertXlsxToPdf";
+import { parseXlsxToPdfOptions } from "../../conversion-core/office/parseXlsxToPdfOptions";
 
 async function run(): Promise<void> {
   const [
@@ -25,7 +27,11 @@ async function run(): Promise<void> {
 
   if (conversion === "jpg-to-png") {
     await convertJpgToPng(inputPath, outputPath);
-  } else if (conversion === "office-to-pdf") {
+  } else if (
+    conversion === "office-to-pdf" ||
+    conversion === "docx-to-pdf" ||
+    conversion === "pptx-to-pdf"
+  ) {
     if (!conversionArgument) {
       throw new Error("Expected a LibreOffice executable path.");
     }
@@ -43,6 +49,24 @@ async function run(): Promise<void> {
       binDirectory: conversionArgument,
       timeoutMs: 120_000,
       maxPages: 100,
+    });
+  } else if (conversion === "xlsx-to-pdf") {
+    if (!conversionArgument) {
+      throw new Error("Expected XLSX to PDF options.");
+    }
+
+    const executablePath = fontPath;
+
+    if (!executablePath) {
+      throw new Error("Expected a LibreOffice executable path.");
+    }
+
+    const value: unknown = JSON.parse(conversionArgument);
+    const options = parseXlsxToPdfOptions(value);
+
+    await convertXlsxToPdf(inputPath, outputPath, options, {
+      executablePath,
+      timeoutMs: 120_000,
     });
   } else if (conversion === "pdf-to-txt") {
     if (!conversionArgument) {

@@ -1,4 +1,8 @@
-import type { PdfPageOptions, PngToJpgOptions } from "./conversionOptions";
+import type {
+  PdfPageOptions,
+  PngToJpgOptions,
+  XlsxToPdfOptions,
+} from "./conversionOptions";
 
 export type SelectedSource = {
   sourceId: string;
@@ -30,7 +34,10 @@ export type StartConversionRequest =
   | { sourceId: string; conversion: "txt-to-pdf"; options: PdfPageOptions }
   | { sourceId: string; conversion: "csv-to-pdf"; options: PdfPageOptions }
   | { sourceId: string; conversion: "pdf-to-jpg" }
-  | { sourceId: string; conversion: "pdf-to-txt" };
+  | { sourceId: string; conversion: "pdf-to-txt" }
+  | { sourceId: string; conversion: "docx-to-pdf" }
+  | { sourceId: string; conversion: "pptx-to-pdf" }
+  | { sourceId: string; conversion: "xlsx-to-pdf"; options: XlsxToPdfOptions };
 
 export type StartConversionResponse = {
   jobId: string;

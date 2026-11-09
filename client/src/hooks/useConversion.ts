@@ -183,7 +183,9 @@ export function useConversion(): UseConversionResult {
         if (
           option.conversionType === "jpg-to-png" ||
           option.conversionType === "pdf-to-jpg" ||
-          option.conversionType === "pdf-to-txt"
+          option.conversionType === "pdf-to-txt" ||
+          option.conversionType === "docx-to-pdf" ||
+          option.conversionType === "pptx-to-pdf"
         ) {
           request = {
             sourceId,
@@ -225,6 +227,26 @@ export function useConversion(): UseConversionResult {
             options: {
               pageSize: settings.pageSize,
               pageOrientation: settings.pageOrientation,
+            },
+          };
+        } else if (option.conversionType === "xlsx-to-pdf") {
+          if (
+            !settings ||
+            !("pageSize" in settings) ||
+            !("pageOrientation" in settings)
+          ) {
+            throw new Error("Missing XLSX to PDF settings.");
+          }
+
+          request = {
+            sourceId,
+            conversion: option.conversionType,
+            options: {
+              pageSize: settings.pageSize,
+              pageOrientation: settings.pageOrientation,
+              ...("sheetName" in settings && settings.sheetName !== undefined
+                ? { sheetName: settings.sheetName }
+                : {}),
             },
           };
         } else {

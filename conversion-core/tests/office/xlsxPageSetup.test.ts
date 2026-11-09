@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { strFromU8, strToU8, unzipSync, zipSync } from "fflate";
 
-import { applyXlsxPageSetup } from "./xlsxPageSetup";
+import { applyXlsxPageSetup } from "../../office/xlsxPageSetup";
 
 const createWorkbookArchive = () =>
   zipSync({

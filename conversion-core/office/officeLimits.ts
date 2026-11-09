@@ -1,0 +1,2 @@
+export const MAX_OFFICE_UNCOMPRESSED_BYTES = 50 * 1024 * 1024;
+export const MAX_OFFICE_ENTRIES = 2000;

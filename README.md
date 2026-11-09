@@ -5,7 +5,8 @@ An offline file converter for Windows, built around Electron, React and TypeScri
 **Status: desktop migration in progress.** The Electron shell runs the existing
 React frontend locally, including file previews, navigation and Polish/English support.
 The project is adapted from [OnlineConverter-app](https://github.com/Jaroslaw-Baumgart/OnlineConverter-app).
-JPG → PNG, PNG → JPG, JPG → PDF, TXT → PDF, CSV → PDF, PDF → JPG and PDF → TXT run locally in an Electron utility
+JPG → PNG, PNG → JPG, JPG → PDF, TXT → PDF, CSV → PDF, PDF → JPG, PDF → TXT,
+DOCX → PDF and PPTX → PDF run locally in an Electron utility
 process without an HTTP server. The remaining conversions are still being migrated.
 No public desktop release or installer is available yet.
 
@@ -18,6 +19,7 @@ No public desktop release or installer is available yet.
 - Convert JPG, TXT or CSV → PDF with A4/A3 and portrait/landscape settings.
 - Convert PDF → JPG with one result per page, in page order.
 - Extract text from PDF → TXT (text-based PDFs; no OCR).
+- Convert DOCX or PPTX → PDF using local LibreOffice.
 - Preserve Polish characters in TXT PDFs using the bundled Noto Sans font.
 - Download conversion results and clear the current source and result.
 - Download multiple results as ZIP using the existing frontend export.
@@ -49,7 +51,8 @@ The status below describes integration with the desktop interface:
 | TXT | PDF | Available |
 | CSV | PDF | Available |
 | PDF | JPG, TXT | Available |
-| DOCX, XLSX, PPTX | PDF | Planned |
+| DOCX, PPTX | PDF | Available |
+| XLSX | PDF | Planned |
 
 ## Run from source
 
@@ -68,6 +71,10 @@ not require starting Express or Vite. PDF → JPG and PDF → TXT launch Poppler
 in the current development setup its binaries are installed by
 `npm.cmd ci --prefix server`. Image and TXT/CSV conversions do not require
 LibreOffice or Poppler.
+
+DOCX → PDF and PPTX → PDF require LibreOffice at `tools/libreoffice/program/soffice.com`
+in development. These manually installed binaries are excluded from Git;
+the packaging configuration copies them to the application's resources.
 
 In development builds, F12 or Ctrl+Shift+I toggles Developer Tools.
 

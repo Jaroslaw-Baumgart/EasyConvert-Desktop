@@ -33,6 +33,9 @@ export async function convertDesktopFile(
     "csv-to-pdf": ".pdf",
     "pdf-to-jpg": ".jpg",
     "pdf-to-txt": ".txt",
+    "docx-to-pdf": ".pdf",
+    "pptx-to-pdf": ".pdf",
+    "xlsx-to-pdf": ".pdf",
   } satisfies Record<StartConversionRequest["conversion"], string>;
 
   const extension = extensions[request.conversion];

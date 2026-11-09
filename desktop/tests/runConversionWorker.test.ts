@@ -104,6 +104,51 @@ const cases: {
 ];
 
 describe("runConversionWorker", () => {
+  it.each([false, true])("passes XLSX settings before the LibreOffice executable when isPackaged=%s", async (isPackaged) => {
+    mocks.app.isPackaged = isPackaged;
+    const worker = new EventEmitter();
+    mocks.fork.mockReturnValue(worker);
+    const options = { pageSize: "A3", pageOrientation: "landscape", sheetName: "Koszty" } as const;
+    const completion = runConversionWorker("C:/input/workbook.xlsx", "C:/output/result.pdf", {
+      sourceId: "source-xlsx", conversion: "xlsx-to-pdf", options,
+    });
+    const executablePath = isPackaged
+      ? path.join("C:/installed/EasyConvert/resources", "libreoffice/program/soffice.com")
+      : path.resolve(__dirname, "../../../tools/libreoffice/program/soffice.com");
+    expect(mocks.fork).toHaveBeenCalledTimes(1);
+    expect(mocks.fork.mock.calls[0][1]).toEqual([
+      "xlsx-to-pdf", "C:/input/workbook.xlsx", "C:/output/result.pdf", JSON.stringify(options), executablePath,
+    ]);
+    worker.emit("exit", 0);
+    await expect(completion).resolves.toBeUndefined();
+  });
+  it.each([
+    { conversion: "docx-to-pdf", extension: "docx", isPackaged: false },
+    { conversion: "docx-to-pdf", extension: "docx", isPackaged: true },
+    { conversion: "pptx-to-pdf", extension: "pptx", isPackaged: false },
+    { conversion: "pptx-to-pdf", extension: "pptx", isPackaged: true },
+  ] as const)(
+    "passes the LibreOffice executable for $conversion when isPackaged=$isPackaged",
+    async ({ conversion, extension, isPackaged }) => {
+      mocks.app.isPackaged = isPackaged;
+      const worker = new EventEmitter();
+      mocks.fork.mockReturnValue(worker);
+      const inputPath = `C:/input/document.${extension}`;
+      const completion = runConversionWorker(inputPath, "C:/output/result.pdf", {
+        sourceId: "source-docx",
+        conversion,
+      });
+      const executablePath = isPackaged
+        ? path.join("C:/installed/EasyConvert/resources", "libreoffice/program/soffice.com")
+        : path.resolve(__dirname, "../../../tools/libreoffice/program/soffice.com");
+      expect(mocks.fork).toHaveBeenCalledTimes(1);
+      expect(mocks.fork.mock.calls[0][1]).toEqual([
+        conversion, inputPath, "C:/output/result.pdf", executablePath,
+      ]);
+      worker.emit("exit", 0);
+      await expect(completion).resolves.toBeUndefined();
+    },
+  );
   it.each(cases)(
     "starts $request.conversion with its paths and settings",
     async ({ request, inputPath, outputPath, expectedArgs }) => {

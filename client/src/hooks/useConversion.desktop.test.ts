@@ -34,6 +34,10 @@ const pngOption = {
   disabled: false,
 } as const;
 
+const xlsxOption = {
+  conversionType: "xlsx-to-pdf", sourceFormat: "xlsx", targetFormat: "pdf", disabled: false,
+} as const;
+
 function deferred<T>() {
   let resolve!: (value: T) => void;
   let reject!: (reason: unknown) => void;
@@ -97,6 +101,34 @@ async function setupConvertedFile() {
 }
 
 describe("desktop useConversion", () => {
+  it.each([
+    { pageSize: "A3", pageOrientation: "landscape", sheetName: "Koszty" },
+    { pageSize: "A4", pageOrientation: "portrait" },
+  ] as const)("passes XLSX selection and page settings %j to desktop without HTTP", async (settings) => {
+    const { api, result, output } = setup();
+    const file = new File(["xlsx"], "workbook.xlsx", {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    act(() => result.current.selectFile(file, "source-xlsx"));
+    await act(async () => { await result.current.convert(xlsxOption, settings); });
+    expect(convertDesktopFile).toHaveBeenCalledExactlyOnceWith(
+      api, { sourceId: "source-xlsx", conversion: "xlsx-to-pdf", options: settings },
+      "workbook.xlsx", expect.any(AbortSignal),
+    );
+    expect(convertFile).not.toHaveBeenCalled();
+    expect(result.current.convertedResults).toBe(output);
+  });
+
+  it("rejects XLSX without page settings before calling either adapter", async () => {
+    const { result, file } = setup();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    act(() => result.current.selectFile(file, "source-xlsx"));
+    await act(async () => { await result.current.convert(xlsxOption); });
+    expect(convertDesktopFile).not.toHaveBeenCalled();
+    expect(convertFile).not.toHaveBeenCalled();
+    expect(result.current.convertedResults).toBeNull();
+    expect(result.current.isConverting).toBe(false);
+  });
   it("passes CSV to PDF page settings to the desktop adapter", async () => {
     const { api, result } = setup();
     const file = new File(["ID,Name\n1,Łukasz"], "table.csv", {
@@ -452,6 +484,28 @@ describe("desktop useConversion", () => {
       { sourceId: "source-pdf", conversion: "pdf-to-txt" },
       "document.pdf",
       expect.any(AbortSignal),
+    );
+    expect(convertFile).not.toHaveBeenCalled();
+    expect(result.current.convertedResults).toBe(output);
+    expect(result.current.isConverting).toBe(false);
+  });
+
+  it.each([
+    { option: { conversionType: "docx-to-pdf", sourceFormat: "docx", targetFormat: "pdf", disabled: false }, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
+    { option: { conversionType: "pptx-to-pdf", sourceFormat: "pptx", targetFormat: "pdf", disabled: false }, mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation" },
+  ] as const)("passes $option.conversionType without settings and stores its result", async ({ option, mime }) => {
+    const { api, result, output } = setup();
+    const file = new File(["office"], `document.${option.sourceFormat}`, {
+      type: mime,
+    });
+    vi.mocked(convertDesktopFile).mockResolvedValue(output);
+    act(() => result.current.selectFile(file, "source-docx"));
+    await act(async () => {
+      await result.current.convert(option);
+    });
+    expect(convertDesktopFile).toHaveBeenCalledExactlyOnceWith(
+      api, { sourceId: "source-docx", conversion: option.conversionType },
+      file.name, expect.any(AbortSignal),
     );
     expect(convertFile).not.toHaveBeenCalled();
     expect(result.current.convertedResults).toBe(output);

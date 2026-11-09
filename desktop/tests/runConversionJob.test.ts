@@ -39,6 +39,21 @@ const successCases: {
   outputName: string;
 }[] = [
   {
+    request: { sourceId: "source-xlsx", conversion: "xlsx-to-pdf", options: { pageSize: "A3", pageOrientation: "landscape", sheetName: "Koszty" } },
+    inputPath: "C:/input/workbook.xlsx",
+    outputName: "result.pdf",
+  },
+  {
+    request: { sourceId: "source-pptx", conversion: "pptx-to-pdf" },
+    inputPath: "C:/input/presentation.pptx",
+    outputName: "result.pdf",
+  },
+  {
+    request: { sourceId: "source-docx", conversion: "docx-to-pdf" },
+    inputPath: "C:/input/document.docx",
+    outputName: "result.pdf",
+  },
+  {
     request: { sourceId: "source-pdf", conversion: "pdf-to-txt" },
     inputPath: "C:/input/document.pdf",
     outputName: "result.txt",

@@ -4,18 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   mkdir: vi.fn(),
-  readFile: vi.fn(),
-  writeFile: vi.fn(),
   safeUnlink: vi.fn(),
-  applyXlsxPageSetup: vi.fn(),
-  convertLibreOfficeToPdf: vi.fn(),
+  convertXlsxToPdf: vi.fn(),
 }));
 
 vi.mock("fs/promises", () => ({
   default: {
     mkdir: mocks.mkdir,
-    readFile: mocks.readFile,
-    writeFile: mocks.writeFile,
   },
 }));
 
@@ -23,19 +18,12 @@ vi.mock("../utils/file", () => ({
   safeUnlink: mocks.safeUnlink,
 }));
 
-vi.mock("../utils/xlsxPageSetup", () => ({
-  applyXlsxPageSetup: mocks.applyXlsxPageSetup,
-}));
-
-vi.mock("../utils/libreOffice", () => ({
-  convertLibreOfficeToPdf: mocks.convertLibreOfficeToPdf,
+vi.mock("../../../conversion-core/office/convertXlsxToPdf", () => ({
+  convertXlsxToPdf: mocks.convertXlsxToPdf,
 }));
 
 import { xlsxToPdf } from "./xlsxController";
-import { OUTPUT_DIR } from "../utils/constants";
-
-const inputBytes = new Uint8Array([1, 2, 3]);
-const preparedBytes = new Uint8Array([4, 5, 6]);
+import { OUTPUT_DIR, LIBRE_OFFICE_PATH, LIBRE_OFFICE_TIMEOUT_MS } from "../utils/constants";
 
 const createRequest = (body: unknown): Request =>
   ({
@@ -62,21 +50,24 @@ const createResponse = () => {
 };
 
 describe("xlsxToPdf", () => {
-  const preparedPath = path.join(OUTPUT_DIR, "workbook.xlsx");
   const outputPath = path.join(OUTPUT_DIR, "workbook.pdf");
+  const libreOfficeOptions = {
+    executablePath: LIBRE_OFFICE_PATH,
+    timeoutMs: LIBRE_OFFICE_TIMEOUT_MS,
+  };
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
 
     mocks.mkdir.mockResolvedValue(undefined);
-    mocks.readFile.mockResolvedValue(inputBytes);
-    mocks.writeFile.mockResolvedValue(undefined);
-    mocks.applyXlsxPageSetup.mockReturnValue(preparedBytes);
-    mocks.convertLibreOfficeToPdf.mockResolvedValue(undefined);
+    mocks.convertXlsxToPdf.mockResolvedValue(undefined);
+    mocks.safeUnlink.mockResolvedValue(undefined);
   });
 
-  it("prepares the selected sheet and converts the prepared XLSX", async () => {
+  it("passes the selected sheet, page settings and cancellation signal to the engine", async () => {
     const { response, status, json } = createResponse();
+    const signal = new AbortController().signal;
+    response.locals = { conversionAbortSignal: signal };
 
     await xlsxToPdf(
       createRequest({
@@ -90,19 +81,16 @@ describe("xlsxToPdf", () => {
     expect(mocks.mkdir).toHaveBeenCalledWith(OUTPUT_DIR, {
       recursive: true,
     });
-    expect(mocks.readFile).toHaveBeenCalledWith("uploads/workbook.xlsx");
-    expect(mocks.applyXlsxPageSetup).toHaveBeenCalledWith(
-      inputBytes,
-      "Overview",
+    expect(mocks.convertXlsxToPdf).toHaveBeenCalledExactlyOnceWith(
+      "uploads/workbook.xlsx",
+      outputPath,
       {
+        sheetName: "Overview",
         pageSize: "A3",
         pageOrientation: "landscape",
       },
-    );
-    expect(mocks.writeFile).toHaveBeenCalledWith(preparedPath, preparedBytes);
-    expect(mocks.convertLibreOfficeToPdf).toHaveBeenCalledWith(
-      preparedPath,
-      outputPath,
+      libreOfficeOptions,
+      signal,
     );
     expect(status).toHaveBeenCalledWith(200);
     expect(json).toHaveBeenCalledWith({
@@ -114,10 +102,10 @@ describe("xlsxToPdf", () => {
         },
       ],
     });
-    expect(mocks.safeUnlink).toHaveBeenCalledWith(preparedPath);
+    expect(mocks.safeUnlink).not.toHaveBeenCalled();
   });
 
-  it("rejects invalid settings before reading the XLSX", async () => {
+  it("rejects invalid settings before creating output or calling the engine", async () => {
     const { response, status, json } = createResponse();
 
     await xlsxToPdf(
@@ -129,9 +117,8 @@ describe("xlsxToPdf", () => {
       response,
     );
 
-    expect(mocks.readFile).not.toHaveBeenCalled();
-    expect(mocks.applyXlsxPageSetup).not.toHaveBeenCalled();
-    expect(mocks.convertLibreOfficeToPdf).not.toHaveBeenCalled();
+    expect(mocks.mkdir).not.toHaveBeenCalled();
+    expect(mocks.convertXlsxToPdf).not.toHaveBeenCalled();
     expect(status).toHaveBeenCalledWith(400);
     expect(json).toHaveBeenCalledWith({
       success: false,
@@ -140,8 +127,8 @@ describe("xlsxToPdf", () => {
     });
   });
 
-  it("returns a safe error and removes temporary files when LibreOffice fails", async () => {
-    mocks.convertLibreOfficeToPdf.mockRejectedValue(
+  it("returns a safe error and removes the failed output when the engine fails", async () => {
+    mocks.convertXlsxToPdf.mockRejectedValue(
       Object.assign(new Error("LibreOffice is unavailable"), {
         code: "ENOENT",
       }),
@@ -164,11 +151,10 @@ describe("xlsxToPdf", () => {
       error: "LibreOffice is unavailable",
       code: "tool-unavailable",
     });
-    expect(mocks.safeUnlink).toHaveBeenCalledWith(preparedPath);
-    expect(mocks.safeUnlink).toHaveBeenCalledWith(outputPath);
+    expect(mocks.safeUnlink).toHaveBeenCalledExactlyOnceWith(outputPath);
   });
 
-  it("prepares every sheet when no sheet is selected", async () => {
+  it("passes settings without a sheet selection to convert all sheets", async () => {
     const { response, status } = createResponse();
 
     await xlsxToPdf(
@@ -179,17 +165,15 @@ describe("xlsxToPdf", () => {
       response,
     );
 
-    expect(mocks.applyXlsxPageSetup).toHaveBeenCalledWith(
-      inputBytes,
-      undefined,
+    expect(mocks.convertXlsxToPdf).toHaveBeenCalledExactlyOnceWith(
+      "uploads/workbook.xlsx",
+      outputPath,
       {
         pageSize: "A3",
         pageOrientation: "landscape",
       },
-    );
-    expect(mocks.convertLibreOfficeToPdf).toHaveBeenCalledWith(
-      preparedPath,
-      outputPath,
+      libreOfficeOptions,
+      undefined,
     );
     expect(status).toHaveBeenCalledWith(200);
   });
