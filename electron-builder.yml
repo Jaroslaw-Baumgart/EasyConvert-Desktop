@@ -16,7 +16,7 @@ extraResources:
     filter:
       - "**/*"
 
-  - from: server/node_modules/pdf-poppler/lib/win/poppler-0.51
+  - from: node_modules/pdf-poppler/lib/win/poppler-0.51
     to: poppler
     filter:
       - "**/*"

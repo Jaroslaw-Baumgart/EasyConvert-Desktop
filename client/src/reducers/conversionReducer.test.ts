@@ -23,7 +23,7 @@ const createTestFile = {
 const sourceFile = createTestFile.pdf();
 
 const createConvertedResult = (name: string) => ({
-  url: `http://localhost:5000/output/${name}`,
+  url: `app://easyconvert/preview/result/${name}`,
   file: createTestFile.jpg(name),
 });
 

@@ -338,7 +338,7 @@ describe("runConversionWorker", () => {
         ? path.join("C:/installed/EasyConvert/resources", "poppler/bin")
         : path.resolve(
             __dirname,
-            "../../../server/node_modules/pdf-poppler/lib/win/poppler-0.51/bin",
+            "../../../node_modules/pdf-poppler/lib/win/poppler-0.51/bin",
           );
 
       expect(mocks.fork).toHaveBeenCalledTimes(1);

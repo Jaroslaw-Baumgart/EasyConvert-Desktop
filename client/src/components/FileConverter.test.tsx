@@ -8,9 +8,11 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { http, HttpResponse } from "msw";
+import { convertDesktopFile } from "../api/desktopConversionClient";
+import { ConversionError } from "../api/conversionError";
+import { createDesktopApi, convertedResult } from "../test/desktopApi";
 
-import { server } from "../test/server";
+vi.mock("../api/desktopConversionClient", () => ({ convertDesktopFile: vi.fn() }));
 import { conversions as conversionOptions } from "../config/conversions";
 import FileConverter from "./FileConverter";
 import * as XLSX from "xlsx";
@@ -32,6 +34,9 @@ const getConvertButton = (optionText: string) => {
 };
 
 beforeEach(() => {
+  vi.mocked(convertDesktopFile).mockReset();
+  vi.mocked(convertDesktopFile).mockResolvedValue(convertedResult());
+  vi.stubGlobal("easyConvert", createDesktopApi());
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
@@ -203,27 +208,7 @@ describe("FileConverter", () => {
       },
     );
 
-    server.use(
-      http.post("http://localhost:5000/convert", () => {
-        return HttpResponse.json({
-          success: true,
-          files: [
-            {
-              url: "/output/converted.png",
-              name: "converted.png",
-            },
-          ],
-        });
-      }),
 
-      http.get("http://localhost:5000/output/converted.png", () => {
-        return new HttpResponse("converted content", {
-          headers: {
-            "Content-Type": "image/png",
-          },
-        });
-      }),
-    );
 
     const { user, input } = setupFileConverter();
 
@@ -282,19 +267,8 @@ describe("FileConverter", () => {
     await screen.findByTestId("docx-preview");
   });
 
-  it("shows a safe conversion error when the backend rejects the conversion", async () => {
-    server.use(
-      http.post("http://localhost:5000/convert", () => {
-        return HttpResponse.json(
-          {
-            success: false,
-            error: "Unsupported conversion",
-            code: "conversion-failed",
-          },
-          { status: 400 },
-        );
-      }),
-    );
+  it("shows a safe conversion error when the desktop adapter rejects the conversion", async () => {
+    vi.mocked(convertDesktopFile).mockRejectedValueOnce(new Error("Conversion failed"));
 
     const { user, input } = setupFileConverter();
 
@@ -316,20 +290,10 @@ describe("FileConverter", () => {
       finishRequest = resolve;
     });
 
-    server.use(
-      http.post("http://localhost:5000/convert", async () => {
-        await requestGate;
-
-        return HttpResponse.json(
-          {
-            success: false,
-            error: "Test conversion stopped",
-            code: "conversion-failed",
-          },
-          { status: 500 },
-        );
-      }),
-    );
+    vi.mocked(convertDesktopFile).mockImplementationOnce(async () => {
+      await requestGate;
+      throw new Error("Conversion failed");
+    });
 
     const { user, input } = setupFileConverter();
 
@@ -355,21 +319,11 @@ describe("FileConverter", () => {
       finishRequest = resolve;
     });
 
-    server.use(
-      http.post("http://localhost:5000/convert", async () => {
-        requestCount += 1;
-        await requestGate;
-
-        return HttpResponse.json(
-          {
-            success: false,
-            error: "Test conversion stopped",
-            code: "conversion-failed",
-          },
-          { status: 500 },
-        );
-      }),
-    );
+    vi.mocked(convertDesktopFile).mockImplementationOnce(async () => {
+      requestCount += 1;
+      await requestGate;
+      throw new Error("Conversion failed");
+    });
 
     const { user, input } = setupFileConverter();
 
@@ -392,15 +346,8 @@ describe("FileConverter", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows an error when the backend returns an invalid response", async () => {
-    server.use(
-      http.post("http://localhost:5000/convert", async () => {
-        return HttpResponse.json({
-          success: true,
-          files: [],
-        });
-      }),
-    );
+  it("shows an error when the desktop adapter rejects an invalid response", async () => {
+    vi.mocked(convertDesktopFile).mockRejectedValueOnce(new ConversionError("invalid-response"));
 
     const { user, input } = setupFileConverter();
 
@@ -409,7 +356,7 @@ describe("FileConverter", () => {
 
     expect(
       await screen.findByText(
-        "The server returned an unexpected response. Please try again.",
+        "The application returned an unexpected response. Please try again.",
       ),
     ).toBeInTheDocument();
 
@@ -425,23 +372,7 @@ describe("FileConverter", () => {
   });
 
   it("shows a download error when the converted file cannot be fetched", async () => {
-    server.use(
-      http.post("http://localhost:5000/convert", () => {
-        return HttpResponse.json({
-          success: true,
-          files: [
-            {
-              url: "/output/converted.png",
-              name: "converted.png",
-            },
-          ],
-        });
-      }),
-
-      http.get("http://localhost:5000/output/converted.png", () => {
-        return new HttpResponse(null, { status: 500 });
-      }),
-    );
+    vi.mocked(convertDesktopFile).mockRejectedValueOnce(new ConversionError("download-failed"));
 
     const { user, input } = setupFileConverter();
 
@@ -461,67 +392,14 @@ describe("FileConverter", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows an invalid response error when the backend returns malformed JSON", async () => {
-    server.use(
-      http.post("http://localhost:5000/convert", () => {
-        return new HttpResponse("not valid JSON", {
-          status: 200,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-      }),
-    );
-
-    const { user, input } = setupFileConverter();
-
-    await selectNativeFile(user, input, createTestFile.jpg());
-    await user.click(getConvertButton("JPG→PNG"));
-
-    expect(
-      await screen.findByText(
-        "The server returned an unexpected response. Please try again.",
-      ),
-    ).toBeInTheDocument();
-  });
-
   it("successfully retries a conversion without selecting the file again", async () => {
     let requestCount = 0;
 
-    server.use(
-      http.post("http://localhost:5000/convert", () => {
-        requestCount += 1;
-
-        if (requestCount === 1) {
-          return HttpResponse.json(
-            {
-              success: false,
-              error: "Temporary backend failure",
-              code: "conversion-failed",
-            },
-            { status: 500 },
-          );
-        }
-
-        return HttpResponse.json({
-          success: true,
-          files: [
-            {
-              url: "/output/converted.png",
-              name: "converted.png",
-            },
-          ],
-        });
-      }),
-
-      http.get("http://localhost:5000/output/converted.png", () => {
-        return new HttpResponse("converted content", {
-          headers: {
-            "Content-Type": "image/png",
-          },
-        });
-      }),
-    );
+    vi.mocked(convertDesktopFile).mockImplementation(async () => {
+      requestCount += 1;
+      if (requestCount === 1) throw new Error("Temporary conversion failure");
+      return convertedResult();
+    });
 
     const { user, input } = setupFileConverter();
 
@@ -552,18 +430,7 @@ describe("FileConverter", () => {
   });
 
   it("shows a tool unavailable message when required software is missing", async () => {
-    server.use(
-      http.post("http://localhost:5000/convert", () => {
-        return HttpResponse.json(
-          {
-            success: false,
-            error: "soffice is not recognized as a command",
-            code: "tool-unavailable",
-          },
-          { status: 500 },
-        );
-      }),
-    );
+    vi.mocked(convertDesktopFile).mockRejectedValueOnce(new ConversionError("tool-unavailable"));
 
     const { user, input } = setupFileConverter();
 
@@ -582,27 +449,7 @@ describe("FileConverter", () => {
   });
 
   it("shows an error when downloading the converted file fails", async () => {
-    server.use(
-      http.post("http://localhost:5000/convert", () => {
-        return HttpResponse.json({
-          success: true,
-          files: [
-            {
-              url: "/output/converted.png",
-              name: "converted.png",
-            },
-          ],
-        });
-      }),
 
-      http.get("http://localhost:5000/output/converted.png", () => {
-        return new HttpResponse("converted content", {
-          headers: {
-            "Content-Type": "image/png",
-          },
-        });
-      }),
-    );
 
     const { user, input } = setupFileConverter();
 
@@ -637,27 +484,7 @@ describe("FileConverter", () => {
   });
 
   it("sends customized PNG to JPG settings", async () => {
-    server.use(
-      http.post("http://localhost:5000/convert", async () => {
-        return HttpResponse.json({
-          success: true,
-          files: [
-            {
-              url: "/output/converted.jpg",
-              name: "converted.jpg",
-            },
-          ],
-        });
-      }),
-
-      http.get("http://localhost:5000/output/converted.jpg", () => {
-        return new HttpResponse("converted content", {
-          headers: {
-            "Content-Type": "image/jpeg",
-          },
-        });
-      }),
-    );
+    vi.mocked(convertDesktopFile).mockResolvedValueOnce(convertedResult("converted.jpg", "image/jpeg"));
 
     const { user, input } = setupFileConverter();
 
@@ -691,49 +518,18 @@ describe("FileConverter", () => {
         name: "Converted file",
       }),
     ).toBeInTheDocument();
+    expect(vi.mocked(convertDesktopFile).mock.calls[0][1]).toEqual({
+      sourceId: "source-1", conversion: "png-to-jpg",
+      options: { quality: 95, backgroundColor: "#000000" },
+    });
   });
 
   it("downloads and displays every file returned by a conversion", async () => {
-    const firstFileRequest = vi.fn();
-    const secondFileRequest = vi.fn();
 
-    server.use(
-      http.post("http://localhost:5000/convert", () => {
-        return HttpResponse.json({
-          success: true,
-          files: [
-            {
-              url: "/output/page-1.jpg",
-              name: "page-1.jpg",
-            },
-            {
-              url: "/output/page-2.jpg",
-              name: "page-2.jpg",
-            },
-          ],
-        });
-      }),
-
-      http.get("http://localhost:5000/output/page-1.jpg", () => {
-        firstFileRequest();
-
-        return new HttpResponse("page one", {
-          headers: {
-            "Content-Type": "image/jpeg",
-          },
-        });
-      }),
-
-      http.get("http://localhost:5000/output/page-2.jpg", () => {
-        secondFileRequest();
-
-        return new HttpResponse("page two", {
-          headers: {
-            "Content-Type": "image/jpeg",
-          },
-        });
-      }),
-    );
+    vi.mocked(convertDesktopFile).mockResolvedValueOnce([
+      { url: "app://easyconvert/preview/result/page-1", file: new File(["one"], "page-1.jpg", { type: "image/jpeg" }) },
+      { url: "app://easyconvert/preview/result/page-2", file: new File(["two"], "page-2.jpg", { type: "image/jpeg" }) },
+    ]);
 
     const { user, input } = setupFileConverter();
 
@@ -746,8 +542,7 @@ describe("FileConverter", () => {
       }),
     ).toBeInTheDocument();
 
-    expect(firstFileRequest).toHaveBeenCalledOnce();
-    expect(secondFileRequest).toHaveBeenCalledOnce();
+    expect(convertDesktopFile).toHaveBeenCalledOnce();
 
     const convertedFiles = screen.getByLabelText("Converted files");
 
@@ -814,127 +609,35 @@ describe("FileConverter", () => {
   });
 
   it("sends the selected XLSX sheet with page settings", async () => {
-    const fetchMock = vi.fn<
-      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
-    >(async (input) => {
-      if (String(input).endsWith("/convert")) {
-        return HttpResponse.json({
-          success: true,
-          files: [
-            {
-              name: "workbook.pdf",
-              url: "/output/workbook.pdf",
-            },
-          ],
-        });
-      }
-
-      return new HttpResponse("PDF content", {
-        headers: {
-          "Content-Type": "application/pdf",
-        },
-      });
-    });
-
-    vi.stubGlobal("fetch", fetchMock);
-
     const { user, input } = setupFileConverter();
-
     await selectNativeFile(user, input, createTestFile.xlsx());
-
-    await screen.findByRole("button", { name: "Overview" });
-    await user.click(screen.getByRole("button", { name: "Warehouse" }));
-
-    const xlsxToPdfCard = getOptionCard("XLSX→PDF");
-    await user.click(xlsxToPdfCard);
-
-    await user.click(
-      screen.getByRole("radio", {
-        name: "A3",
-      }),
-    );
-
-    await user.click(
-      screen.getByRole("radio", {
-        name: "Landscape",
-      }),
-    );
-
-    await user.click(
-      screen.getByRole("button", {
-        name: "Convert",
-      }),
-    );
-
-    await waitFor(() => {
-      const conversionRequests = fetchMock.mock.calls.filter(([input]) =>
-        String(input).endsWith("/convert"),
-      );
-
-      expect(conversionRequests).toHaveLength(1);
+    await user.click(await screen.findByRole("button", { name: "Warehouse" }));
+    await user.click(getOptionCard("XLSX→PDF"));
+    await user.click(screen.getByRole("radio", { name: "A3" }));
+    await user.click(screen.getByRole("radio", { name: "Landscape" }));
+    await user.click(screen.getByRole("button", { name: "Convert" }));
+    await screen.findByRole("heading", { name: "Converted file" });
+    expect(vi.mocked(convertDesktopFile).mock.calls[0][1]).toEqual({
+      sourceId: "source-1", conversion: "xlsx-to-pdf",
+      options: { sheetName: "Warehouse", pageSize: "A3", pageOrientation: "landscape" },
     });
-
-    const selectedSheetRequests = fetchMock.mock.calls.filter(([input]) =>
-      String(input).endsWith("/convert"),
-    );
-
-    const [, selectedSheetRequestOptions] = selectedSheetRequests[0] ?? [];
-    const selectedSheetFormData = selectedSheetRequestOptions?.body;
-
-    expect(selectedSheetFormData).toBeInstanceOf(FormData);
-
-    if (!(selectedSheetFormData instanceof FormData)) {
-      throw new Error("Conversion request did not contain FormData.");
-    }
-
-    expect(selectedSheetFormData.get("conversionType")).toBe("xlsx-to-pdf");
-    expect(selectedSheetFormData.get("sheetName")).toBe("Warehouse");
-    expect(selectedSheetFormData.get("pageSize")).toBe("A3");
-    expect(selectedSheetFormData.get("pageOrientation")).toBe("landscape");
-
     await user.click(screen.getByRole("button", { name: "All sheets" }));
-
-    await user.click(
-      screen.getByRole("button", {
-        name: "Convert",
-      }),
-    );
-
-    await waitFor(() => {
-      const conversionRequests = fetchMock.mock.calls.filter(([input]) =>
-        String(input).endsWith("/convert"),
-      );
-
-      expect(conversionRequests).toHaveLength(2);
+    await user.click(screen.getByRole("button", { name: "Convert" }));
+    await waitFor(() => expect(convertDesktopFile).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(convertDesktopFile).mock.calls[1][1]).toEqual({
+      sourceId: "source-1", conversion: "xlsx-to-pdf",
+      options: { pageSize: "A3", pageOrientation: "landscape" },
     });
-
-    const allSheetsRequests = fetchMock.mock.calls.filter(([input]) =>
-      String(input).endsWith("/convert"),
-    );
-
-    const [, allSheetsRequestOptions] = allSheetsRequests[1] ?? [];
-    const allSheetsFormData = allSheetsRequestOptions?.body;
-
-    expect(allSheetsFormData).toBeInstanceOf(FormData);
-
-    if (!(allSheetsFormData instanceof FormData)) {
-      throw new Error("All-sheets request did not contain FormData.");
-    }
-
-    expect(allSheetsFormData.get("conversionType")).toBe("xlsx-to-pdf");
-    expect(allSheetsFormData.has("sheetName")).toBe(false);
-    expect(allSheetsFormData.get("pageSize")).toBe("A3");
-    expect(allSheetsFormData.get("pageOrientation")).toBe("landscape");
   });
 });
 
 vi.mock("../api/desktopSource", () => ({ selectDesktopSource: vi.fn() }));
 async function selectNativeFile(
- user: ReturnType<typeof userEvent.setup>, button: HTMLElement, file: File,
+  user: ReturnType<typeof userEvent.setup>, button: HTMLElement, file: File,
 ) {
- vi.mocked(selectDesktopSource).mockResolvedValueOnce({
-  source: { sourceId: "source-1", name: file.name, sizeBytes: file.size }, file,
- });
- await user.click(button);
- await screen.findByText(file.name);
+  vi.mocked(selectDesktopSource).mockResolvedValueOnce({
+    source: { sourceId: "source-1", name: file.name, sizeBytes: file.size }, file,
+  });
+  await user.click(button);
+  await screen.findByText(file.name);
 }

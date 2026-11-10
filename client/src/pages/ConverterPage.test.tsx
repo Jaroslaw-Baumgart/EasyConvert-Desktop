@@ -1,10 +1,16 @@
 import { selectDesktopSource } from "../api/desktopSource";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { http, HttpResponse } from "msw";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { convertDesktopFile } from "../api/desktopConversionClient";
+import { createDesktopApi, convertedResult } from "../test/desktopApi";
 
-import { server } from "../test/server";
+vi.mock("../api/desktopConversionClient", () => ({ convertDesktopFile: vi.fn() }));
+beforeEach(() => {
+  vi.mocked(convertDesktopFile).mockReset();
+  vi.mocked(convertDesktopFile).mockResolvedValue(convertedResult());
+  vi.stubGlobal("easyConvert", createDesktopApi());
+});
 import ConverterPage from "./ConverterPage";
 
 const getEnabledConvertButton = (): HTMLElement => {
@@ -64,14 +70,10 @@ describe("ConverterPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows and clears a network error", async () => {
+  it("shows and clears a conversion error", async () => {
     const user = userEvent.setup();
 
-    server.use(
-      http.post("http://localhost:5000/convert", () => {
-        return HttpResponse.error();
-      }),
-    );
+    vi.mocked(convertDesktopFile).mockRejectedValueOnce(new Error("Conversion failed"));
 
     vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -91,7 +93,7 @@ describe("ConverterPage", () => {
     const errorAlert = await screen.findByRole("alert");
 
     expect(errorAlert).toHaveTextContent(
-      "Could not connect to the conversion service. Check your connection and try again.",
+      "The file could not be converted. Please try again.",
     );
 
     await user.click(screen.getByRole("button", { name: "Remove file" }));
@@ -102,27 +104,7 @@ describe("ConverterPage", () => {
   it("clears the conversion result after removing the selected file", async () => {
     const user = userEvent.setup();
 
-    server.use(
-      http.post("http://localhost:5000/convert", () => {
-        return HttpResponse.json({
-          success: true,
-          files: [
-            {
-              url: "/output/Converted.png",
-              name: "Converted.png",
-            },
-          ],
-        });
-      }),
 
-      http.get("http://localhost:5000/output/Converted.png", () => {
-        return new HttpResponse("converted content", {
-          headers: {
-            "Content-Type": "image/png",
-          },
-        });
-      }),
-    );
 
     render(<ConverterPage />);
 

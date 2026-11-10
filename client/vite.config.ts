@@ -7,7 +7,7 @@ const devCsp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' blob: data:",
   "font-src 'self' blob: data:",
-  "connect-src 'self' blob: http://localhost:5000 ws://localhost:5173",
+  "connect-src 'self' blob: app: ws://localhost:5173",
   "worker-src 'self' blob:",
   "frame-src blob:",
   "object-src 'none'",
@@ -25,10 +25,6 @@ export default defineConfig({
   },
 
   server: {
-    proxy: {
-      "/convert": "http://localhost:5000",
-      "/output": "http://localhost:5000",
-    },
     port: 5173,
     strictPort: true,
     headers: {

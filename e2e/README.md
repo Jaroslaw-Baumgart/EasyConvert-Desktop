@@ -6,16 +6,21 @@ or Vite server is started. CI runs on Windows x64, the current application targe
 
 Each test has a separate user-data directory. Native file dialogs are replaced in
 the Electron main process with deterministic answers; renderer, preload, IPC,
-preview protocol and the Sharp conversion worker run normally. The drop test uses
+preview protocol and conversion workers run normally. The drop test uses
 a temporary test-only input to obtain a disk-backed File and dispatches a drop
 event; it does not automate dragging in Windows Explorer.
 
 Failed tests retain screenshots, Electron logs and a Playwright trace. CI uploads
 these together with the HTML report, excluding the temporary browser profiles.
 
-`legacy/converter.web.ts` preserves the former HTTP/browser scenarios for
-reference and is intentionally outside the active test pattern. PDF-to-JPG,
-multiple results and ZIP export are not covered by desktop E2E yet, although
-they are now available in the desktop UI and have been checked manually.
-Engine and client tests cover their respective layers; this does not count as
-automated end-to-end coverage of those workflows.
+The suite covers all ten conversion pairs and validates downloaded output.
+Office fixtures are generated in each test's output directory, independent of
+ignored manual fixtures. XLSX tests export each of two sheets separately and all
+sheets together, check PDF text for unwanted sheet data and check A3 landscape
+page dimensions. PDF-to-JPG tests decode both JPEGs from the downloaded ZIP and
+check that reset removes the results. These checks do not compare visual layout
+pixel by pixel or test a packaged installation.
+
+Local runs require Poppler from the root `npm ci` and LibreOffice at
+`tools/libreoffice/program/soffice.com`. The Windows CI job installs these tools.
+Missing tools fail the tests rather than silently skipping conversions.

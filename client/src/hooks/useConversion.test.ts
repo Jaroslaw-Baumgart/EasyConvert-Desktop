@@ -1,11 +1,12 @@
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useConversion } from "./useConversion";
-import { convertFile } from "../api/conversionClient";
+import { convertDesktopFile } from "../api/desktopConversionClient";
 import { createZipFile } from "../utils/createZipFile";
+import { createDesktopApi } from "../test/desktopApi";
 import { downloadFile } from "../utils/downloadFile";
 
-vi.mock("../api/conversionClient", () => ({ convertFile: vi.fn() }));
+vi.mock("../api/desktopConversionClient", () => ({ convertDesktopFile: vi.fn() }));
 vi.mock("../utils/createZipFile", () => ({ createZipFile: vi.fn() }));
 vi.mock("../utils/downloadFile", () => ({ downloadFile: vi.fn() }));
 
@@ -16,28 +17,30 @@ const conversionOption = {
   disabled: false,
 } as const;
 
+beforeEach(() => vi.stubGlobal("easyConvert", createDesktopApi()));
+
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
 
 describe("conversion cancellation", () => {
-  it.each(["remove", "replace", "unmount"] as const)("aborts the browser request on %s", async (action) => {
+  it.each(["replace", "unmount"] as const)("aborts waiting for the desktop result on %s", async (action) => {
     let signal: AbortSignal | undefined;
-    vi.mocked(convertFile).mockImplementationOnce((_data, requestSignal) => {
+    vi.mocked(convertDesktopFile).mockImplementationOnce((_api, _request, _name, requestSignal) => {
       signal = requestSignal;
       return new Promise((_resolve, reject) => requestSignal?.addEventListener("abort", () =>
         reject(new DOMException("Aborted", "AbortError")), { once: true }));
     });
     const { result, unmount } = renderHook(() => useConversion());
-    act(() => result.current.selectFile(new File(["image"], "photo.jpg")));
+    act(() => result.current.selectFile(new File(["image"], "photo.jpg"), "source-1"));
     let conversion!: Promise<void>;
     act(() => {
       conversion = result.current.convert(conversionOption);
     });
     expect(signal?.aborted).toBe(false);
     await act(async () => {
-      if (action === "remove") result.current.removeFile();
-      else if (action === "replace") result.current.selectFile(new File(["next"], "next.jpg"));
+      if (action === "replace") result.current.selectFile(new File(["next"], "next.jpg"), "source-1");
       else unmount();
       await conversion;
     });
@@ -47,9 +50,9 @@ describe("conversion cancellation", () => {
 
   it("cancels an outdated ZIP download when another file is selected", async () => {
     let resolveArchive!: (file: File) => void;
-    vi.mocked(convertFile).mockResolvedValueOnce([
+    vi.mocked(convertDesktopFile).mockResolvedValueOnce([
       {
-        url: "http://localhost:5000/output/photo.png",
+        url: "app://easyconvert/preview/result/photo.png",
         file: new File(["converted"], "photo.png", { type: "image/png" }),
       },
     ]);
@@ -62,7 +65,7 @@ describe("conversion cancellation", () => {
     const { result } = renderHook(() => useConversion());
 
     act(() => {
-      result.current.selectFile(new File(["image"], "photo.jpg"));
+      result.current.selectFile(new File(["image"], "photo.jpg"), "source-1");
     });
     await act(async () => {
       await result.current.convert(conversionOption);
@@ -74,7 +77,7 @@ describe("conversion cancellation", () => {
     expect(result.current.isPreparingArchive).toBe(true);
 
     act(() => {
-      result.current.selectFile(new File(["next"], "next.jpg"));
+      result.current.selectFile(new File(["next"], "next.jpg"), "source-1");
     });
     expect(result.current.isPreparingArchive).toBe(false);
 
@@ -87,16 +90,16 @@ describe("conversion cancellation", () => {
 
   it("keeps a new conversion independent from an earlier ZIP operation", async () => {
     let resolveArchive!: (file: File) => void;
-    vi.mocked(convertFile)
+    vi.mocked(convertDesktopFile)
       .mockResolvedValueOnce([
         {
-          url: "http://localhost:5000/output/first.png",
+          url: "app://easyconvert/preview/result/first.png",
           file: new File(["first"], "first.png", { type: "image/png" }),
         },
       ])
       .mockResolvedValueOnce([
         {
-          url: "http://localhost:5000/output/second.png",
+          url: "app://easyconvert/preview/result/second.png",
           file: new File(["second"], "second.png", { type: "image/png" }),
         },
       ]);
@@ -109,21 +112,21 @@ describe("conversion cancellation", () => {
     const { result } = renderHook(() => useConversion());
 
     act(() => {
-      result.current.selectFile(new File(["first"], "first.jpg"));
+      result.current.selectFile(new File(["first"], "first.jpg"), "source-1");
     });
     await act(async () => {
       await result.current.convert(conversionOption);
     });
     act(() => {
       void result.current.downloadAllConvertedFiles();
-      result.current.selectFile(new File(["second"], "second.jpg"));
+      result.current.selectFile(new File(["second"], "second.jpg"), "source-1");
     });
     await act(async () => {
       await result.current.convert(conversionOption);
       resolveArchive(new File(["archive"], "conversion-results.zip"));
     });
 
-    expect(convertFile).toHaveBeenCalledTimes(2);
+    expect(convertDesktopFile).toHaveBeenCalledTimes(2);
     expect(result.current.file?.name).toBe("second.jpg");
     expect(result.current.isPreparingArchive).toBe(false);
     expect(downloadFile).not.toHaveBeenCalled();
@@ -131,9 +134,9 @@ describe("conversion cancellation", () => {
 
   it("does not start a ZIP download after the hook unmounts", async () => {
     let resolveArchive!: (file: File) => void;
-    vi.mocked(convertFile).mockResolvedValueOnce([
+    vi.mocked(convertDesktopFile).mockResolvedValueOnce([
       {
-        url: "http://localhost:5000/output/photo.png",
+        url: "app://easyconvert/preview/result/photo.png",
         file: new File(["converted"], "photo.png", { type: "image/png" }),
       },
     ]);
@@ -146,7 +149,7 @@ describe("conversion cancellation", () => {
     const { result, unmount } = renderHook(() => useConversion());
 
     act(() => {
-      result.current.selectFile(new File(["image"], "photo.jpg"));
+      result.current.selectFile(new File(["image"], "photo.jpg"), "source-1");
     });
     await act(async () => {
       await result.current.convert(conversionOption);

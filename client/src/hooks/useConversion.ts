@@ -7,9 +7,7 @@ import {
 import type { ConversionOption } from "../types/converter";
 import { ConversionError, isConversionErrorCode } from "../api/conversionError";
 import { downloadFile } from "../utils/downloadFile";
-import { convertFile } from "../api/conversionClient";
 import type { ConversionSettings } from "../schemas/conversionSettings";
-import { createConversionFormData } from "../api/conversionFormData";
 import type {
   ConvertedResult,
   ConvertedResults,
@@ -101,13 +99,10 @@ export function useConversion(): UseConversionResult {
       return;
     }
 
-    const isDesktop = window.easyConvert?.platform === "desktop";
-
     if (
-      isDesktop &&
-      (isConverting ||
-        (abortControllerRef.current !== null &&
-          !abortControllerRef.current.signal.aborted))
+      isConverting ||
+      (abortControllerRef.current !== null &&
+        !abortControllerRef.current.signal.aborted)
     ) {
       return;
     }
@@ -117,9 +112,7 @@ export function useConversion(): UseConversionResult {
     setRemovalError(null);
 
     try {
-      if (isDesktop) {
-        await window.easyConvert.resetSource();
-      }
+      await window.easyConvert.resetSource();
 
       if (!isMountedRef.current) return;
 
@@ -170,99 +163,96 @@ export function useConversion(): UseConversionResult {
     dispatch({ type: "conversionStarted", requestId });
 
     try {
-      let convertedResults: ConvertedResults;
-
-      if (window.easyConvert?.platform === "desktop") {
-        const sourceId = sourceIdRef.current;
-
-        if (!sourceId) {
-          throw new Error("Select the file using the native dialog.");
-        }
-
-        let request: StartConversionRequest;
-        if (
-          option.conversionType === "jpg-to-png" ||
-          option.conversionType === "pdf-to-jpg" ||
-          option.conversionType === "pdf-to-txt" ||
-          option.conversionType === "docx-to-pdf" ||
-          option.conversionType === "pptx-to-pdf"
-        ) {
-          request = {
-            sourceId,
-            conversion: option.conversionType,
-          };
-        } else if (option.conversionType === "png-to-jpg") {
-          if (
-            !settings ||
-            !("quality" in settings) ||
-            !("backgroundColor" in settings)
-          ) {
-            throw new Error("Missing PNG to JPG settings.");
-          }
-
-          request = {
-            sourceId,
-            conversion: option.conversionType,
-            options: {
-              quality: settings.quality,
-              backgroundColor: settings.backgroundColor,
-            },
-          };
-        } else if (
-          option.conversionType === "jpg-to-pdf" ||
-          option.conversionType === "txt-to-pdf" ||
-          option.conversionType === "csv-to-pdf"
-        ) {
-          if (
-            !settings ||
-            !("pageSize" in settings) ||
-            !("pageOrientation" in settings)
-          ) {
-            throw new Error("Missing PDF page settings.");
-          }
-
-          request = {
-            sourceId,
-            conversion: option.conversionType,
-            options: {
-              pageSize: settings.pageSize,
-              pageOrientation: settings.pageOrientation,
-            },
-          };
-        } else if (option.conversionType === "xlsx-to-pdf") {
-          if (
-            !settings ||
-            !("pageSize" in settings) ||
-            !("pageOrientation" in settings)
-          ) {
-            throw new Error("Missing XLSX to PDF settings.");
-          }
-
-          request = {
-            sourceId,
-            conversion: option.conversionType,
-            options: {
-              pageSize: settings.pageSize,
-              pageOrientation: settings.pageOrientation,
-              ...("sheetName" in settings && settings.sheetName !== undefined
-                ? { sheetName: settings.sheetName }
-                : {}),
-            },
-          };
-        } else {
-          throw new Error("This desktop conversion is not available yet.");
-        }
-
-        convertedResults = await convertDesktopFile(
-          window.easyConvert,
-          request,
-          file.name,
-          controller.signal,
-        );
-      } else {
-        const formData = createConversionFormData(file, option, settings);
-        convertedResults = await convertFile(formData, controller.signal);
+      if (!window.easyConvert) {
+        throw new Error("Desktop API is unavailable.");
       }
+
+      const sourceId = sourceIdRef.current;
+
+      if (!sourceId) {
+        throw new Error("Select the file using the native dialog.");
+      }
+
+      let request: StartConversionRequest;
+      if (
+        option.conversionType === "jpg-to-png" ||
+        option.conversionType === "pdf-to-jpg" ||
+        option.conversionType === "pdf-to-txt" ||
+        option.conversionType === "docx-to-pdf" ||
+        option.conversionType === "pptx-to-pdf"
+      ) {
+        request = {
+          sourceId,
+          conversion: option.conversionType,
+        };
+      } else if (option.conversionType === "png-to-jpg") {
+        if (
+          !settings ||
+          !("quality" in settings) ||
+          !("backgroundColor" in settings)
+        ) {
+          throw new Error("Missing PNG to JPG settings.");
+        }
+
+        request = {
+          sourceId,
+          conversion: option.conversionType,
+          options: {
+            quality: settings.quality,
+            backgroundColor: settings.backgroundColor,
+          },
+        };
+      } else if (
+        option.conversionType === "jpg-to-pdf" ||
+        option.conversionType === "txt-to-pdf" ||
+        option.conversionType === "csv-to-pdf"
+      ) {
+        if (
+          !settings ||
+          !("pageSize" in settings) ||
+          !("pageOrientation" in settings)
+        ) {
+          throw new Error("Missing PDF page settings.");
+        }
+
+        request = {
+          sourceId,
+          conversion: option.conversionType,
+          options: {
+            pageSize: settings.pageSize,
+            pageOrientation: settings.pageOrientation,
+          },
+        };
+      } else if (option.conversionType === "xlsx-to-pdf") {
+        if (
+          !settings ||
+          !("pageSize" in settings) ||
+          !("pageOrientation" in settings)
+        ) {
+          throw new Error("Missing XLSX to PDF settings.");
+        }
+
+        request = {
+          sourceId,
+          conversion: option.conversionType,
+          options: {
+            pageSize: settings.pageSize,
+            pageOrientation: settings.pageOrientation,
+            ...("sheetName" in settings && settings.sheetName !== undefined
+              ? { sheetName: settings.sheetName }
+              : {}),
+          },
+        };
+      } else {
+        throw new Error("This desktop conversion is not available yet.");
+      }
+
+      const convertedResults = await convertDesktopFile(
+        window.easyConvert,
+        request,
+        file.name,
+        controller.signal,
+      );
 
       dispatch({
         type: "conversionSucceeded",

@@ -1,7 +1,40 @@
-import { _electron, test as base, expect, type ElectronApplication } from "@playwright/test";
+import { _electron, test as base, expect, type ElectronApplication, type Locator } from "@playwright/test";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { unzipSync } from "fflate";
+import { docxFixture, pptxFixture, xlsxFixture } from "./officeFixtures";
+
+const execFileAsync = promisify(execFile);
+const poppler = (name: string) => path.resolve(
+  "node_modules/pdf-poppler/lib/win/poppler-0.51/bin", `${name}.exe`,
+);
+
+async function pdfText(filePath: string) {
+  return (await execFileAsync(poppler("pdftotext"), [filePath, "-"], { encoding: "utf8" })).stdout;
+}
+
+async function downloadResult(app: ElectronApplication, button: Locator, output: string) {
+  const transfer = await app.evaluateHandle(({ session }, outputPath) => {
+    const finished = new Promise<{ state: string; filename: string }>((resolve) => {
+      session.defaultSession.once("will-download", (_event, item) => {
+        item.setSavePath(outputPath);
+        item.once("done", (_doneEvent, state) => resolve({ state, filename: item.getFilename() }));
+      });
+    });
+    return { finished };
+  }, output);
+  try {
+    await button.click();
+    const completed = await transfer.evaluate(({ finished }) => finished);
+    expect(completed.state).toBe("completed");
+    return completed.filename;
+  } finally {
+    await transfer.dispose();
+  }
+}
 
 // Only OS dialogs are replaced; preload, IPC, filesystem and Sharp run for real.
 const test = base.extend<{ electronApp: ElectronApplication }>({
@@ -72,6 +105,121 @@ async function chooseFile(app: ElectronApplication, filePath: string | null) {
 }
 
 const fixture = (name: string) => path.resolve("fixtures", name);
+
+for (const scenario of [
+  { source: "png", target: "jpg" },
+  { source: "jpg", target: "pdf" },
+  { source: "txt", target: "pdf" },
+  { source: "csv", target: "pdf" },
+  { source: "docx", target: "pdf" },
+  { source: "pptx", target: "pdf" },
+] as const) {
+  test(`converts ${scenario.source} to ${scenario.target} and downloads real output`, async ({ electronApp, page }, testInfo) => {
+    test.setTimeout(90_000);
+    const input = testInfo.outputPath(`input.${scenario.source}`);
+    const marker = `${scenario.source.toUpperCase()}_MARKER`;
+    if (scenario.source === "png") {
+      await sharp({ create: { width: 16, height: 12, channels: 4, background: "#ff0000" } }).png().toFile(input);
+    } else if (scenario.source === "jpg") {
+      await writeFile(input, await readFile(fixture("sample.jpg")));
+    } else if (scenario.source === "docx") {
+      await writeFile(input, docxFixture());
+    } else if (scenario.source === "pptx") {
+      await writeFile(input, pptxFixture());
+    } else {
+      await writeFile(input, scenario.source === "csv" ? `Name,Value\n${marker},123\n` : `${marker} Zażółć gęślą jaźń`);
+    }
+    await chooseFile(electronApp, input);
+    await page.getByRole("button", { name: "Choose File" }).click();
+    await page.getByRole("button", { name: new RegExp(`${scenario.source}.*${scenario.target}`, "i") }).click();
+    await page.getByRole("button", { name: "Convert", exact: true }).click();
+    const button = page.getByRole("button", { name: "Download file", exact: true });
+    await expect(button).toBeVisible({ timeout: 60_000 });
+    const output = testInfo.outputPath(`result.${scenario.target}`);
+    expect(await downloadResult(electronApp, button, output)).toBe(`input.${scenario.target}`);
+    if (scenario.target === "jpg") {
+      const decoded = await sharp(output).raw().toBuffer({ resolveWithObject: true });
+      expect(decoded.info.width).toBe(16);
+      expect(decoded.info.height).toBe(12);
+      expect((await sharp(output).metadata()).format).toBe("jpeg");
+    } else {
+      expect((await readFile(output)).subarray(0, 5).toString()).toBe("%PDF-");
+      if (scenario.source !== "jpg") expect(await pdfText(output)).toContain(marker);
+      if (scenario.source === "txt" || scenario.source === "docx") {
+        expect(await pdfText(output)).toContain("Zażółć gęślą jaźń");
+      }
+    }
+  });
+}
+
+for (const selection of ["Revenue", "Costs", "All sheets"]) {
+  test(`exports XLSX selection: ${selection}`, async ({ electronApp, page }, testInfo) => {
+    test.setTimeout(90_000);
+    const input = testInfo.outputPath("workbook.xlsx");
+    await writeFile(input, xlsxFixture());
+    await chooseFile(electronApp, input);
+    await page.getByRole("button", { name: "Choose File" }).click();
+    await page.getByRole("button", { name: selection, exact: true }).click();
+    await page.getByRole("button", { name: /XLSX.*PDF/ }).click();
+    await page.getByLabel("A3", { exact: true }).check();
+    await page.getByLabel("Landscape", { exact: true }).check();
+    await page.getByRole("button", { name: "Convert", exact: true }).click();
+    const button = page.getByRole("button", { name: "Download file", exact: true });
+    await expect(button).toBeVisible({ timeout: 60_000 });
+    const output = testInfo.outputPath("workbook.pdf");
+    expect(await downloadResult(electronApp, button, output)).toBe("workbook.pdf");
+    const text = await pdfText(output);
+    if (selection !== "Costs") expect(text).toContain("REVENUE_ONLY");
+    else expect(text).not.toContain("REVENUE_ONLY");
+    if (selection !== "Revenue") expect(text).toContain("COSTS_ONLY");
+    else expect(text).not.toContain("COSTS_ONLY");
+    const { stdout } = await execFileAsync(poppler("pdfinfo"), [output], { encoding: "utf8" });
+    expect(stdout).toMatch(/Page size:\s+1190\.\d+ x 841\.\d+ pts/);
+  });
+}
+
+test("extracts PDF text through the desktop and downloads both pages", async ({ electronApp, page }, testInfo) => {
+  await chooseFile(electronApp, fixture("two-pages.pdf"));
+  await page.getByRole("button", { name: "Choose File" }).click();
+  await page.getByRole("button", { name: /PDF.*TXT/ }).click();
+  await page.getByRole("button", { name: "Convert", exact: true }).click();
+  const button = page.getByRole("button", { name: "Download file", exact: true });
+  await expect(button).toBeVisible();
+  const output = testInfo.outputPath("two-pages.txt");
+  expect(await downloadResult(electronApp, button, output)).toBe("two-pages.txt");
+  expect(await readFile(output, "utf8")).toMatch(/Page 1[\s\S]*Page 2/);
+});
+
+test("converts PDF pages, downloads their ZIP and resets all previews", async ({ electronApp, page }, testInfo) => {
+  await chooseFile(electronApp, fixture("two-pages.pdf"));
+  await page.getByRole("button", { name: "Choose File" }).click();
+  await page.getByRole("button", { name: /PDF.*JPG/ }).click();
+  await page.getByRole("button", { name: "Convert", exact: true }).click();
+  const downloads = page.getByRole("button", { name: "Download file", exact: true });
+  await expect(downloads).toBeVisible();
+  await expect(page.getByRole("button", { name: "Page 1", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Page 2", exact: true })).toBeVisible();
+  const individualPages: Buffer[] = [];
+  for (const number of [1, 2]) {
+    await page.getByRole("button", { name: `Page ${number}`, exact: true }).click();
+    const individual = testInfo.outputPath(`page-${number}.jpg`);
+    expect(await downloadResult(electronApp, downloads, individual)).toBe(`two-pages-page-${number}.jpg`);
+    individualPages.push(await readFile(individual));
+  }
+  const output = testInfo.outputPath("pages.zip");
+  await downloadResult(electronApp, page.getByRole("button", { name: "Download all", exact: true }), output);
+  const files = unzipSync(await readFile(output));
+  expect(Object.keys(files).sort()).toEqual(["two-pages-page-1.jpg", "two-pages-page-2.jpg"]);
+  for (const [index, name] of Object.keys(files).sort().entries()) {
+    const bytes = files[name];
+    expect(Buffer.from(bytes).equals(individualPages[index])).toBe(true);
+    expect((await sharp(bytes).metadata()).format).toBe("jpeg");
+    expect((await sharp(bytes).raw().toBuffer()).length).toBeGreaterThan(0);
+  }
+  await page.getByRole("button", { name: /remove/i }).click();
+  await expect(downloads).toHaveCount(0);
+  await expect(page.getByRole("img", { name: "Preview", exact: true })).toHaveCount(0);
+});
 
 test("converts JPG through IPC and downloads a real PNG without an HTTP server", async ({ electronApp, page }, testInfo) => {
   await chooseFile(electronApp, fixture("sample.jpg"));

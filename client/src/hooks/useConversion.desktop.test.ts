@@ -4,15 +4,11 @@ import type { EasyConvertApi } from "../../../shared/desktopContract";
 import type { ConvertedResults } from "../types/conversionResult";
 import { useConversion } from "./useConversion";
 import { convertDesktopFile } from "../api/desktopConversionClient";
-import { convertFile } from "../api/conversionClient";
 
 vi.mock("../api/desktopConversionClient", () => ({
   convertDesktopFile: vi.fn(),
 }));
 
-vi.mock("../api/conversionClient", () => ({
-  convertFile: vi.fn(),
-}));
 
 afterEach(() => {
   vi.resetAllMocks();
@@ -104,7 +100,7 @@ describe("desktop useConversion", () => {
   it.each([
     { pageSize: "A3", pageOrientation: "landscape", sheetName: "Koszty" },
     { pageSize: "A4", pageOrientation: "portrait" },
-  ] as const)("passes XLSX selection and page settings %j to desktop without HTTP", async (settings) => {
+  ] as const)("passes XLSX selection and page settings %j to the desktop adapter", async (settings) => {
     const { api, result, output } = setup();
     const file = new File(["xlsx"], "workbook.xlsx", {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -115,7 +111,6 @@ describe("desktop useConversion", () => {
       api, { sourceId: "source-xlsx", conversion: "xlsx-to-pdf", options: settings },
       "workbook.xlsx", expect.any(AbortSignal),
     );
-    expect(convertFile).not.toHaveBeenCalled();
     expect(result.current.convertedResults).toBe(output);
   });
 
@@ -125,7 +120,6 @@ describe("desktop useConversion", () => {
     act(() => result.current.selectFile(file, "source-xlsx"));
     await act(async () => { await result.current.convert(xlsxOption); });
     expect(convertDesktopFile).not.toHaveBeenCalled();
-    expect(convertFile).not.toHaveBeenCalled();
     expect(result.current.convertedResults).toBeNull();
     expect(result.current.isConverting).toBe(false);
   });
@@ -162,7 +156,6 @@ describe("desktop useConversion", () => {
       "table.csv",
       expect.any(AbortSignal),
     );
-    expect(convertFile).not.toHaveBeenCalled();
     expect(result.current.convertedResults).toBe(output);
     expect(result.current.isConverting).toBe(false);
   });
@@ -179,8 +172,6 @@ describe("desktop useConversion", () => {
       "photo.jpg",
       expect.any(AbortSignal),
     );
-
-    expect(convertFile).not.toHaveBeenCalled();
     expect(result.current.convertedResults).toBe(output);
     expect(result.current.isConverting).toBe(false);
   });
@@ -225,7 +216,6 @@ describe("desktop useConversion", () => {
       "transparent.png",
       expect.any(AbortSignal),
     );
-    expect(convertFile).not.toHaveBeenCalled();
     expect(result.current.convertedResults).toBe(output);
     expect(result.current.isConverting).toBe(false);
   });
@@ -246,12 +236,11 @@ describe("desktop useConversion", () => {
     });
 
     expect(convertDesktopFile).not.toHaveBeenCalled();
-    expect(convertFile).not.toHaveBeenCalled();
     expect(result.current.conversionError).not.toBeNull();
     expect(result.current.isConverting).toBe(false);
   });
 
-  it("does not fall back to HTTP when the file has no source ID", async () => {
+  it("rejects conversion when the file has no source ID", async () => {
     const { result, file } = setup();
     vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -264,7 +253,6 @@ describe("desktop useConversion", () => {
     });
 
     expect(convertDesktopFile).not.toHaveBeenCalled();
-    expect(convertFile).not.toHaveBeenCalled();
     expect(result.current.conversionError).not.toBeNull();
   });
 
@@ -348,7 +336,6 @@ describe("desktop useConversion", () => {
 
     expect(api.resetSource).toHaveBeenCalledTimes(1);
     expect(convertDesktopFile).not.toHaveBeenCalled();
-    expect(convertFile).not.toHaveBeenCalled();
     expect(result.current.file).toBe(file);
     expect(result.current.convertedResults).toBe(output);
     expect(result.current.isRemoving).toBe(true);
@@ -455,7 +442,6 @@ describe("desktop useConversion", () => {
       "photo.jpg",
       expect.any(AbortSignal),
     );
-    expect(convertFile).not.toHaveBeenCalled();
     expect(result.current.convertedResults).toBe(output);
     expect(result.current.isConverting).toBe(false);
   });
@@ -485,7 +471,6 @@ describe("desktop useConversion", () => {
       "document.pdf",
       expect.any(AbortSignal),
     );
-    expect(convertFile).not.toHaveBeenCalled();
     expect(result.current.convertedResults).toBe(output);
     expect(result.current.isConverting).toBe(false);
   });
@@ -507,7 +492,6 @@ describe("desktop useConversion", () => {
       api, { sourceId: "source-docx", conversion: option.conversionType },
       file.name, expect.any(AbortSignal),
     );
-    expect(convertFile).not.toHaveBeenCalled();
     expect(result.current.convertedResults).toBe(output);
     expect(result.current.isConverting).toBe(false);
   });
@@ -560,7 +544,6 @@ describe("desktop useConversion", () => {
       "polski-tekst.txt",
       expect.any(AbortSignal),
     );
-    expect(convertFile).not.toHaveBeenCalled();
     expect(result.current.convertedResults).toBe(output);
     expect(result.current.isConverting).toBe(false);
   });

@@ -7,14 +7,10 @@ import {
 } from "./conversionError";
 
 const cases: Array<[ConversionErrorCode, string]> = [
-  [
-    "network",
-    "Could not connect to the conversion service. Check your connection and try again.",
-  ],
   ["conversion-failed", "The file could not be converted. Please try again."],
   [
     "invalid-response",
-    "The server returned an unexpected response. Please try again.",
+    "The application returned an unexpected response. Please try again.",
   ],
   [
     "download-failed",
@@ -34,16 +30,16 @@ describe("getConversionErrorMessage", () => {
 
 describe("ConversionError", () => {
   it("stores the error code and original cause", () => {
-    const cause = new TypeError("Filed to fetch");
+    const cause = new TypeError("Worker failed");
 
-    const error = new ConversionError("network", cause);
+    const error = new ConversionError("conversion-failed", cause);
 
     expect(error).toBeInstanceOf(Error);
     expect(error).toBeInstanceOf(ConversionError);
     expect(error.name).toBe("ConversionError");
-    expect(error.code).toBe("network");
+    expect(error.code).toBe("conversion-failed");
     expect(error.message).toBe(
-      "Could not connect to the conversion service. Check your connection and try again.",
+      "The file could not be converted. Please try again.",
     );
     expect(error.cause).toBe(cause);
   });

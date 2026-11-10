@@ -1,7 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { tmpdir } from "node:os";
-import type { PdfPageOptions } from "../../shared/conversionOptions";
 import {
   convertLibreOfficeToPdf,
   type LibreOfficeOptions,

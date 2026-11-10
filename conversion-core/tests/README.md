@@ -16,9 +16,8 @@ already installs poppler-utils. The tests fail if a required tool is unavailable
 they do not silently skip content verification.
 
 Fonts come from the shared assets/fonts directory. All file fixtures live in the
-repository-root fixtures directory, shared by engine, HTTP and Electron tests.
+repository-root fixtures directory, shared by engine and Electron tests.
 
 Unit tests cover settings, rendering calls, stream completion and failures.
 PDF integration tests check actual page dimensions, Polish TXT content, long CSV
-cells across pages and input limits. HTTP contract tests remain in server only
-while that adapter exists. Electron IPC and launcher tests remain in desktop/tests.
+cells across pages and input limits. Desktop IPC and UI workflows are covered by desktop and Electron E2E tests.

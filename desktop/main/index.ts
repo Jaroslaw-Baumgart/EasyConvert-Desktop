@@ -21,7 +21,7 @@ const rendererCsp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' blob: data:",
   "font-src 'self' blob: data:",
-  "connect-src 'self' blob: http://localhost:5000",
+  "connect-src 'self' blob:",
   "worker-src 'self' blob:",
   "frame-src 'self' blob:",
   "object-src 'none'",
@@ -192,7 +192,7 @@ async function runPdfProbe(): Promise<void> {
     ? path.join(process.resourcesPath, "poppler/bin")
     : path.resolve(
         __dirname,
-        "../../../server/node_modules/pdf-poppler/lib/win/poppler-0.51/bin",
+        "../../../node_modules/pdf-poppler/lib/win/poppler-0.51/bin",
       );
 
   const worker = utilityProcess.fork(

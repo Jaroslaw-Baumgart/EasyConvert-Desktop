@@ -1,5 +1,4 @@
 export const conversionErrorCodes = [
-  "network",
   "conversion-failed",
   "invalid-response",
   "download-failed",
@@ -17,11 +16,9 @@ export function isConversionErrorCode(
 }
 
 const ERROR_MESSAGES = {
-  network:
-    "Could not connect to the conversion service. Check your connection and try again.",
   "conversion-failed": "The file could not be converted. Please try again.",
   "invalid-response":
-    "The server returned an unexpected response. Please try again.",
+    "The application returned an unexpected response. Please try again.",
   "download-failed":
     "The converted file could not be downloaded. Please try again.",
   "tool-unavailable":

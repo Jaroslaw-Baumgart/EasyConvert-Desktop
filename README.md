@@ -1,58 +1,35 @@
 ﻿# EasyConvert Desktop
 
-An offline file converter for Windows, built around Electron, React and TypeScript.
+A local file converter for Windows, built with Electron, React and TypeScript.
+Select a file, preview it, choose conversion settings and download the result.
+Files stay on your computer.
 
-**Status: desktop migration in progress.** The Electron shell runs the existing
-React frontend locally, including file previews, navigation and Polish/English support.
-The project is adapted from [OnlineConverter-app](https://github.com/Jaroslaw-Baumgart/OnlineConverter-app).
-JPG → PNG, PNG → JPG, JPG → PDF, TXT → PDF, CSV → PDF, PDF → JPG, PDF → TXT,
-DOCX → PDF and PPTX → PDF run locally in an Electron utility
-process without an HTTP server. The remaining conversions are still being migrated.
-No public desktop release or installer is available yet.
+Adapted from [OnlineConverter-app](https://github.com/Jaroslaw-Baumgart/OnlineConverter-app).
+The HTTP backend has been replaced with a conversion engine running in an Electron
+utility process. The app is still in development; there is no public installer yet.
 
-## Available desktop features
+## Conversions
 
-- Select one source file through a native dialog or drag and drop (maximum 10 MB).
-- Preview files and conversion results in the existing interface.
-- Convert JPG → PNG.
-- Convert PNG → JPG with quality and background-color settings.
-- Convert JPG, TXT or CSV → PDF with A4/A3 and portrait/landscape settings.
-- Convert PDF → JPG with one result per page, in page order.
-- Extract text from PDF → TXT (text-based PDFs; no OCR).
-- Convert DOCX or PPTX → PDF using local LibreOffice.
-- Preserve Polish characters in TXT PDFs using the bundled Noto Sans font.
-- Download conversion results and clear the current source and result.
-- Download multiple results as ZIP using the existing frontend export.
+| Source | Target |
+| --- | --- |
+| JPG | PNG, PDF |
+| PNG | JPG |
+| TXT | PDF |
+| CSV | PDF |
+| PDF | JPG, TXT |
+| DOCX, PPTX, XLSX | PDF |
 
-Native Save/Save as actions and a persistent output-folder preference are planned.
-The current interface still uses its Download action.
+PNG → JPG supports quality and background-color settings. JPG, TXT, CSV and XLSX
+PDF output supports A4/A3 and portrait/landscape orientation. For XLSX, you can
+choose one sheet or export all sheets.
 
-## Planned first release
+PDF → JPG produces one image per page, with ZIP download for all pages.
+PDF → TXT extracts existing text and does not perform OCR. TXT PDFs use Noto Sans
+to preserve Polish characters.
 
-- Convert documents and images locally on Windows 10 and Windows 11 (64-bit).
-- Preview source files and conversion results.
-- Choose conversion settings and save results through native file dialogs.
-- Export multiple results from a single source as ZIP.
-- Switch between Polish and English.
-- Install and run the application without a separate Node.js installation.
-
-The first release will handle one source file at a time. Batch conversion and
-automatic updates may follow later.
-
-## Conversion scope
-
-The desktop version will preserve the conversions available in the original project.
-The status below describes integration with the desktop interface:
-
-| Source | Target | Desktop status |
-| --- | --- | --- |
-| JPG | PNG, PDF | Available |
-| PNG | JPG | Available |
-| TXT | PDF | Available |
-| CSV | PDF | Available |
-| PDF | JPG, TXT | Available |
-| DOCX, PPTX | PDF | Available |
-| XLSX | PDF | Planned |
+The app handles one source file at a time, up to 10 MB. Files can be selected
+through a native dialog or drag and drop. Source and result previews are available,
+and the interface supports English and Polish.
 
 ## Run from source
 
@@ -61,20 +38,18 @@ Use Windows x64 with Node.js and npm installed. From the repository root:
 ```powershell
 npm.cmd ci
 npm.cmd ci --prefix client
-npm.cmd run build --prefix client
-npm.cmd run desktop:start
+npm.cmd run dev
 ```
 
-`desktop:start` compiles the Electron code and opens the built frontend locally.
-Rebuild the client after frontend changes. The available desktop conversions do
-not require starting Express or Vite. PDF → JPG and PDF → TXT launch Poppler as a local tool;
-in the current development setup its binaries are installed by
-`npm.cmd ci --prefix server`. Image and TXT/CSV conversions do not require
-LibreOffice or Poppler.
+`dev` builds the client, compiles Electron and opens the application.
+To reopen an already built client, use `npm.cmd run desktop:start`.
+PDF → JPG and PDF → TXT use Poppler. Its Windows binaries are installed by the
+root `npm.cmd ci`.
 
-DOCX → PDF and PPTX → PDF require LibreOffice at `tools/libreoffice/program/soffice.com`
-in development. These manually installed binaries are excluded from Git;
-the packaging configuration copies them to the application's resources.
+DOCX, PPTX and XLSX → PDF require LibreOffice at `tools/libreoffice/program/soffice.com`
+in development. Install the LibreOffice distribution in `tools/libreoffice/`,
+including its supporting files. These binaries are excluded from Git and copied
+into the application when packaging.
 
 In development builds, F12 or Ctrl+Shift+I toggles Developer Tools.
 
@@ -83,27 +58,38 @@ In development builds, F12 or Ctrl+Shift+I toggles Developer Tools.
 Run from the repository root:
 
 ```powershell
-npm.cmd run typecheck:core
-npm.cmd run desktop:build
-npm.cmd run typecheck --prefix client
-npm.cmd run test:core
-npm.cmd run test:desktop
-npm.cmd run test:run --prefix client
+$env:POPPLER_BIN = "$PWD\node_modules\pdf-poppler\lib\win\poppler-0.51\bin"
+
+npm.cmd run check
 npm.cmd run test:e2e
 ```
 
-Desktop E2E tests launch Electron on Windows; see [e2e/README.md](e2e/README.md)
-for coverage and test artifacts.
+`check` runs lint, type checks, client tests, engine tests, desktop tests and the
+client build. E2E tests launch real Electron on Windows and cover all ten conversion
+pairs, XLSX sheet selection, downloads, ZIP export and reset.
+File contents are checked automatically; visual layout still needs manual review.
+See [e2e/README.md](e2e/README.md) for test setup and artifacts.
 
-The `server/` directory remains as an HTTP adapter for regression testing during
-the migration. Its checks require `npm.cmd ci --prefix server`; integration tests
-for PDF and Office conversions also require the configured Poppler and LibreOffice
-tools. The desktop runtime does not start this server.
+Core integration tests use Poppler from `POPPLER_BIN` or the system PATH.
+Electron E2E tests also require the local LibreOffice installation described above.
 
-## Installation
+## Project structure
 
-No desktop release or installer is available yet. Installation instructions
-will be added with the first desktop release.
+- `client/` — React interface, previews, settings and desktop API adapters.
+- `desktop/` — Electron main process, preload, IPC and conversion worker.
+- `conversion-core/` — conversion functions and their tests.
+- `shared/` — desktop contract and conversion option types.
+- `assets/fonts/` — bundled fonts and their license.
+- `e2e/` — Electron workflow tests and generated Office fixture helpers.
+- `fixtures/` — shared test inputs; additional manual samples are ignored by Git.
+- `tools/` — manually installed LibreOffice binaries, excluded from Git.
+
+## Before the first release
+
+- Native Save/Save as actions and a saved output-folder preference.
+- Worker cancellation and cleanup of temporary conversion files.
+- Preview memory measurements.
+- Installer testing on Windows 10 and Windows 11 x64.
 
 ## License
 
