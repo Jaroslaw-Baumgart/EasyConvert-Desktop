@@ -15,6 +15,8 @@ vi.mock("node:fs/promises", () => ({
 }));
 
 import { selectSource } from "../main/selectSource";
+import { getJobState, resetJob, startJob, succeedJob } from "../main/jobRegistry";
+import { clearResult, getResultPath, registerResult } from "../main/resultRegistry";
 import {
   clearSource,
   getSourcePath,
@@ -26,6 +28,8 @@ const previousPath = "C:/fixtures/previous.jpg";
 let previousId: string;
 
 beforeEach(() => {
+  resetJob();
+  clearResult();
   clearSource();
   previousId = registerSource(previousPath);
 
@@ -48,6 +52,41 @@ afterEach(() => {
 });
 
 describe("selectSource", () => {
+  it.each(["photo.JPG", "photo.jpeg", "photo.JPEG"])(
+    "accepts the supported source %s",
+    async (name) => {
+      const sourcePath = `C:/fixtures/${name}`;
+      mocks.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [sourcePath] });
+
+      const result = await selectSource(owner);
+
+      expect(result).toMatchObject({ status: "selected", source: { name } });
+      if (result.status !== "selected") throw new Error("Expected a selected source.");
+      expect(getSourcePath(result.source.sourceId)).toBe(sourcePath);
+    },
+  );
+
+  it.each(["program.exe", "photo.jpg.exe", "document"])(
+    "rejects %s before reading metadata and preserves the previous result",
+    async (name) => {
+      const resultId = registerResult("previous.png");
+      const jobId = startJob();
+      succeedJob(jobId, [resultId]);
+      const previousState = getJobState();
+      mocks.showOpenDialog.mockResolvedValue({
+        canceled: false,
+        filePaths: [`C:/fixtures/${name}`],
+      });
+
+      await expect(selectSource(owner)).rejects.toThrow("Unsupported file format:");
+
+      expect(mocks.stat).not.toHaveBeenCalled();
+      expect(getSourcePath(previousId)).toBe(previousPath);
+      expect(getResultPath(resultId)).toBe("previous.png");
+      expect(getJobState()).toEqual(previousState);
+    },
+  );
+
   it("returns metadata without exposing the path", async () => {
     const result = await selectSource(owner);
 

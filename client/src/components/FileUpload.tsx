@@ -1,10 +1,11 @@
 import { useRef, useState } from "react";
+import { MAX_SOURCE_BYTES } from "../../../shared/conversionLimits";
 import type { DragEvent } from "react";
 import {
   conversions,
   supportedSourceFormats,
   isSupportedSourceFormat,
-} from "../config/conversions";
+} from "../../../shared/conversions";
 import styles from "./FileUpload.module.css";
 import stateStyles from "./PreviewState.module.css";
 import panelStyles from "./ConverterPanel.module.css";
@@ -21,7 +22,6 @@ const SUPPORTED_FORMATS_LABEL = supportedSourceFormats
   .join(", ");
 
 const MAX_FILE_SIZE_MB = 10;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 const conversionGroups = supportedSourceFormats.map((sourceFormat) => ({
   sourceFormat,
@@ -42,7 +42,7 @@ function validateFile(file: File): UploadValidationError | null {
     return "unsupported";
   }
 
-  if (file.size > MAX_FILE_SIZE_BYTES) {
+  if (file.size > MAX_SOURCE_BYTES) {
     return "tooLarge";
   }
 

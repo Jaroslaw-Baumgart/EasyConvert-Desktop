@@ -1,3 +1,4 @@
+import { MAX_SOURCE_BYTES } from "../../../shared/conversionLimits";
 import type {
   EasyConvertApi,
   SelectedSource,
@@ -21,7 +22,7 @@ export async function selectDesktopSource(
 
   const size = Number(response.headers.get("Content-Length"));
 
-  if (!Number.isSafeInteger(size) || size <= 0 || size > 10_000_000) {
+  if (!Number.isSafeInteger(size) || size <= 0 || size > MAX_SOURCE_BYTES) {
     throw new Error("Invalid file size.");
   }
 

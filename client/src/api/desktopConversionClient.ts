@@ -7,6 +7,8 @@ import type {
   ConvertedResults,
 } from "../types/conversionResult";
 import { waitForDesktopJob } from "./waitForDesktopJob";
+import { getConversionDefinition } from "../../../shared/conversions";
+import { MAX_RESULT_BYTES } from "../../../shared/conversionLimits";
 
 export async function convertDesktopFile(
   api: EasyConvertApi,
@@ -25,20 +27,8 @@ export async function convertDesktopFile(
     throw new Error("Invalid number of conversion results.");
   }
 
-  const extensions = {
-    "jpg-to-png": ".png",
-    "png-to-jpg": ".jpg",
-    "jpg-to-pdf": ".pdf",
-    "txt-to-pdf": ".pdf",
-    "csv-to-pdf": ".pdf",
-    "pdf-to-jpg": ".jpg",
-    "pdf-to-txt": ".txt",
-    "docx-to-pdf": ".pdf",
-    "pptx-to-pdf": ".pdf",
-    "xlsx-to-pdf": ".pdf",
-  } satisfies Record<StartConversionRequest["conversion"], string>;
-
-  const extension = extensions[request.conversion];
+  const { targetFormat } = getConversionDefinition(request.conversion);
+  const extension = `.${targetFormat}`;
   const baseName = inputName.replace(/\.[^.]+$/, "");
   const results: ConvertedResult[] = [];
 
@@ -56,7 +46,7 @@ export async function convertDesktopFile(
 
     const size = Number(response.headers.get("Content-Length"));
 
-    if (!Number.isSafeInteger(size) || size <= 0 || size > 100 * 1024 * 1024) {
+    if (!Number.isSafeInteger(size) || size <= 0 || size > MAX_RESULT_BYTES) {
       throw new Error("Invalid result size.");
     }
 

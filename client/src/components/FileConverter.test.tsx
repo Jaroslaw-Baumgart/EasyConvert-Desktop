@@ -13,7 +13,7 @@ import { ConversionError } from "../api/conversionError";
 import { createDesktopApi, convertedResult } from "../test/desktopApi";
 
 vi.mock("../api/desktopConversionClient", () => ({ convertDesktopFile: vi.fn() }));
-import { conversions as conversionOptions } from "../config/conversions";
+import { conversions as conversionOptions } from "../../../shared/conversions";
 import FileConverter from "./FileConverter";
 import * as XLSX from "xlsx";
 

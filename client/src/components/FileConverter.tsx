@@ -6,7 +6,7 @@ import type { ConversionOption, FileConverterProps } from "../types/converter";
 import FileUpload from "./FileUpload";
 import ConversionOptions from "./ConversionOptions";
 import DownloadSection from "./DownloadSection";
-import type { ConversionDefinition } from "../config/conversions";
+import type { ConversionDefinition } from "../../../shared/conversions";
 import FilePreview from "./FilePreview";
 import { createPreviewData } from "../utils/previewMapper";
 import { useObjectUrl } from "../hooks/useObjectUrl";

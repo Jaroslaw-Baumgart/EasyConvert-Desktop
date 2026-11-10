@@ -44,313 +44,76 @@ afterEach(() => {
   }
 });
 
-const cases: {
-  request: StartConversionRequest;
-  inputPath: string;
-  outputPath: string;
-  expectedArgs: string[];
-}[] = [
-  {
-    request: {
-      sourceId: "source-123",
-      conversion: "jpg-to-png",
-    },
-    inputPath: "C:/input/photo.jpg",
-    outputPath: "C:/output/result.png",
-    expectedArgs: ["jpg-to-png", "C:/input/photo.jpg", "C:/output/result.png"],
-  },
-  {
-    request: {
-      sourceId: "source-123",
-      conversion: "png-to-jpg",
-      options: {
-        quality: 72,
-        backgroundColor: "#123456",
-      },
-    },
-    inputPath: "C:/input/photo.png",
-    outputPath: "C:/output/result.jpg",
-    expectedArgs: [
-      "png-to-jpg",
-      "C:/input/photo.png",
-      "C:/output/result.jpg",
-      JSON.stringify({
-        quality: 72,
-        backgroundColor: "#123456",
-      }),
-    ],
-  },
-  {
-    request: {
-      sourceId: "source-123",
-      conversion: "jpg-to-pdf",
-      options: {
-        pageSize: "A3",
-        pageOrientation: "landscape",
-      },
-    },
-    inputPath: "C:/input/photo.jpg",
-    outputPath: "C:/output/result.pdf",
-    expectedArgs: [
-      "jpg-to-pdf",
-      "C:/input/photo.jpg",
-      "C:/output/result.pdf",
-      JSON.stringify({
-        pageSize: "A3",
-        pageOrientation: "landscape",
-      }),
-    ],
-  },
+const pageOptions = { pageSize: "A3", pageOrientation: "landscape" } as const;
+const cases: { request: StartConversionRequest; inputPath: string; outputPath: string }[] = [
+  { request: { sourceId: "source-1", conversion: "jpg-to-png" }, inputPath: "C:/input/photo.jpg", outputPath: "C:/output/result.png" },
+  { request: { sourceId: "source-1", conversion: "png-to-jpg", options: { quality: 72, backgroundColor: "#123456" } }, inputPath: "C:/input/photo.png", outputPath: "C:/output/result.jpg" },
+  { request: { sourceId: "source-1", conversion: "jpg-to-pdf", options: pageOptions }, inputPath: "C:/input/photo.jpg", outputPath: "C:/output/result.pdf" },
+  { request: { sourceId: "source-1", conversion: "txt-to-pdf", options: pageOptions }, inputPath: "C:/input/document.txt", outputPath: "C:/output/result.pdf" },
+  { request: { sourceId: "source-1", conversion: "csv-to-pdf", options: pageOptions }, inputPath: "C:/input/table.csv", outputPath: "C:/output/result.pdf" },
+  { request: { sourceId: "source-1", conversion: "pdf-to-jpg" }, inputPath: "C:/input/document.pdf", outputPath: "C:/output/pages" },
+  { request: { sourceId: "source-1", conversion: "pdf-to-txt" }, inputPath: "C:/input/document.pdf", outputPath: "C:/output/result.txt" },
+  { request: { sourceId: "source-1", conversion: "docx-to-pdf" }, inputPath: "C:/input/document.docx", outputPath: "C:/output/result.pdf" },
+  { request: { sourceId: "source-1", conversion: "pptx-to-pdf" }, inputPath: "C:/input/presentation.pptx", outputPath: "C:/output/result.pdf" },
+  { request: { sourceId: "source-1", conversion: "xlsx-to-pdf", options: { ...pageOptions, sheetName: "Costs & Revenue" } }, inputPath: "C:/input/workbook.xlsx", outputPath: "C:/output/result.pdf" },
 ];
 
-describe("runConversionWorker", () => {
-  it.each([false, true])("passes XLSX settings before the LibreOffice executable when isPackaged=%s", async (isPackaged) => {
-    mocks.app.isPackaged = isPackaged;
-    const worker = new EventEmitter();
-    mocks.fork.mockReturnValue(worker);
-    const options = { pageSize: "A3", pageOrientation: "landscape", sheetName: "Koszty" } as const;
-    const completion = runConversionWorker("C:/input/workbook.xlsx", "C:/output/result.pdf", {
-      sourceId: "source-xlsx", conversion: "xlsx-to-pdf", options,
-    });
-    const executablePath = isPackaged
-      ? path.join("C:/installed/EasyConvert/resources", "libreoffice/program/soffice.com")
-      : path.resolve(__dirname, "../../../tools/libreoffice/program/soffice.com");
-    expect(mocks.fork).toHaveBeenCalledTimes(1);
-    expect(mocks.fork.mock.calls[0][1]).toEqual([
-      "xlsx-to-pdf", "C:/input/workbook.xlsx", "C:/output/result.pdf", JSON.stringify(options), executablePath,
-    ]);
-    worker.emit("exit", 0);
-    await expect(completion).resolves.toBeUndefined();
-  });
-  it.each([
-    { conversion: "docx-to-pdf", extension: "docx", isPackaged: false },
-    { conversion: "docx-to-pdf", extension: "docx", isPackaged: true },
-    { conversion: "pptx-to-pdf", extension: "pptx", isPackaged: false },
-    { conversion: "pptx-to-pdf", extension: "pptx", isPackaged: true },
-  ] as const)(
-    "passes the LibreOffice executable for $conversion when isPackaged=$isPackaged",
-    async ({ conversion, extension, isPackaged }) => {
+for (const isPackaged of [false, true]) {
+  describe(isPackaged ? "packaged conversion worker" : "development conversion worker", () => {
+    it.each(cases)("sends one named JSON request for $request.conversion", async ({ request, inputPath, outputPath }) => {
       mocks.app.isPackaged = isPackaged;
       const worker = new EventEmitter();
       mocks.fork.mockReturnValue(worker);
-      const inputPath = `C:/input/document.${extension}`;
-      const completion = runConversionWorker(inputPath, "C:/output/result.pdf", {
-        sourceId: "source-docx",
-        conversion,
-      });
-      const executablePath = isPackaged
-        ? path.join("C:/installed/EasyConvert/resources", "libreoffice/program/soffice.com")
-        : path.resolve(__dirname, "../../../tools/libreoffice/program/soffice.com");
-      expect(mocks.fork).toHaveBeenCalledTimes(1);
-      expect(mocks.fork.mock.calls[0][1]).toEqual([
-        conversion, inputPath, "C:/output/result.pdf", executablePath,
-      ]);
-      worker.emit("exit", 0);
-      await expect(completion).resolves.toBeUndefined();
-    },
-  );
-  it.each(cases)(
-    "starts $request.conversion with its paths and settings",
-    async ({ request, inputPath, outputPath, expectedArgs }) => {
-      const worker = new EventEmitter();
-      mocks.fork.mockReturnValue(worker);
-
       const completion = runConversionWorker(inputPath, outputPath, request);
-
       expect(mocks.fork).toHaveBeenCalledTimes(1);
-
       const [modulePath, args, options] = mocks.fork.mock.calls[0];
-
       expect(path.isAbsolute(modulePath)).toBe(true);
       expect(modulePath).toMatch(/[/\\]worker[/\\]index\.js$/);
-      expect(args).toEqual(expectedArgs);
-      expect(options).toEqual({
-        stdio: "inherit",
-        serviceName: "EasyConvert image conversion",
-      });
-
-      worker.emit("exit", 0);
-
-      await expect(completion).resolves.toBeUndefined();
-      expect(worker.listenerCount("exit")).toBe(0);
-    },
-  );
-
-  it.each([
-    {
-      label: "development",
-      isPackaged: false,
-      expectedFontPath: path.resolve(
-        __dirname,
-        "../../../assets/fonts/NotoSans-Regular.ttf",
-      ),
-    },
-    {
-      label: "packaged application",
-      isPackaged: true,
-      expectedFontPath: path.join(
-        "C:/installed/EasyConvert/resources",
-        "fonts/NotoSans-Regular.ttf",
-      ),
-    },
-  ])(
-    "passes TXT settings and the font path for $label",
-    async ({ isPackaged, expectedFontPath }) => {
-      mocks.app.isPackaged = isPackaged;
-
-      const worker = new EventEmitter();
-      mocks.fork.mockReturnValue(worker);
-
-      const completion = runConversionWorker(
-        "C:/input/document.txt",
-        "C:/output/result.pdf",
-        {
-          sourceId: "source-123",
-          conversion: "txt-to-pdf",
-          options: {
-            pageSize: "A3",
-            pageOrientation: "landscape",
-          },
-        },
-      );
-
-      expect(mocks.fork).toHaveBeenCalledTimes(1);
-      expect(mocks.fork.mock.calls[0][1]).toEqual([
-        "txt-to-pdf",
-        "C:/input/document.txt",
-        "C:/output/result.pdf",
-        JSON.stringify({
-          pageSize: "A3",
-          pageOrientation: "landscape",
-        }),
-        expectedFontPath,
-      ]);
-
-      expect(mocks.app.getAppPath).not.toHaveBeenCalled();
-
-      worker.emit("exit", 0);
-
-      await expect(completion).resolves.toBeUndefined();
-    },
-  );
-
-  it.each([false, true])(
-    "passes CSV settings and both fonts when isPackaged=%s",
-    async (isPackaged) => {
-      mocks.app.isPackaged = isPackaged;
-      const worker = new EventEmitter();
-      mocks.fork.mockReturnValue(worker);
-
-      const completion = runConversionWorker(
-        "C:/input/table.csv",
-        "C:/output/result.pdf",
-        {
-          sourceId: "source-csv",
-          conversion: "csv-to-pdf",
-          options: {
-            pageSize: "A3",
-            pageOrientation: "landscape",
-          },
-        },
-      );
-
+      expect(options).toEqual({ stdio: "inherit", serviceName: "EasyConvert conversion" });
+      expect(args).toHaveLength(1);
+      const message = JSON.parse(args[0]);
+      const expected: Record<string, unknown> = { inputPath, outputPath, conversion: request.conversion };
+      if ("options" in request) expected.options = request.options;
       const fontsDirectory = isPackaged
         ? path.join("C:/installed/EasyConvert/resources", "fonts")
         : path.resolve(__dirname, "../../../assets/fonts");
-
-      expect(mocks.fork).toHaveBeenCalledTimes(1);
-      expect(mocks.fork.mock.calls[0][1]).toEqual([
-        "csv-to-pdf",
-        "C:/input/table.csv",
-        "C:/output/result.pdf",
-        JSON.stringify({
-          pageSize: "A3",
-          pageOrientation: "landscape",
-        }),
-        path.join(fontsDirectory, "NotoSans-Regular.ttf"),
-        path.join(fontsDirectory, "NotoSans-Bold.ttf"),
-      ]);
-
+      if (request.conversion === "txt-to-pdf") expected.fontPath = path.join(fontsDirectory, "NotoSans-Regular.ttf");
+      if (request.conversion === "csv-to-pdf") {
+        expected.regularFontPath = path.join(fontsDirectory, "NotoSans-Regular.ttf");
+        expected.boldFontPath = path.join(fontsDirectory, "NotoSans-Bold.ttf");
+      }
+      if (request.conversion === "pdf-to-jpg" || request.conversion === "pdf-to-txt") {
+        expected.binDirectory = isPackaged
+          ? path.join("C:/installed/EasyConvert/resources", "poppler/bin")
+          : path.resolve(__dirname, "../../../node_modules/pdf-poppler/lib/win/poppler-0.51/bin");
+      }
+      if (request.conversion === "docx-to-pdf" || request.conversion === "pptx-to-pdf" || request.conversion === "xlsx-to-pdf") {
+        expected.executablePath = isPackaged
+          ? path.join("C:/installed/EasyConvert/resources", "libreoffice/program/soffice.com")
+          : path.resolve(__dirname, "../../../tools/libreoffice/program/soffice.com");
+      }
+      expect(message).toEqual(expected);
+      expect(mocks.app.getAppPath).not.toHaveBeenCalled();
       worker.emit("exit", 0);
       await expect(completion).resolves.toBeUndefined();
-    },
-  );
-
-  it.each([1, 2])(
-    "rejects when the worker exits with code %i",
-    async (code) => {
-      const worker = new EventEmitter();
-      mocks.fork.mockReturnValue(worker);
-
-      const completion = runConversionWorker("input.jpg", "result.png", {
-        sourceId: "source-123",
-        conversion: "jpg-to-png",
-      });
-
-      const assertion = expect(completion).rejects.toThrow(
-        `Worker exited with code ${code}`,
-      );
-
-      worker.emit("exit", code);
-
-      await assertion;
-    },
-  );
-
-  it("rejects when the worker cannot be started", async () => {
-    const error = new Error("Cannot start worker.");
-
-    mocks.fork.mockImplementation(() => {
-      throw error;
+      expect(worker.listenerCount("exit")).toBe(0);
     });
+  });
+}
 
-    await expect(
-      runConversionWorker("input.jpg", "result.png", {
-        sourceId: "source-123",
-        conversion: "jpg-to-png",
-      }),
-    ).rejects.toBe(error);
+describe("worker failures", () => {
+  it.each([1, 2])("rejects exit code %i", async (code) => {
+    const worker = new EventEmitter();
+    mocks.fork.mockReturnValue(worker);
+    const completion = runConversionWorker("input.jpg", "result.png", { sourceId: "source-1", conversion: "jpg-to-png" });
+    const assertion = expect(completion).rejects.toThrow(`Worker exited with code ${code}`);
+    worker.emit("exit", code);
+    await assertion;
   });
 
-  it.each([
-    { conversion: "pdf-to-jpg", outputPath: "C:/output/pages", isPackaged: false },
-    { conversion: "pdf-to-jpg", outputPath: "C:/output/pages", isPackaged: true },
-    { conversion: "pdf-to-txt", outputPath: "C:/output/result.txt", isPackaged: false },
-    { conversion: "pdf-to-txt", outputPath: "C:/output/result.txt", isPackaged: true },
-  ] as const)(
-    "passes the Poppler directory for $conversion when isPackaged=$isPackaged",
-    async ({ conversion, outputPath, isPackaged }) => {
-      mocks.app.isPackaged = isPackaged;
-
-      const worker = new EventEmitter();
-      mocks.fork.mockReturnValue(worker);
-
-      const completion = runConversionWorker(
-        "C:/input/document.pdf",
-        outputPath,
-        {
-          sourceId: "source-pdf",
-          conversion,
-        },
-      );
-
-      const binDirectory = isPackaged
-        ? path.join("C:/installed/EasyConvert/resources", "poppler/bin")
-        : path.resolve(
-            __dirname,
-            "../../../node_modules/pdf-poppler/lib/win/poppler-0.51/bin",
-          );
-
-      expect(mocks.fork).toHaveBeenCalledTimes(1);
-      expect(mocks.fork.mock.calls[0][1]).toEqual([
-        conversion,
-        "C:/input/document.pdf",
-        outputPath,
-        binDirectory,
-      ]);
-
-      worker.emit("exit", 0);
-      await expect(completion).resolves.toBeUndefined();
-    },
-  );
+  it("propagates a failure to start the worker", async () => {
+    const error = new Error("Cannot start worker.");
+    mocks.fork.mockImplementation(() => { throw error; });
+    await expect(runConversionWorker("input.jpg", "result.png", { sourceId: "source-1", conversion: "jpg-to-png" })).rejects.toBe(error);
+  });
 });

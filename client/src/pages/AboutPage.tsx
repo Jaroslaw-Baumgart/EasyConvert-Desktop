@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { conversions } from "../config/conversions";
+import { conversions } from "../../../shared/conversions";
 import styles from "./PageContent.module.css";
 import { Trans, useTranslation } from "react-i18next";
 

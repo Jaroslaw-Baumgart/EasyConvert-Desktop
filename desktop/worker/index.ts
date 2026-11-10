@@ -1,142 +1,102 @@
 import { convertJpgToPng } from "../../conversion-core/image/convertJpgToPng";
 import { convertLibreOfficeToPdf } from "../../conversion-core/office/convertLibreOfficeToPdf";
 import { convertPngToJpg } from "../../conversion-core/image/convertPngToJpg";
-import { parsePngToJpgOptions } from "../../conversion-core/image/parsePngToJpgOptions";
 import { convertJpgToPdf } from "../../conversion-core/image/convertJpgToPdf";
-import { parsePdfPageOptions } from "../../conversion-core/image/parsePdfPageOptions";
 import { convertTxtToPdf } from "../../conversion-core/pdf/convertTxtToPdf";
 import { convertCsvToPdf } from "../../conversion-core/pdf/convertCsvToPdf";
 import { convertPdfToJpg } from "../../conversion-core/pdf/convertPdfToJpg";
 import { convertPdfToTxt } from "../../conversion-core/pdf/convertPdfToTxt";
 import { convertXlsxToPdf } from "../../conversion-core/office/convertXlsxToPdf";
-import { parseXlsxToPdfOptions } from "../../conversion-core/office/parseXlsxToPdfOptions";
+import { parseWorkerRequest } from "./parseWorkerRequest";
+import { readFile } from "node:fs/promises";
+import { unzipOfficeArchive } from "../../conversion-core/office/officeArchive";
 
 async function run(): Promise<void> {
-  const [
-    conversion,
-    inputPath,
-    outputPath,
-    conversionArgument,
-    fontPath,
-    boldFontPath,
-  ] = process.argv.slice(2);
+  const [argument] = process.argv.slice(2);
 
-  if (!inputPath || !outputPath) {
-    throw new Error("Expected input and output file paths.");
+  if (!argument) {
+    throw new Error("Expected a worker request.");
   }
 
-  if (conversion === "jpg-to-png") {
-    await convertJpgToPng(inputPath, outputPath);
-  } else if (
-    conversion === "office-to-pdf" ||
-    conversion === "docx-to-pdf" ||
-    conversion === "pptx-to-pdf"
-  ) {
-    if (!conversionArgument) {
-      throw new Error("Expected a LibreOffice executable path.");
-    }
+  const value: unknown = JSON.parse(argument);
+  const request = parseWorkerRequest(value);
 
-    await convertLibreOfficeToPdf(inputPath, outputPath, {
-      executablePath: conversionArgument,
-      timeoutMs: 120_000,
-    });
-  } else if (conversion === "pdf-to-jpg") {
-    if (!conversionArgument) {
-      throw new Error("Expected a Poppler binary directory.");
-    }
+  switch (request.conversion) {
+    case "jpg-to-png":
+      await convertJpgToPng(request.inputPath, request.outputPath);
+      break;
 
-    await convertPdfToJpg(inputPath, outputPath, {
-      binDirectory: conversionArgument,
-      timeoutMs: 120_000,
-      maxPages: 100,
-    });
-  } else if (conversion === "xlsx-to-pdf") {
-    if (!conversionArgument) {
-      throw new Error("Expected XLSX to PDF options.");
-    }
+    case "png-to-jpg":
+      await convertPngToJpg(
+        request.inputPath,
+        request.outputPath,
+        request.options,
+      );
+      break;
 
-    const executablePath = fontPath;
+    case "jpg-to-pdf":
+      await convertJpgToPdf(
+        request.inputPath,
+        request.outputPath,
+        request.options,
+      );
+      break;
 
-    if (!executablePath) {
-      throw new Error("Expected a LibreOffice executable path.");
-    }
+    case "txt-to-pdf":
+      await convertTxtToPdf(
+        request.inputPath,
+        request.outputPath,
+        request.options,
+        request.fontPath,
+      );
+      break;
 
-    const value: unknown = JSON.parse(conversionArgument);
-    const options = parseXlsxToPdfOptions(value);
+    case "csv-to-pdf":
+      await convertCsvToPdf(
+        request.inputPath,
+        request.outputPath,
+        request.options,
+        request.regularFontPath,
+        request.boldFontPath,
+      );
+      break;
 
-    await convertXlsxToPdf(inputPath, outputPath, options, {
-      executablePath,
-      timeoutMs: 120_000,
-    });
-  } else if (conversion === "pdf-to-txt") {
-    if (!conversionArgument) {
-      throw new Error("Expected a Poppler binary directory.");
-    }
+    case "pdf-to-txt":
+      await convertPdfToTxt(request.inputPath, request.outputPath, {
+        binDirectory: request.binDirectory,
+        timeoutMs: 120_000,
+        maxPages: 100,
+      });
+      break;
 
-    await convertPdfToTxt(inputPath, outputPath, {
-      binDirectory: conversionArgument,
-      timeoutMs: 120_000,
-      maxPages: 100,
-    });
-  } else if (conversion === "png-to-jpg") {
-    if (!conversionArgument) {
-      throw new Error("Expected PNG to JPG options.");
-    }
+    case "pdf-to-jpg":
+      await convertPdfToJpg(request.inputPath, request.outputPath, {
+        binDirectory: request.binDirectory,
+        timeoutMs: 120_000,
+        maxPages: 100,
+      });
+      break;
 
-    const value: unknown = JSON.parse(conversionArgument);
-    const options = parsePngToJpgOptions(value);
+    case "docx-to-pdf":
+    case "pptx-to-pdf":
+      const archiveBytes = await readFile(request.inputPath);
+      await unzipOfficeArchive(archiveBytes);
 
-    await convertPngToJpg(inputPath, outputPath, options);
-  } else if (conversion === "jpg-to-pdf") {
-    if (!conversionArgument) {
-      throw new Error("Expected JPG to PDF options.");
-    }
+      await convertLibreOfficeToPdf(request.inputPath, request.outputPath, {
+        executablePath: request.executablePath,
+        timeoutMs: 120_000,
+      });
+      break;
 
-    const value: unknown = JSON.parse(conversionArgument);
-    const options = parsePdfPageOptions(value);
-
-    await convertJpgToPdf(inputPath, outputPath, options);
-  } else if (conversion === "txt-to-pdf") {
-    if (!conversionArgument) {
-      throw new Error("Expected TXT to PDF options.");
-    }
-
-    if (!fontPath) {
-      throw new Error("Expected a font path for TXT to PDF conversion.");
-    }
-
-    const value: unknown = JSON.parse(conversionArgument);
-    const options = parsePdfPageOptions(value);
-
-    await convertTxtToPdf(inputPath, outputPath, options, fontPath);
-  } else if (conversion === "csv-to-pdf") {
-    if (!conversionArgument) {
-      throw new Error("Expected CSV to PDF options.");
-    }
-
-    if (!fontPath) {
-      throw new Error("Expected a font path for CSV to PDF conversion.");
-    }
-
-    if (!boldFontPath) {
-      throw new Error("Expected a bold font path for CSV to PDF conversion.");
-    }
-
-    const value: unknown = JSON.parse(conversionArgument);
-    const options = parsePdfPageOptions(value);
-
-    await convertCsvToPdf(
-      inputPath,
-      outputPath,
-      options,
-      fontPath,
-      boldFontPath,
-    );
-  } else {
-    throw new Error("Unsupported probe conversion.");
+    case "xlsx-to-pdf":
+      await convertXlsxToPdf(
+        request.inputPath,
+        request.outputPath,
+        request.options,
+        { executablePath: request.executablePath, timeoutMs: 120_000 },
+      );
+      break;
   }
-
-  console.log("Conversion completed.");
 }
 
 run().then(

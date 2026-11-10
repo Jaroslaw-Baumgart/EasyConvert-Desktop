@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { conversions } from "./conversions";
+import { conversions } from "../conversions";
 
 describe("conversions configuration", () => {
   it("contains at least one conversion", () => {

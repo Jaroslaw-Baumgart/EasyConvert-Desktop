@@ -1,4 +1,4 @@
-import type { SupportedFormat } from "./conversions";
+import type { SupportedFormat } from "../../../shared/conversions";
 import type { ConfiguredPreviewKind } from "../types/preview";
 
 export const previewKindByFormat = {

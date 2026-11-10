@@ -1,6 +1,6 @@
 import type { StartConversionRequest } from "../../shared/desktopContract";
 import { parsePngToJpgOptions } from "../../conversion-core/image/parsePngToJpgOptions";
-import { parsePdfPageOptions } from "../../conversion-core/image/parsePdfPageOptions";
+import { parsePdfPageOptions } from "../../conversion-core/pdf/parsePdfPageOptions";
 import { parseXlsxToPdfOptions } from "../../conversion-core/office/parseXlsxToPdfOptions";
 
 export function parseStartConversionRequest(

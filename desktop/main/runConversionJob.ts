@@ -6,6 +6,8 @@ import { getPdfPagePaths } from "../../conversion-core/pdf/convertPdfToJpg";
 import { failJob, getJobState, succeedJob } from "./jobRegistry";
 import { registerResults } from "./resultRegistry";
 import { runConversionWorker } from "./runConversionWorker";
+import { getConversionDefinition } from "../../shared/conversions";
+import { MAX_RESULT_BYTES } from "../../shared/conversionLimits";
 
 export async function runConversionJob(
   jobId: string,
@@ -24,22 +26,8 @@ export async function runConversionJob(
       await runConversionWorker(inputPath, directory, request);
       outputPaths = await getPdfPagePaths(directory);
     } else {
-      const outputNames = {
-        "jpg-to-png": "result.png",
-        "png-to-jpg": "result.jpg",
-        "jpg-to-pdf": "result.pdf",
-        "txt-to-pdf": "result.pdf",
-        "csv-to-pdf": "result.pdf",
-        "pdf-to-txt": "result.txt",
-        "docx-to-pdf": "result.pdf",
-        "pptx-to-pdf": "result.pdf",
-        "xlsx-to-pdf": "result.pdf",
-      } satisfies Record<
-        Exclude<StartConversionRequest["conversion"], "pdf-to-jpg">,
-        string
-      >;
-
-      const outputPath = path.join(directory, outputNames[request.conversion]);
+      const { targetFormat } = getConversionDefinition(request.conversion);
+      const outputPath = path.join(directory, `result.${targetFormat}`);
 
       await runConversionWorker(inputPath, outputPath, request);
       outputPaths = [outputPath];
@@ -50,6 +38,9 @@ export async function runConversionJob(
 
       if (!metadata.isFile() || metadata.size === 0) {
         throw new Error("Output file is empty or not a file.");
+      }
+      if (metadata.size > MAX_RESULT_BYTES) {
+        throw new Error("Output file exceeds the size limit.");
       }
     }
 

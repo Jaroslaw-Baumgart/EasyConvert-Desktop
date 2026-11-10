@@ -1,4 +1,4 @@
-import type { ConversionDefinition } from "../config/conversions";
+import type { ConversionDefinition } from "../../../shared/conversions";
 
 export type ConversionOption = ConversionDefinition & {
   disabled: boolean;

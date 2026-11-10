@@ -14,7 +14,7 @@ import type {
 } from "../types/conversionResult";
 import { createZipFile } from "../utils/createZipFile";
 import { convertDesktopFile } from "../api/desktopConversionClient";
-import type { StartConversionRequest } from "../../../shared/desktopContract";
+import { createConversionRequest } from "../api/createConversionRequest";
 
 type UseConversionResult = {
   file: File | null;
@@ -173,79 +173,11 @@ export function useConversion(): UseConversionResult {
         throw new Error("Select the file using the native dialog.");
       }
 
-      let request: StartConversionRequest;
-      if (
-        option.conversionType === "jpg-to-png" ||
-        option.conversionType === "pdf-to-jpg" ||
-        option.conversionType === "pdf-to-txt" ||
-        option.conversionType === "docx-to-pdf" ||
-        option.conversionType === "pptx-to-pdf"
-      ) {
-        request = {
-          sourceId,
-          conversion: option.conversionType,
-        };
-      } else if (option.conversionType === "png-to-jpg") {
-        if (
-          !settings ||
-          !("quality" in settings) ||
-          !("backgroundColor" in settings)
-        ) {
-          throw new Error("Missing PNG to JPG settings.");
-        }
-
-        request = {
-          sourceId,
-          conversion: option.conversionType,
-          options: {
-            quality: settings.quality,
-            backgroundColor: settings.backgroundColor,
-          },
-        };
-      } else if (
-        option.conversionType === "jpg-to-pdf" ||
-        option.conversionType === "txt-to-pdf" ||
-        option.conversionType === "csv-to-pdf"
-      ) {
-        if (
-          !settings ||
-          !("pageSize" in settings) ||
-          !("pageOrientation" in settings)
-        ) {
-          throw new Error("Missing PDF page settings.");
-        }
-
-        request = {
-          sourceId,
-          conversion: option.conversionType,
-          options: {
-            pageSize: settings.pageSize,
-            pageOrientation: settings.pageOrientation,
-          },
-        };
-      } else if (option.conversionType === "xlsx-to-pdf") {
-        if (
-          !settings ||
-          !("pageSize" in settings) ||
-          !("pageOrientation" in settings)
-        ) {
-          throw new Error("Missing XLSX to PDF settings.");
-        }
-
-        request = {
-          sourceId,
-          conversion: option.conversionType,
-          options: {
-            pageSize: settings.pageSize,
-            pageOrientation: settings.pageOrientation,
-            ...("sheetName" in settings && settings.sheetName !== undefined
-              ? { sheetName: settings.sheetName }
-              : {}),
-          },
-        };
-      } else {
-        throw new Error("This desktop conversion is not available yet.");
-      }
+      const request = createConversionRequest(
+        sourceId,
+        option.conversionType,
+        settings,
+      );
 
       const convertedResults = await convertDesktopFile(
         window.easyConvert,

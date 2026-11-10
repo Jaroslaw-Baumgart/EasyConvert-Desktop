@@ -1,5 +1,7 @@
 import { stat } from "node:fs/promises";
-import { basename } from "node:path";
+import { basename, extname } from "node:path";
+import { isSupportedSourceFormat } from "../../shared/conversions";
+import { MAX_SOURCE_BYTES } from "../../shared/conversionLimits";
 import type { SelectedSource } from "../../shared/desktopContract";
 import { registerSource } from "./sourceRegistry";
 import { getJobState, resetJob } from "./jobRegistry";
@@ -11,6 +13,13 @@ export async function prepareSource(
   if (getJobState().status === "running")
     throw new Error("A job is already running.");
 
+  const extension = extname(sourcePath).slice(1).toLowerCase();
+  const sourceFormat = extension === "jpeg" ? "jpg" : extension;
+
+  if (!isSupportedSourceFormat(sourceFormat)) {
+    throw new Error(`Unsupported file format: ${extension}`);
+  }
+
   const metadata = await stat(sourcePath);
 
   if (!metadata.isFile()) {
@@ -19,7 +28,7 @@ export async function prepareSource(
   if (metadata.size === 0) {
     throw new Error("Selected file is empty.");
   }
-  if (metadata.size > 10_000_000) {
+  if (metadata.size > MAX_SOURCE_BYTES) {
     throw new Error("Selected file is too large (max 10 MB).");
   }
 

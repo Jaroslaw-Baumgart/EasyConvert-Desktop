@@ -1,5 +1,5 @@
 import type { XlsxToPdfOptions } from "../../shared/conversionOptions";
-import { parsePdfPageOptions } from "../image/parsePdfPageOptions";
+import { parsePdfPageOptions } from "../pdf/parsePdfPageOptions";
 
 export function parseXlsxToPdfOptions(value: unknown): XlsxToPdfOptions {
   const pageOptions = parsePdfPageOptions(value);

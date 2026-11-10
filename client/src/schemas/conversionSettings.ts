@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ConversionType } from "../config/conversions";
+import type { ConversionType } from "../../../shared/conversions";
 
 export const pngToJpgSettingsSchema = z.object({
   quality: z.coerce

@@ -16,26 +16,14 @@ export class LibreOfficeTimeoutError extends Error {
   }
 }
 
-let queue: Promise<void> = Promise.resolve();
-let pending = 0;
-
 export async function convertLibreOfficeToPdf(
   inputPath: string,
   outputPath: string,
   options: LibreOfficeOptions,
   signal?: AbortSignal,
 ): Promise<void> {
-  if (pending >= 4)
-    throw new Error("The conversion queue is full. Please try again.");
-  pending += 1;
-  const previous = queue;
-  let release!: () => void;
-  queue = new Promise<void>((resolve) => {
-    release = resolve;
-  });
   let profile: string | undefined;
   try {
-    await previous;
     if (signal?.aborted) {
       throw new Error("Conversion was cancelled.");
     }
@@ -101,11 +89,6 @@ export async function convertLibreOfficeToPdf(
       await handle.close();
     }
   } finally {
-    try {
-      if (profile) await fs.rm(profile, { recursive: true, force: true });
-    } finally {
-      pending -= 1;
-      release();
-    }
+    if (profile) await fs.rm(profile, { recursive: true, force: true });
   }
 }

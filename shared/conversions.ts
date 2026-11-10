@@ -4,6 +4,18 @@ interface ConversionDefinitionShape {
   targetFormat: string;
 }
 
+export function getConversionDefinition(conversion: ConversionType) {
+  const definition = conversions.find(
+    (item) => item.conversionType === conversion,
+  );
+
+  if (!definition) {
+    throw new Error(`Unsupported conversion: ${conversion}`);
+  }
+
+  return definition;
+}
+
 export const conversions = [
   {
     conversionType: "pdf-to-jpg",
@@ -63,7 +75,9 @@ export type ConversionType = ConversionDefinition["conversionType"];
 
 export type SourceFormat = ConversionDefinition["sourceFormat"];
 
-export type SupportedFormat = ConversionDefinition["sourceFormat" | "targetFormat"];
+export type SupportedFormat = ConversionDefinition[
+  | "sourceFormat"
+  | "targetFormat"];
 
 export const supportedSourceFormats: readonly SourceFormat[] = [
   ...new Set(conversions.map((conversion) => conversion.sourceFormat)),

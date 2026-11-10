@@ -1,10 +1,9 @@
-import PDFDocument from "pdfkit";
-import { createWriteStream, type WriteStream } from "node:fs";
 import { readFile } from "node:fs/promises";
 import type { PdfPageOptions } from "../../shared/conversionOptions";
 import { CsvLimitError, parseCsv, type CsvRow } from "./csv";
 import { renderCsvTable } from "./csvPdfTable";
 import { limitPdfPages } from "./pdfLimits";
+import { writePdf } from "./writePdf";
 
 export class CsvInputError extends Error {
   constructor(message: string) {
@@ -34,50 +33,24 @@ export async function convertCsvToPdf(
     throw new CsvInputError("CSV file is empty.");
   }
 
-  let outputStream: WriteStream | undefined;
-  let document: PDFKit.PDFDocument | undefined;
-  let documentEnded = false;
+  const headers = Object.keys(rows[0] ?? {});
 
-  try {
-    const headers = Object.keys(rows[0] ?? {});
-    const doc = new PDFDocument({
+  await writePdf(
+    outputPath,
+    {
       size: options.pageSize,
       layout: options.pageOrientation,
-    });
-    document = doc;
-    limitPdfPages(doc);
+    },
+    async (doc) => {
+      limitPdfPages(doc);
 
-    const stream = doc.pipe(createWriteStream(outputPath));
-    outputStream = stream;
-
-    const streamFinished = new Promise<void>((resolve, reject) => {
-      stream.on("finish", resolve);
-      stream.on("error", reject);
-    });
-    void streamFinished.catch(() => {});
-
-    await renderCsvTable({
-      doc,
-      headers,
-      rows,
-      regularFontPath,
-      boldFontPath,
-    });
-
-    doc.end();
-    documentEnded = true;
-    await streamFinished;
-  } catch (error) {
-    document?.unpipe?.(outputStream);
-    if (!documentEnded) document?.end();
-    if (outputStream && !outputStream.closed) {
-      const closed = new Promise<void>((resolve) =>
-        outputStream!.once("close", resolve),
-      );
-      outputStream.destroy();
-      await closed;
-    }
-
-    throw error;
-  }
+      await renderCsvTable({
+        doc,
+        headers,
+        rows,
+        regularFontPath,
+        boldFontPath,
+      });
+    },
+  );
 }

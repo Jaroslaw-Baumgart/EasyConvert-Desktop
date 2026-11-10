@@ -135,6 +135,33 @@ beforeEach(() => {
 });
 
 describe("runConversionJob", () => {
+  it.each([104_857_600, 104_857_601])(
+    "checks the output size boundary at %i bytes",
+    async (size) => {
+      const { jobs, results, runConversionJob } = await loadModules();
+      const previousId = results.registerResult("previous.png");
+      const jobId = jobs.startJob();
+      mocks.stat.mockResolvedValue({ isFile: () => true, size });
+
+      await runConversionJob(jobId, "input.jpg", mocks.onStateChanged, jpgRequest);
+
+      const state = jobs.getJobState();
+      if (size === 104_857_600) {
+        expect(state.status).toBe("succeeded");
+        if (state.status !== "succeeded") throw new Error("Expected success.");
+        expect(results.getResultPath(state.resultIds[0]!)).toBe(
+          path.join("C:/temp/easyconvert-job-test", "result.png"),
+        );
+      } else {
+        expect(state).toEqual({
+          status: "failed", jobId, message: "Output file exceeds the size limit.",
+        });
+        expect(results.getResultPath(previousId)).toBe("previous.png");
+      }
+      expect(mocks.onStateChanged).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it.each(successCases)(
     "registers $outputName and publishes success for $request.conversion",
     async ({ request, inputPath, outputName }) => {
@@ -335,20 +362,23 @@ describe("PDF conversion job", () => {
     expect(publish).toHaveBeenCalledTimes(1);
   });
 
-  it("does not register a partial result when a later page is empty", async () => {
+  it.each([
+    { size: 0, message: "Output file is empty or not a file." },
+    { size: 104_857_601, message: "Output file exceeds the size limit." },
+  ])("does not register a partial result when a later page has size $size", async ({ size, message }) => {
     const { jobs, results, runConversionJob, jobId, publish } = await setupPdfJob();
     const previousId = results.registerResult("previous.png");
 
     mocks.stat
       .mockResolvedValueOnce({ isFile: () => true, size: 123 })
-      .mockResolvedValueOnce({ isFile: () => true, size: 0 });
+      .mockResolvedValueOnce({ isFile: () => true, size });
 
     await runConversionJob(jobId, "input.pdf", publish, pdfRequest);
 
     expect(jobs.getJobState()).toEqual({
       status: "failed",
       jobId,
-      message: "Output file is empty or not a file.",
+      message,
     });
     expect(results.getResultPath(previousId)).toBe("previous.png");
     expect(publish).toHaveBeenCalledTimes(1);

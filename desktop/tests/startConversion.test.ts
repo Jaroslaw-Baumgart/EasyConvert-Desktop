@@ -25,6 +25,48 @@ beforeEach(() => {
 });
 
 describe("startConversion", () => {
+  it.each(["photo.JPG", "photo.jpeg", "photo.JPEG"])(
+    "starts JPG conversion for %s",
+    async (inputPath) => {
+      const { sources, startConversion } = await loadModules();
+      const sourceId = sources.registerSource(inputPath);
+      const onStateChanged = vi.fn();
+      const request = { sourceId, conversion: "jpg-to-png" } as const;
+
+      const { jobId } = startConversion(request, onStateChanged);
+
+      expect(mocks.runConversionJob).toHaveBeenCalledExactlyOnceWith(
+        jobId, inputPath, onStateChanged, request,
+      );
+    },
+  );
+
+  it.each([
+    { inputPath: "photo.png", conversion: "docx-to-pdf" },
+    { inputPath: "document.docx", conversion: "pdf-to-txt" },
+    { inputPath: "photo.jpg", conversion: "pdf-to-jpg" },
+  ] as const)(
+    "rejects $inputPath for $conversion without changing the completed job",
+    async ({ inputPath, conversion }) => {
+      const { sources, jobs, results, startConversion } = await loadModules();
+      const sourceId = sources.registerSource(inputPath);
+      const resultId = results.registerResult("previous.png");
+      const jobId = jobs.startJob();
+      jobs.succeedJob(jobId, [resultId]);
+      const previousState = jobs.getJobState();
+      const onStateChanged = vi.fn();
+
+      expect(() => startConversion({ sourceId, conversion }, onStateChanged))
+        .toThrow("Source format does not match the conversion.");
+
+      expect(jobs.getJobState()).toEqual(previousState);
+      expect(sources.getSourcePath(sourceId)).toBe(inputPath);
+      expect(results.getResultPath(resultId)).toBe("previous.png");
+      expect(onStateChanged).not.toHaveBeenCalled();
+      expect(mocks.runConversionJob).not.toHaveBeenCalled();
+    },
+  );
+
   it.each(["jpg-to-png", "png-to-jpg"] as const)(
     "publishes running and forwards the validated %s request",
     async (conversion) => {

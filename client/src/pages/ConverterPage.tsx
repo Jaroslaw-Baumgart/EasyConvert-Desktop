@@ -1,5 +1,5 @@
 import FileConverter from "../components/FileConverter";
-import { conversions } from "../config/conversions";
+import { conversions } from "../../../shared/conversions";
 
 export default function ConverterPage() {
   return (

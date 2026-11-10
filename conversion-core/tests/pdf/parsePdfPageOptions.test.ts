@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePdfPageOptions } from "../../image/parsePdfPageOptions";
+import { parsePdfPageOptions } from "../../pdf/parsePdfPageOptions";
 
 describe("parsePdfPageOptions", () => {
   it.each([

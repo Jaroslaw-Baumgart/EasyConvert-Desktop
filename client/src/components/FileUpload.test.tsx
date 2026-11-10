@@ -83,7 +83,7 @@ describe("FileUpload", () => {
     const input = screen.getByRole("button", { name: "Choose File" });
 
     const oversizedFile = new File(
-      [new Uint8Array(10 * 1024 * 1024 + 1)], // 10 MB + 1 byte
+      [new Uint8Array(10_000_001)],
       "largefile.pdf",
       { type: "application/pdf" },
     );
@@ -105,7 +105,7 @@ describe("FileUpload", () => {
     const input = screen.getByRole("button", { name: "Choose File" });
 
     const exactSizeFile = new File(
-      [new Uint8Array(10 * 1024 * 1024)], // 10 MB
+      [new Uint8Array(10_000_000)],
       "exactfile.pdf",
       { type: "application/pdf" },
     );
