@@ -262,3 +262,39 @@ describe.each([
     await expect(api[method]("result-1")).rejects.toThrow("Invalid save response.");
   });
 });
+
+describe("archive saving preload", () => {
+  it("forwards Save as mode to the archive channel", async () => {
+    const api = await loadApi();
+    mocks.invoke.mockResolvedValue({ status: "cancelled" });
+    await expect(api.saveArchive(["result-1"], true)).resolves.toEqual({ status: "cancelled" });
+    expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith("easyconvert:save-archive", ["result-1"], true);
+  });
+
+  it.each([1, 100])("accepts %i result identifiers", async (count) => {
+    const api = await loadApi();
+    const identifiers = Array.from({ length: count }, (_, index) => `result-${index}`);
+    mocks.invoke.mockResolvedValue({ status: "saved" });
+    await expect(api.saveArchive(identifiers)).resolves.toEqual({ status: "saved" });
+    expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith("easyconvert:save-archive", identifiers);
+  });
+
+  it.each([
+    { label: "empty list", identifiers: [] },
+    { label: "too many identifiers", identifiers: Array.from({ length: 101 }, () => "result") },
+    { label: "empty identifier", identifiers: [""] },
+    { label: "oversized identifier", identifiers: ["x".repeat(129)] },
+  ])(
+    "rejects $label before IPC", async ({ identifiers }) => {
+      const api = await loadApi();
+      await expect(api.saveArchive(identifiers)).rejects.toThrow();
+      expect(mocks.invoke).not.toHaveBeenCalled();
+    },
+  );
+
+  it("validates the archive response", async () => {
+    const api = await loadApi();
+    mocks.invoke.mockResolvedValue({ status: "selected" });
+    await expect(api.saveArchive(["result-1"])).rejects.toThrow("Invalid save response.");
+  });
+});

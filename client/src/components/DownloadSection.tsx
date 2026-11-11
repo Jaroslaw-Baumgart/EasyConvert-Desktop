@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Ref } from "react";
+import { useEffect, useId, useRef, useState, type Ref } from "react";
 import type {
   ConvertedResult,
   ConvertedResults,
@@ -15,7 +15,7 @@ import { useObjectUrl } from "../hooks/useObjectUrl";
 interface DownloadSectionProps {
   convertedResults: ConvertedResults;
   onDownload: (result: ConvertedResult, saveAs?: boolean) => Promise<void>;
-  onDownloadAll: () => void;
+  onDownloadAll: (saveAs?: boolean) => Promise<void>;
   isPreparingArchive: boolean;
   previewRef?: Ref<HTMLDivElement>;
   onPreviewReady?: () => void;
@@ -33,6 +33,12 @@ export default function DownloadSection({
 }: DownloadSectionProps) {
   const { t } = useTranslation();
   const downloadButtonRef = useRef<HTMLButtonElement>(null);
+  const archiveMenuRef = useRef<HTMLDivElement>(null);
+  const archiveMenuId = useId();
+  const saveArchive = (saveAs: boolean) => {
+    archiveMenuRef.current?.hidePopover();
+    void onDownloadAll(saveAs);
+  };
   const [activeResultUrl, setActiveResultUrl] = useState(
     convertedResults[0].url,
   );
@@ -91,13 +97,40 @@ export default function DownloadSection({
             {t("download.saveAs")}
           </button>
           {convertedResults.length > 1 && (
-            <button
-              type="button"
-              onClick={onDownloadAll}
-              disabled={isPreparingArchive || isSaving}
-            >
-              {isPreparingArchive ? t("download.preparing") : t("download.all")}
-            </button>
+            <>
+              <button
+                type="button"
+                popoverTarget={archiveMenuId}
+                className={styles["archive-trigger"]}
+                disabled={isPreparingArchive || isSaving}
+              >
+                {isPreparingArchive ? t("download.preparing") : t("download.all")}
+                <span aria-hidden="true"> ▾</span>
+              </button>
+              <div
+                ref={archiveMenuRef}
+                id={archiveMenuId}
+                popover="auto"
+                role="group"
+                aria-label={t("download.archiveActions")}
+                className={styles["archive-menu"]}
+              >
+                <button
+                  type="button"
+                  disabled={isPreparingArchive || isSaving}
+                  onClick={() => saveArchive(false)}
+                >
+                  {t("download.save")}
+                </button>
+                <button
+                  type="button"
+                  disabled={isPreparingArchive || isSaving}
+                  onClick={() => saveArchive(true)}
+                >
+                  {t("download.saveAs")}
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>

@@ -1,4 +1,5 @@
-import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
+import { mkdtemp, writeFile, readFile, readdir, rm } from "node:fs/promises";
+import { unzipSync } from "fflate";
 import os from "node:os";
 import path from "node:path";
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
@@ -38,6 +39,94 @@ afterEach(async () => {
   await rm(directory, { recursive: true, force: true });
 });
 describe("native file actions", () => {
+  it("saves an archive to the dialog-approved destination and allows confirmed overwrite", async () => {
+    const destination = path.join(directory, "chosen.zip");
+    await writeFile(destination, "previous archive");
+    mocks.showSaveDialog.mockResolvedValue({ canceled: false, filePath: destination });
+
+    await expect(handler("easyconvert:save-archive")(event, [resultId], true))
+      .resolves.toEqual({ status: "saved" });
+
+    expect(mocks.showSaveDialog).toHaveBeenCalledWith(expect.anything(), {
+      defaultPath: "source.zip",
+      filters: [{ name: "ZIP archive", extensions: ["zip"] }],
+      properties: ["showOverwriteConfirmation"],
+    });
+    const files = unzipSync(await readFile(destination));
+    expect(Object.keys(files)).toEqual(["source.png"]);
+    expect(Buffer.from(files["source.png"]!).toString()).toBe("PNG result");
+    expect((await readdir(directory)).filter((name) => name.startsWith("easyconvert-archive-"))).toEqual([]);
+    expect(getResultPath(resultId)).toBe(resultPath);
+  });
+
+  it("does not create an archive when its save dialog is cancelled", async () => {
+    mocks.showSaveDialog.mockResolvedValue({ canceled: true });
+    await expect(handler("easyconvert:save-archive")(event, [resultId], true))
+      .resolves.toEqual({ status: "cancelled" });
+    expect((await readdir(directory)).filter((name) => name.endsWith(".zip") || name.startsWith("easyconvert-archive-")))
+      .toEqual([]);
+    expect(getResultPath(resultId)).toBe(resultPath);
+  });
+
+  it.each(["source", "result"])("protects the %s when choosing an archive destination", async (kind) => {
+    mocks.showSaveDialog.mockResolvedValue({ canceled: false, filePath: kind === "source" ? sourcePath : resultPath });
+    await expect(handler("easyconvert:save-archive")(event, [resultId], true)).rejects.toThrow("Cannot overwrite");
+    expect(await readFile(sourcePath, "utf8")).toBe("source bytes");
+    expect(await readFile(resultPath, "utf8")).toBe("PNG result");
+  });
+
+  it("preserves the destination when results expire while the archive dialog is open", async () => {
+    const destination = path.join(directory, "existing.zip");
+    await writeFile(destination, "previous bytes");
+    mocks.showSaveDialog.mockImplementation(async () => {
+      resetJob();
+      return { canceled: false, filePath: destination };
+    });
+    await expect(handler("easyconvert:save-archive")(event, [resultId], true)).rejects.toThrow("expired");
+    expect(await readFile(destination, "utf8")).toBe("previous bytes");
+  });
+
+  it("saves an archive with ordered page names, handles a collision and cleans temporary files", async () => {
+    sourcePath = path.join(directory, "Raport Łódź.pdf");
+    await writeFile(sourcePath, "source PDF");
+    registerSource(sourcePath);
+    const pages = [path.join(directory, "page-09.jpg"), path.join(directory, "page-01.jpg")];
+    await writeFile(pages[0]!, "first page");
+    await writeFile(pages[1]!, "second page");
+    const ids = registerResults(pages);
+    succeedJob(startJob(), ids);
+
+    for (const name of ["Raport Łódź.zip", "Raport Łódź (1).zip"]) {
+      await expect(handler("easyconvert:save-archive")(event, ids)).resolves.toEqual({ status: "saved" });
+      const files = unzipSync(await readFile(path.join(directory, "EasyConvert Output", name)));
+      expect(Object.keys(files)).toEqual(["Raport Łódź-page-1.jpg", "Raport Łódź-page-2.jpg"]);
+      expect(Buffer.from(files["Raport Łódź-page-1.jpg"]!).toString()).toBe("first page");
+      expect(Buffer.from(files["Raport Łódź-page-2.jpg"]!).toString()).toBe("second page");
+    }
+    expect((await readdir(directory)).filter((name) => name.startsWith("easyconvert-archive-"))).toEqual([]);
+    expect(mocks.showSaveDialog).not.toHaveBeenCalled();
+    expect(ids.map(getResultPath)).toEqual(pages);
+  });
+
+  it.each(["missing", "not an array", "foreign", "partial", "reversed", "sparse", "running", "invalid mode"])(
+    "rejects an archive request with %s results before file operations", async (scenario) => {
+      const ids = registerResults([resultPath, path.join(directory, "another.jpg")]);
+      succeedJob(startJob(), ids);
+      if (scenario === "running") startJob();
+      const args = scenario === "invalid mode" ? [ids, "yes"] : scenario === "missing" ? [] : [
+        scenario === "not an array" ? "wrong" :
+        scenario === "foreign" ? ["foreign", ids[1]] :
+        scenario === "partial" ? [ids[0]] :
+        scenario === "reversed" ? [...ids].reverse() :
+        scenario === "sparse" ? new Array(2) : ids,
+      ];
+
+      await expect(handler("easyconvert:save-archive")(event, ...args)).rejects.toThrow();
+      expect(mocks.getPath).not.toHaveBeenCalled();
+      expect(mocks.showSaveDialog).not.toHaveBeenCalled();
+    },
+  );
+
   it("saves without a dialog and chooses a free name on the next save", async () => {
     const save = handler("easyconvert:save-result");
     await expect(save(event, resultId)).resolves.toEqual({ status: "saved" });
@@ -145,6 +234,7 @@ describe("native file actions", () => {
     expect(() => handler("easyconvert:reset-source")(event)).toThrow("Unexpected sender");
     await expect(handler("easyconvert:save-result-as")(event, resultId)).rejects.toThrow("Unexpected sender");
     await expect(handler("easyconvert:save-result")(event, resultId)).rejects.toThrow("Unexpected sender");
+    await expect(handler("easyconvert:save-archive")(event, [resultId])).rejects.toThrow("Unexpected sender");
     expect(mocks.showSaveDialog).not.toHaveBeenCalled();
   });
 });

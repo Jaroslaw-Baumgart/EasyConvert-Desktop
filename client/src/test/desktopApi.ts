@@ -13,6 +13,7 @@ export function createDesktopApi(): EasyConvertApi {
     resetSource: vi.fn().mockResolvedValue(undefined),
     saveResult: vi.fn().mockResolvedValue({ status: "saved" }),
     saveResultAs: vi.fn().mockResolvedValue({ status: "saved" }),
+    saveArchive: vi.fn().mockResolvedValue({ status: "saved" }),
   };
 }
 

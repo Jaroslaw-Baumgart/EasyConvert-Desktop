@@ -57,6 +57,7 @@ function setup() {
     resetSource: vi.fn().mockResolvedValue(undefined),
     saveResult: vi.fn().mockResolvedValue({ status: "saved" }),
     saveResultAs: vi.fn().mockResolvedValue({ status: "saved" }),
+    saveArchive: vi.fn().mockResolvedValue({ status: "saved" }),
   };
 
   const file = new File(["jpg"], "photo.jpg", {

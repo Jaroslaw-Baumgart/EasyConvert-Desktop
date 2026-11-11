@@ -6,6 +6,39 @@ import { clearSource, getCurrentSourcePath } from "./sourceRegistry";
 import { clearResult, getResultPath } from "./resultRegistry";
 import { getJobState, resetJob } from "./jobRegistry";
 import { getDefaultOutputDirectory, saveResultFile } from "./saveResultFile";
+import { saveArchive, saveArchiveAs } from "./saveArchive";
+
+async function assertExportDestination(
+  destinationPath: string,
+  protectedPaths: readonly string[],
+): Promise<void> {
+  const normalize = (value: string): string =>
+    process.platform === "win32"
+      ? path.resolve(value).toLowerCase()
+      : path.resolve(value);
+
+  let destination: Awaited<ReturnType<typeof stat>> | undefined;
+  try {
+    destination = await stat(destinationPath);
+  } catch (error: unknown) {
+    if (
+      typeof error !== "object" || error === null ||
+      !("code" in error) || error.code !== "ENOENT"
+    ) {
+      throw error;
+    }
+  }
+
+  for (const protectedPath of protectedPaths) {
+    const info = await stat(protectedPath);
+    if (
+      normalize(protectedPath) === normalize(destinationPath) ||
+      (destination && info.dev === destination.dev && info.ino === destination.ino)
+    ) {
+      throw new Error("Cannot overwrite the source or temporary result.");
+    }
+  }
+}
 
 function getExportFileName(
   sourcePath: string,
@@ -20,11 +53,7 @@ function getExportFileName(
     : `${name}${extension}`;
 }
 
-function resolveResult(args: unknown[]): {
-  resultId: string;
-  resultPath: string;
-  fileName: string;
-} {
+function parseResultIdentifier(args: unknown[]): string {
   if (
     args.length !== 1 ||
     typeof args[0] !== "string" ||
@@ -34,7 +63,14 @@ function resolveResult(args: unknown[]): {
     throw new Error("Expected a result identifier.");
   }
 
-  const resultId = args[0];
+  return args[0];
+}
+
+function resolveResult(resultId: string): {
+  resultId: string;
+  resultPath: string;
+  fileName: string;
+} {
   const job = getJobState();
 
   if (job.status !== "succeeded" || !job.resultIds.includes(resultId)) {
@@ -58,6 +94,25 @@ function resolveResult(args: unknown[]): {
   };
 }
 
+function resolveArchiveEntries(): {
+  resultPath: string;
+  fileName: string;
+}[] {
+  const job = getJobState();
+
+  if (job.status !== "succeeded") {
+    throw new Error("No results available.");
+  }
+
+  return job.resultIds.map((resultId) => {
+    const { resultPath, fileName } = resolveResult(resultId);
+    return {
+      resultPath,
+      fileName,
+    };
+  });
+}
+
 export function registerFileActionsIpc(
   owner: BrowserWindow,
   rendererUrl: string,
@@ -79,10 +134,92 @@ export function registerFileActionsIpc(
     async (event, ...args: unknown[]) => {
       assertTrustedSender(event, owner, rendererUrl);
 
-      const { resultPath, fileName } = resolveResult(args);
+      const { resultPath, fileName } = resolveResult(parseResultIdentifier(args));
       const outputDirectory = getDefaultOutputDirectory();
 
       await saveResultFile(resultPath, outputDirectory, fileName);
+
+      return { status: "saved" };
+    },
+  );
+
+  ipcMain.handle(
+    "easyconvert:save-archive",
+    async (event, ...args: unknown[]) => {
+      assertTrustedSender(event, owner, rendererUrl);
+
+      if (
+        (args.length !== 1 && args.length !== 2) ||
+        !Array.isArray(args[0]) ||
+        (args.length === 2 && typeof args[1] !== "boolean")
+      ) {
+        throw new Error("Expected conversion result identifiers.");
+      }
+
+      const requestedIds = args[0];
+      const job = getJobState();
+
+      if (job.status !== "succeeded") {
+        throw new Error("Unknown conversion results.");
+      }
+
+      const { resultIds } = job;
+
+      if (
+        requestedIds.length !== resultIds.length ||
+        !resultIds.every((id, index) => id === requestedIds[index])
+      ) {
+        throw new Error("Unknown conversion results.");
+      }
+
+      const entries = resolveArchiveEntries();
+      const outputDirectory = getDefaultOutputDirectory();
+      const sourcePath = getCurrentSourcePath();
+
+      if (!sourcePath) {
+        throw new Error("Unknown source.");
+      }
+
+      const fileName = `${path.parse(sourcePath).name}.zip`;
+
+      if (args[1] === true) {
+        const selection = await dialog.showSaveDialog(owner, {
+          defaultPath: fileName,
+          filters: [{ name: "ZIP archive", extensions: ["zip"] }],
+          properties: ["showOverwriteConfirmation"],
+        });
+        if (selection.canceled || !selection.filePath) {
+          return { status: "cancelled" };
+        }
+
+        const assertCurrentResults = (): void => {
+          assertTrustedSender(event, owner, rendererUrl);
+          const current = getJobState();
+          if (
+            current.status !== "succeeded" ||
+            current.jobId !== job.jobId ||
+            current.resultIds.length !== resultIds.length ||
+            !resultIds.every((id, index) =>
+              id === current.resultIds[index] && getResultPath(id) === entries[index]!.resultPath,
+            ) ||
+            getCurrentSourcePath() !== sourcePath
+          ) {
+            throw new Error("Conversion results have expired.");
+          }
+        };
+
+        const destinationPath = selection.filePath;
+        const protectedPaths = [sourcePath, ...entries.map((entry) => entry.resultPath)];
+        assertCurrentResults();
+        await assertExportDestination(destinationPath, protectedPaths);
+        await saveArchiveAs(entries, destinationPath, async () => {
+          assertCurrentResults();
+          await assertExportDestination(destinationPath, protectedPaths);
+          assertCurrentResults();
+        });
+      } else {
+        await saveArchive(entries, outputDirectory, fileName);
+      }
 
       return { status: "saved" };
     },
@@ -93,7 +230,7 @@ export function registerFileActionsIpc(
     async (event, ...args: unknown[]) => {
       assertTrustedSender(event, owner, rendererUrl);
 
-      const { resultId, resultPath, fileName } = resolveResult(args);
+      const { resultId, resultPath, fileName } = resolveResult(parseResultIdentifier(args));
       const extension = path.extname(resultPath).slice(1).toLowerCase();
 
       const selection = await dialog.showSaveDialog(owner, {
@@ -117,42 +254,11 @@ export function registerFileActionsIpc(
         throw new Error("Result has expired.");
       }
 
-      const normalize = (value: string): string =>
-        process.platform === "win32"
-          ? path.resolve(value).toLowerCase()
-          : path.resolve(value);
-
-      let destination: Awaited<ReturnType<typeof stat>> | undefined;
-
-      try {
-        destination = await stat(selection.filePath);
-      } catch (error: unknown) {
-        if (
-          typeof error !== "object" ||
-          error === null ||
-          !("code" in error) ||
-          error.code !== "ENOENT"
-        ) {
-          throw error;
-        }
-      }
-
-      for (const protectedPath of [resultPath, getCurrentSourcePath()]) {
-        if (!protectedPath) {
-          continue;
-        }
-
-        const info = await stat(protectedPath);
-
-        if (
-          normalize(protectedPath) === normalize(selection.filePath) ||
-          (destination &&
-            info.dev === destination.dev &&
-            info.ino === destination.ino)
-        ) {
-          throw new Error("Cannot overwrite the source or temporary result.");
-        }
-      }
+      const sourcePath = getCurrentSourcePath();
+      await assertExportDestination(
+        selection.filePath,
+        sourcePath ? [resultPath, sourcePath] : [resultPath],
+      );
 
       if (getResultPath(resultId) !== resultPath) {
         throw new Error("Result has expired.");

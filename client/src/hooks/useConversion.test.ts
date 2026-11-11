@@ -2,13 +2,9 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useConversion } from "./useConversion";
 import { convertDesktopFile } from "../api/desktopConversionClient";
-import { createZipFile } from "../utils/createZipFile";
-import { createDesktopApi } from "../test/desktopApi";
-import { downloadFile } from "../utils/downloadFile";
+import { createDesktopApi, convertedResult } from "../test/desktopApi";
 
 vi.mock("../api/desktopConversionClient", () => ({ convertDesktopFile: vi.fn() }));
-vi.mock("../utils/createZipFile", () => ({ createZipFile: vi.fn() }));
-vi.mock("../utils/downloadFile", () => ({ downloadFile: vi.fn() }));
 
 const conversionOption = {
   conversionType: "jpg-to-png",
@@ -22,6 +18,91 @@ beforeEach(() => vi.stubGlobal("easyConvert", createDesktopApi()));
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
+});
+
+async function setupArchive() {
+  const output = convertedResult();
+  vi.mocked(convertDesktopFile).mockResolvedValueOnce(output);
+  const fixture = renderHook(() => useConversion());
+  const file = new File(["source"], "photo.jpg");
+  act(() => fixture.result.current.selectFile(file, "source-1"));
+  await act(async () => { await fixture.result.current.convert(conversionOption); });
+  return { ...fixture, file, output, api: window.easyConvert };
+}
+
+describe("native archive saving", () => {
+  it("forwards Save as selection to the archive IPC method", async () => {
+    const { api, result, output } = await setupArchive();
+    await act(async () => { await result.current.downloadAllConvertedFiles(true); });
+    expect(api.saveArchive).toHaveBeenCalledExactlyOnceWith([output[0].resultId], true);
+    expect(result.current.isSaving).toBe(false);
+    expect(result.current.isPreparingArchive).toBe(false);
+  });
+
+  it("passes identifiers and blocks other file actions until the archive is saved", async () => {
+    const { api, result, output, file } = await setupArchive();
+    let finish!: (value: { status: "saved" }) => void;
+    vi.mocked(api.saveArchive).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    vi.mocked(convertDesktopFile).mockClear();
+    let saving!: Promise<void>;
+    act(() => { saving = result.current.downloadAllConvertedFiles(); });
+    expect(result.current.isSaving).toBe(true);
+    expect(result.current.isPreparingArchive).toBe(true);
+
+    await act(async () => {
+      await result.current.downloadAllConvertedFiles();
+      await result.current.downloadConvertedFile(output[0]);
+      await result.current.removeFile();
+      result.current.selectFile(new File(["other"], "other.jpg"), "other-source");
+      await result.current.convert(conversionOption);
+    });
+
+    expect(api.saveArchive).toHaveBeenCalledExactlyOnceWith([output[0].resultId]);
+    expect(api.saveResult).not.toHaveBeenCalled();
+    expect(api.resetSource).not.toHaveBeenCalled();
+    expect(convertDesktopFile).not.toHaveBeenCalled();
+    expect(result.current.file).toBe(file);
+    expect(result.current.convertedResults).toBe(output);
+
+    await act(async () => { finish({ status: "saved" }); await saving; });
+    expect(result.current.isSaving).toBe(false);
+    expect(result.current.isPreparingArchive).toBe(false);
+    expect(result.current.conversionError).toBeNull();
+  });
+
+  it.each(["failed", "cancelled"] as const)("releases the archive lock after %s and allows retry", async (outcome) => {
+    const { api, result, output } = await setupArchive();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    if (outcome === "failed") {
+      vi.mocked(api.saveArchive).mockRejectedValueOnce(new Error("Disk full"));
+    } else {
+      vi.mocked(api.saveArchive).mockResolvedValueOnce({ status: "cancelled" });
+    }
+    await act(async () => { await result.current.downloadAllConvertedFiles(); });
+    expect(result.current.isSaving).toBe(false);
+    expect(result.current.isPreparingArchive).toBe(false);
+    expect(result.current.convertedResults).toBe(output);
+    if (outcome === "failed") expect(result.current.conversionError).not.toBeNull();
+    else expect(result.current.conversionError).toBeNull();
+
+    await act(async () => { await result.current.downloadAllConvertedFiles(); });
+    expect(api.saveArchive).toHaveBeenCalledTimes(2);
+    expect(result.current.conversionError).toBeNull();
+  });
+
+  it("ignores an archive failure after unmount", async () => {
+    const { api, result, unmount } = await setupArchive();
+    let fail!: (error: Error) => void;
+    vi.mocked(api.saveArchive).mockReturnValueOnce(new Promise((_resolve, reject) => { fail = reject; }));
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    let saving!: Promise<void>;
+    act(() => { saving = result.current.downloadAllConvertedFiles(); });
+    unmount();
+    fail(new Error("Late archive failure"));
+    await expect(saving).resolves.toBeUndefined();
+    expect(errorLog).not.toHaveBeenCalled();
+  });
 });
 
 describe("conversion cancellation", () => {
@@ -48,125 +129,4 @@ describe("conversion cancellation", () => {
     expect(result.current.conversionError).toBeNull();
   });
 
-  it("cancels an outdated ZIP download when another file is selected", async () => {
-    let resolveArchive!: (file: File) => void;
-    vi.mocked(convertDesktopFile).mockResolvedValueOnce([
-      {
-        resultId: "result-1",
-        url: "app://easyconvert/preview/result/photo.png",
-        file: new File(["converted"], "photo.png", { type: "image/png" }),
-      },
-    ]);
-    vi.mocked(createZipFile).mockImplementationOnce(
-      () => new Promise<File>((resolve) => {
-        resolveArchive = resolve;
-      }),
-    );
-
-    const { result } = renderHook(() => useConversion());
-
-    act(() => {
-      result.current.selectFile(new File(["image"], "photo.jpg"), "source-1");
-    });
-    await act(async () => {
-      await result.current.convert(conversionOption);
-    });
-
-    act(() => {
-      void result.current.downloadAllConvertedFiles();
-    });
-    expect(result.current.isPreparingArchive).toBe(true);
-
-    act(() => {
-      result.current.selectFile(new File(["next"], "next.jpg"), "source-1");
-    });
-    expect(result.current.isPreparingArchive).toBe(false);
-
-    await act(async () => {
-      resolveArchive(new File(["archive"], "conversion-results.zip"));
-    });
-
-    expect(downloadFile).not.toHaveBeenCalled();
-  });
-
-  it("keeps a new conversion independent from an earlier ZIP operation", async () => {
-    let resolveArchive!: (file: File) => void;
-    vi.mocked(convertDesktopFile)
-      .mockResolvedValueOnce([
-        {
-          resultId: "result-2",
-          url: "app://easyconvert/preview/result/first.png",
-          file: new File(["first"], "first.png", { type: "image/png" }),
-        },
-      ])
-      .mockResolvedValueOnce([
-        {
-          resultId: "result-3",
-          url: "app://easyconvert/preview/result/second.png",
-          file: new File(["second"], "second.png", { type: "image/png" }),
-        },
-      ]);
-    vi.mocked(createZipFile).mockImplementationOnce(
-      () => new Promise<File>((resolve) => {
-        resolveArchive = resolve;
-      }),
-    );
-
-    const { result } = renderHook(() => useConversion());
-
-    act(() => {
-      result.current.selectFile(new File(["first"], "first.jpg"), "source-1");
-    });
-    await act(async () => {
-      await result.current.convert(conversionOption);
-    });
-    act(() => {
-      void result.current.downloadAllConvertedFiles();
-      result.current.selectFile(new File(["second"], "second.jpg"), "source-1");
-    });
-    await act(async () => {
-      await result.current.convert(conversionOption);
-      resolveArchive(new File(["archive"], "conversion-results.zip"));
-    });
-
-    expect(convertDesktopFile).toHaveBeenCalledTimes(2);
-    expect(result.current.file?.name).toBe("second.jpg");
-    expect(result.current.isPreparingArchive).toBe(false);
-    expect(downloadFile).not.toHaveBeenCalled();
-  });
-
-  it("does not start a ZIP download after the hook unmounts", async () => {
-    let resolveArchive!: (file: File) => void;
-    vi.mocked(convertDesktopFile).mockResolvedValueOnce([
-      {
-        resultId: "result-4",
-        url: "app://easyconvert/preview/result/photo.png",
-        file: new File(["converted"], "photo.png", { type: "image/png" }),
-      },
-    ]);
-    vi.mocked(createZipFile).mockImplementationOnce(
-      () => new Promise<File>((resolve) => {
-        resolveArchive = resolve;
-      }),
-    );
-
-    const { result, unmount } = renderHook(() => useConversion());
-
-    act(() => {
-      result.current.selectFile(new File(["image"], "photo.jpg"), "source-1");
-    });
-    await act(async () => {
-      await result.current.convert(conversionOption);
-    });
-
-    act(() => {
-      void result.current.downloadAllConvertedFiles();
-      unmount();
-    });
-    await act(async () => {
-      resolveArchive(new File(["archive"], "conversion-results.zip"));
-    });
-
-    expect(downloadFile).not.toHaveBeenCalled();
-  });
 });

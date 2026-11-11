@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import DownloadSection from "./DownloadSection";
@@ -59,7 +59,7 @@ describe("DownloadSection", () => {
       />,
     );
 
-    for (const name of ["Save", "Save as…", "Download all"]) {
+    for (const name of ["Save", "Save as…", "Save all as ZIP"]) {
       const button = screen.getByRole("button", { name });
       expect(button).toBeDisabled();
       fireEvent.click(button);
@@ -77,7 +77,7 @@ describe("DownloadSection", () => {
       />,
     );
 
-    for (const name of ["Save", "Save as…", "Download all"]) {
+    for (const name of ["Save", "Save as…", "Save all as ZIP"]) {
       expect(screen.getByRole("button", { name })).toBeEnabled();
     }
   });
@@ -273,7 +273,7 @@ describe("DownloadSection", () => {
     expect(onDownload).toHaveBeenLastCalledWith(secondResult, true);
   });
 
-  it("does not show Download all for a single result", () => {
+  it("does not show Save all as ZIP for a single result", () => {
     const file = new File(["image"], "converted.jpg", {
       type: "image/jpeg",
     });
@@ -282,12 +282,12 @@ describe("DownloadSection", () => {
 
     expect(
       screen.queryByRole("button", {
-        name: "Download all",
+        name: "Save all as ZIP",
       }),
     ).not.toBeInTheDocument();
   });
 
-  it("downloads all results when Download all is clicked", () => {
+  it.each([false, true])("saves the archive with saveAs=%s", (saveAs) => {
     const onDownloadAll = vi.fn();
 
     render(
@@ -301,16 +301,18 @@ describe("DownloadSection", () => {
       />,
     );
 
-    fireEvent.click(
-      screen.getByRole("button", {
-        name: "Download all",
-      }),
-    );
-
-    expect(onDownloadAll).toHaveBeenCalledOnce();
+    const popup = screen.getByRole("group", { hidden: true });
+    popup.style.display = "block";
+    const hidePopover = vi.fn();
+    Object.defineProperty(popup, "hidePopover", { value: hidePopover });
+    fireEvent.click(within(popup).getByRole("button", {
+      name: saveAs ? "Save as…" : "Save",
+    }));
+    expect(hidePopover).toHaveBeenCalledOnce();
+    expect(onDownloadAll).toHaveBeenCalledExactlyOnceWith(saveAs);
   });
 
-  it("disables Download all while the archive is being prepared", () => {
+  it("disables Save all as ZIP while the archive is being prepared", () => {
     render(
       <DownloadSection
 
@@ -330,7 +332,7 @@ describe("DownloadSection", () => {
 
     expect(
       screen.queryByRole("button", {
-        name: "Download all",
+        name: "Save all as ZIP",
       }),
     ).not.toBeInTheDocument();
   });

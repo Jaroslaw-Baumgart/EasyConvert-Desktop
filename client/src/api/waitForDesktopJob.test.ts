@@ -23,6 +23,8 @@ function setup(
     saveResult: vi.fn().mockResolvedValue({ status: "saved" }),
 
     saveResultAs: vi.fn().mockResolvedValue({ status: "saved" }),
+
+    saveArchive: vi.fn().mockResolvedValue({ status: "saved" }),
     getJobState: vi
       .fn<EasyConvertApi["getJobState"]>()
       .mockResolvedValue(initialState),

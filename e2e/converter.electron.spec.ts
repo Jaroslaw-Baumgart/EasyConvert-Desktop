@@ -16,26 +16,6 @@ async function pdfText(filePath: string) {
   return (await execFileAsync(poppler("pdftotext"), [filePath, "-"], { encoding: "utf8" })).stdout;
 }
 
-async function downloadResult(app: ElectronApplication, button: Locator, output: string) {
-  const transfer = await app.evaluateHandle(({ session }, outputPath) => {
-    const finished = new Promise<{ state: string; filename: string }>((resolve) => {
-      session.defaultSession.once("will-download", (_event, item) => {
-        item.setSavePath(outputPath);
-        item.once("done", (_doneEvent, state) => resolve({ state, filename: item.getFilename() }));
-      });
-    });
-    return { finished };
-  }, output);
-  try {
-    await button.click();
-    const completed = await transfer.evaluate(({ finished }) => finished);
-    expect(completed.state).toBe("completed");
-    return completed.filename;
-  } finally {
-    await transfer.dispose();
-  }
-}
-
 async function saveResultAs(app: ElectronApplication, button: Locator, output: string) {
   await app.evaluate(({ dialog }, outputPath) => {
     dialog.showSaveDialog = async () => ({ canceled: false, filePath: outputPath });
@@ -201,7 +181,7 @@ test("extracts PDF text through the desktop and downloads both pages", async ({ 
   expect(await readFile(output, "utf8")).toMatch(/Page 1[\s\S]*Page 2/);
 });
 
-test("converts PDF pages, downloads their ZIP and resets all previews", async ({ electronApp, page }, testInfo) => {
+test("converts PDF pages, saves their ZIP through main and resets all previews", async ({ electronApp, page }, testInfo) => {
   await chooseFile(electronApp, fixture("two-pages.pdf"));
   await page.getByRole("button", { name: "Choose File" }).click();
   await page.getByRole("button", { name: /PDF.*JPG/ }).click();
@@ -217,8 +197,45 @@ test("converts PDF pages, downloads their ZIP and resets all previews", async ({
     await saveResultAs(electronApp, downloads, individual);
     individualPages.push(await readFile(individual));
   }
-  const output = testInfo.outputPath("pages.zip");
-  await downloadResult(electronApp, page.getByRole("button", { name: "Download all", exact: true }), output);
+  const desktopDirectory = testInfo.outputPath("desktop");
+  await mkdir(desktopDirectory, { recursive: true });
+  await electronApp.evaluate(({ app }, directory) => app.setPath("desktop", directory), desktopDirectory);
+  const archiveButton = page.getByRole("button", { name: "Save all as ZIP", exact: true });
+  const output = path.join(desktopDirectory, "EasyConvert Output", "two-pages.zip");
+  await archiveButton.click();
+  const archiveMenu = page.getByRole("group", { name: "Save ZIP archive" });
+  await expect(archiveMenu).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(archiveMenu).not.toBeVisible();
+  await archiveButton.click();
+  await page.getByRole("heading", { name: "Converted file" }).click();
+  await expect(archiveMenu).not.toBeVisible();
+  await archiveButton.click();
+  await page.screenshot({ path: testInfo.outputPath("archive-menu.png") });
+  await electronApp.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows().find((window) => window.webContents.getURL().startsWith("app://easyconvert/"))!
+      .setSize(420, 800);
+  });
+  await archiveButton.scrollIntoViewIfNeeded();
+  await expect.poll(async () => {
+    const bounds = await archiveMenu.boundingBox();
+    const trigger = await archiveButton.boundingBox();
+    const width = await page.evaluate(() => window.innerWidth);
+    return bounds !== null && trigger !== null && bounds.x >= 0 && bounds.x + bounds.width <= width &&
+      Math.min(Math.abs(bounds.y - trigger.y - trigger.height),
+        Math.abs(trigger.y - bounds.y - bounds.height)) < 16;
+  }).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("archive-menu-narrow.png") });
+  await archiveMenu.getByRole("button", { name: "Save", exact: true }).click();
+  await electronApp.evaluate(({ BrowserWindow }) => {
+    BrowserWindow.getAllWindows().find((window) => window.webContents.getURL().startsWith("app://easyconvert/"))!
+      .setSize(1200, 800);
+  });
+  await expect.poll(async () => {
+    try { return Object.keys(unzipSync(await readFile(output))).length; }
+    catch { return 0; }
+  }).toBe(2);
+  await expect(archiveButton).toBeEnabled();
   const files = unzipSync(await readFile(output));
   expect(Object.keys(files).sort()).toEqual(["two-pages-page-1.jpg", "two-pages-page-2.jpg"]);
   for (const [index, name] of Object.keys(files).sort().entries()) {
@@ -226,6 +243,31 @@ test("converts PDF pages, downloads their ZIP and resets all previews", async ({
     expect(Buffer.from(bytes).equals(individualPages[index])).toBe(true);
     expect((await sharp(bytes).metadata()).format).toBe("jpeg");
     expect((await sharp(bytes).raw().toBuffer()).length).toBeGreaterThan(0);
+  }
+
+  await electronApp.evaluate(({ dialog }) => {
+    dialog.showSaveDialog = async () => ({ canceled: true, filePath: "" });
+  });
+  await archiveButton.click();
+  await archiveMenu.getByRole("button", { name: "Save as…", exact: true }).click();
+  await expect(archiveButton).toBeEnabled();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+
+  const chosenOutput = testInfo.outputPath("chosen archive.zip");
+  await electronApp.evaluate(({ dialog }, destination) => {
+    dialog.showSaveDialog = async () => ({ canceled: false, filePath: destination });
+  }, chosenOutput);
+  await archiveButton.click();
+  await archiveMenu.getByRole("button", { name: "Save as…", exact: true }).click();
+  await expect.poll(async () => {
+    try { return Object.keys(unzipSync(await readFile(chosenOutput))).length; }
+    catch { return 0; }
+  }).toBe(2);
+  await expect(archiveButton).toBeEnabled();
+  const chosenFiles = unzipSync(await readFile(chosenOutput));
+  expect(Object.keys(chosenFiles)).toEqual(Object.keys(files));
+  for (const name of Object.keys(files)) {
+    expect(Buffer.from(chosenFiles[name]!)).toEqual(Buffer.from(files[name]!));
   }
   await page.getByRole("button", { name: /remove/i }).click();
   await expect(downloads).toHaveCount(0);

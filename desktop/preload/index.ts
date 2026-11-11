@@ -249,6 +249,27 @@ const api: EasyConvertApi = {
     };
   },
 
+  saveArchive: async (resultIds, saveAs = false) => {
+    if (!Array.isArray(resultIds)) {
+      throw new Error("Expected an array of result identifiers.");
+    }
+
+    if (resultIds.length === 0 || resultIds.length > 100) {
+      throw new Error("Expected between 1 and 100 result identifiers.");
+    }
+
+    if (typeof saveAs !== "boolean") {
+      throw new Error("Invalid archive save mode.");
+    }
+
+    const identifiers = resultIds.map(parseIdentifier);
+    const value: unknown = saveAs
+      ? await ipcRenderer.invoke("easyconvert:save-archive", identifiers, true)
+      : await ipcRenderer.invoke("easyconvert:save-archive", identifiers);
+
+    return parseSaveResponse(value);
+  },
+
   saveResult: (resultId) => invokeSave("easyconvert:save-result", resultId),
 
   saveResultAs: (resultId) =>

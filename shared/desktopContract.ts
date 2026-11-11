@@ -26,6 +26,7 @@ export interface EasyConvertApi {
   resetSource(): Promise<void>;
   saveResult(resultId: string): Promise<{ status: "saved" | "cancelled" }>;
   saveResultAs(resultId: string): Promise<{ status: "saved" | "cancelled" }>;
+  saveArchive(resultIds: string[], saveAs?: boolean): Promise<{ status: "saved" | "cancelled" }>;
 }
 
 export type StartConversionRequest =

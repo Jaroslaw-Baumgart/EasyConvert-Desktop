@@ -90,6 +90,7 @@
 }
 
 .result-picker button,
+.archive-menu button,
 .download-actions > button:not(.download-btn) {
   min-height: 2.5rem;
   padding: var(--space-2) var(--space-3);
@@ -101,6 +102,25 @@
   font: inherit;
   font-weight: 600;
 }
+
+.archive-trigger { anchor-name: --archive-save; }
+
+.archive-menu {
+  position-anchor: --archive-save;
+  position-area: bottom;
+  position-try-fallbacks: flip-block;
+  min-width: 12rem;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+}
+
+.archive-menu:popover-open { display: grid; }
+.archive-menu button { border: 0; text-align: left; }
+.archive-menu button:hover { background: var(--color-success-soft); }
 
 .download-section button:disabled {
   cursor: not-allowed;
@@ -125,6 +145,8 @@
   .download-actions > button {
     flex: 1;
   }
+
+  .download-actions > .archive-trigger { flex-basis: 100%; }
 
   .result-details {
     align-items: flex-start;

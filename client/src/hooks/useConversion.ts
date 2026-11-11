@@ -6,13 +6,11 @@ import {
 } from "../reducers/conversionReducer";
 import type { ConversionOption } from "../types/converter";
 import { ConversionError, isConversionErrorCode } from "../api/conversionError";
-import { downloadFile } from "../utils/downloadFile";
 import type { ConversionSettings } from "../schemas/conversionSettings";
 import type {
   ConvertedResult,
   ConvertedResults,
 } from "../types/conversionResult";
-import { createZipFile } from "../utils/createZipFile";
 import { convertDesktopFile } from "../api/desktopConversionClient";
 import { createConversionRequest } from "../api/createConversionRequest";
 
@@ -34,7 +32,7 @@ type UseConversionResult = {
     result: ConvertedResult,
     saveAs?: boolean,
   ) => Promise<void>;
-  downloadAllConvertedFiles: () => Promise<void>;
+  downloadAllConvertedFiles: (saveAs?: boolean) => Promise<void>;
 };
 
 export function useConversion(): UseConversionResult {
@@ -45,7 +43,6 @@ export function useConversion(): UseConversionResult {
   );
 
   const requestIdRef = useRef(0);
-  const archiveIdRef = useRef(0);
   const isMountedRef = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
   const sourceIdRef = useRef<string | null>(null);
@@ -62,7 +59,6 @@ export function useConversion(): UseConversionResult {
 
     return () => {
       isMountedRef.current = false;
-      archiveIdRef.current += 1;
       abortControllerRef.current?.abort();
     };
   }, []);
@@ -102,7 +98,6 @@ export function useConversion(): UseConversionResult {
 
   const invalidatePendingWork = (): void => {
     requestIdRef.current += 1;
-    archiveIdRef.current += 1;
     abortControllerRef.current?.abort();
     setIsPreparingArchive(false);
   };
@@ -253,7 +248,8 @@ export function useConversion(): UseConversionResult {
         ? await window.easyConvert.saveResultAs(result.resultId)
         : await window.easyConvert.saveResult(result.resultId);
 
-      if (!isCurrentRequest(requestId) || response.status === "cancelled") return;
+      if (!isCurrentRequest(requestId) || response.status === "cancelled")
+        return;
       dispatch({ type: "downloadSucceeded" });
     } catch (cause: unknown) {
       if (!isCurrentRequest(requestId)) return;
@@ -267,7 +263,7 @@ export function useConversion(): UseConversionResult {
     }
   };
 
-  const downloadAllConvertedFiles = async (): Promise<void> => {
+  const downloadAllConvertedFiles = async (saveAs = false): Promise<void> => {
     if (
       !isMountedRef.current ||
       !convertedResults ||
@@ -277,22 +273,29 @@ export function useConversion(): UseConversionResult {
       return;
     }
 
-    const archiveId = archiveIdRef.current + 1;
-    archiveIdRef.current = archiveId;
-    const resultsToArchive = convertedResults;
+    const requestId = requestIdRef.current;
+    savingPendingRef.current = true;
+    setIsSaving(true);
     setIsPreparingArchive(true);
 
     try {
-      const filesToZip = resultsToArchive.map((result) => result.file);
-      const zipFile = await createZipFile(filesToZip);
-      if (archiveIdRef.current !== archiveId || !isMountedRef.current) return;
-      downloadFile(zipFile);
+      const resultIds = convertedResults.map((result) => result.resultId);
+      const response = saveAs
+        ? await window.easyConvert.saveArchive(resultIds, true)
+        : await window.easyConvert.saveArchive(resultIds);
+
+      if (!isCurrentRequest(requestId)) return;
+      if (response.status === "cancelled") return;
+
       dispatch({ type: "downloadSucceeded" });
     } catch (cause: unknown) {
-      if (archiveIdRef.current !== archiveId || !isMountedRef.current) return;
+      if (!isCurrentRequest(requestId)) return;
       reportDownloadError(cause);
     } finally {
-      if (archiveIdRef.current === archiveId && isMountedRef.current) {
+      savingPendingRef.current = false;
+
+      if (isMountedRef.current) {
+        setIsSaving(false);
         setIsPreparingArchive(false);
       }
     }

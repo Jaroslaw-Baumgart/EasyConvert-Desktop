@@ -157,6 +157,7 @@ describe("FileUpload", () => {
       resetSource: vi.fn(),
       saveResult: vi.fn().mockResolvedValue({ status: "saved" }),
       saveResultAs: vi.fn().mockResolvedValue({ status: "saved" }),
+      saveArchive: vi.fn().mockResolvedValue({ status: "saved" }),
     };
     vi.stubGlobal("easyConvert", api);
 

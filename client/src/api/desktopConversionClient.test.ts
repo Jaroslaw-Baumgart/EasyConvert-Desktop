@@ -32,6 +32,8 @@ function setup() {
     saveResult: vi.fn().mockResolvedValue({ status: "saved" }),
 
     saveResultAs: vi.fn().mockResolvedValue({ status: "saved" }),
+
+    saveArchive: vi.fn().mockResolvedValue({ status: "saved" }),
   };
 
   vi.mocked(waitForDesktopJob).mockResolvedValue(["result-1"]);

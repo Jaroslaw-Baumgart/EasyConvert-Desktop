@@ -27,6 +27,8 @@ function setup() {
     saveResult: vi.fn().mockResolvedValue({ status: "saved" }),
 
     saveResultAs: vi.fn().mockResolvedValue({ status: "saved" }),
+
+    saveArchive: vi.fn().mockResolvedValue({ status: "saved" }),
   };
 
   const response = {
