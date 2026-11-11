@@ -20,7 +20,9 @@ function setup(
     selectSource: vi.fn(),
     startConversion: vi.fn(),
     resetSource: vi.fn(),
-    saveResult: vi.fn(),
+    saveResult: vi.fn().mockResolvedValue({ status: "saved" }),
+
+    saveResultAs: vi.fn().mockResolvedValue({ status: "saved" }),
     getJobState: vi
       .fn<EasyConvertApi["getJobState"]>()
       .mockResolvedValue(initialState),

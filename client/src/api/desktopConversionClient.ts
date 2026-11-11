@@ -67,7 +67,7 @@ export async function convertDesktopFile(
       type: blob.type,
     });
 
-    results.push({ url, file });
+    results.push({ resultId, url, file });
   }
 
   const [first, ...remaining] = results;

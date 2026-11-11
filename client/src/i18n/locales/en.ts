@@ -21,12 +21,17 @@ export const en = {
   },
   errors: {
     "conversion-failed": "The file could not be converted. Please try again.",
-    "invalid-response": "The application returned an unexpected response. Please try again.",
-    "download-failed": "The converted file could not be downloaded. Please try again.",
-    "tool-unavailable": "This conversion is currently unavailable. Please try again later.",
-    "invalid-settings": "These settings cannot fit the file on the selected page. Try A3 landscape.",
+    "invalid-response":
+      "The application returned an unexpected response. Please try again.",
+    "download-failed":
+      "The converted file could not be downloaded. Please try again.",
+    "tool-unavailable":
+      "This conversion is currently unavailable. Please try again later.",
+    "invalid-settings":
+      "These settings cannot fit the file on the selected page. Try A3 landscape.",
     "service-busy": "The conversion service is busy. Please try again shortly.",
-    unexpected: "Something went wrong. Use the navigation to open another page, or reload this page to try again.",
+    unexpected:
+      "Something went wrong. Use the navigation to open another page, or reload this page to try again.",
   },
   upload: {
     label: "Upload File",
@@ -65,6 +70,8 @@ export const en = {
     preparing: "Preparing archive...",
     files: "Converted files",
     page: "Page {{index}}",
+    save: "Save",
+    saveAs: "Save as…",
   },
   preview: {
     expand: "Expand preview",
@@ -72,7 +79,8 @@ export const en = {
     label: "File preview",
     pdf: "PDF Preview",
     unavailable: "Preview not available for this file type",
-    unavailableDescription: "This format can still be converted when an option is available.",
+    unavailableDescription:
+      "This format can still be converted when an option is available.",
     type: "Type: {{type}}",
     imageError: "Failed to load image preview",
     imageAlt: "Preview",
@@ -90,8 +98,10 @@ export const en = {
     allSheets: "All sheets",
     sheetEmpty: "This sheet is empty.",
     showingRows: "Showing first {{shown}} of {{total}} rows.",
-    dependency: "If this sheet depends on formulas or charts from other sheets, choose All sheets.",
-    charts: "Charts are not shown in this preview. To view them, convert the file to PDF.",
+    dependency:
+      "If this sheet depends on formulas or charts from other sheets, choose All sheets.",
+    charts:
+      "Charts are not shown in this preview. To view them, convert the file to PDF.",
     pptxLoading: "Loading PPTX content...",
     pptxError: "Failed to render PowerPoint presentation.",
     slideAlt: "PowerPoint slide {{index}}",
@@ -107,29 +117,39 @@ export const en = {
     step3: "Set page or image options when they are available.",
     step4: "Convert the file and download the result.",
     conversionsTitle: "Supported conversions",
-    conversionsText: "The available options change with the file you upload. The server also checks the file before conversion starts.",
+    conversionsText:
+      "The available options change with the file you upload. The server also checks the file before conversion starts.",
     previewsTitle: "Previews",
-    previewsText: "Images, PDFs, text files, CSV files, DOCX documents, XLSX workbooks, and PPTX presentations can be previewed before conversion. For XLSX, you can preview one sheet or all sheets.",
+    previewsText:
+      "Images, PDFs, text files, CSV files, DOCX documents, XLSX workbooks, and PPTX presentations can be previewed before conversion. For XLSX, you can preview one sheet or all sheets.",
     settingsTitle: "Conversion settings",
     setting1: "PNG to JPG: image quality and background color.",
     setting2: "JPG, TXT, and CSV to PDF: A4 or A3, portrait or landscape.",
-    setting3: "XLSX to PDF: one sheet or all sheets, page size, orientation, and fit-to-page output.",
+    setting3:
+      "XLSX to PDF: one sheet or all sheets, page size, orientation, and fit-to-page output.",
     filesTitle: "Files and results",
-    filesText: "Files are processed locally on your computer. DOCX, XLSX, and PPTX PDF conversion uses local LibreOffice. Results are temporary, so download anything you want to keep. See the <privacyLink>privacy page</privacyLink> for details.",
+    filesText:
+      "Files are processed locally on your computer. DOCX, XLSX, and PPTX PDF conversion uses local LibreOffice. Results are temporary, so download anything you want to keep. See the <privacyLink>privacy page</privacyLink> for details.",
   },
   privacy: {
     eyebrow: "Privacy",
     title: "Privacy",
     lead: "Files are used only for the conversion you request. The app does not require an account or keep a personal conversion history.",
     processingTitle: "What is processed",
-    processingText: "The application reads the selected file and conversion settings locally. Files are not uploaded to a conversion server. DOCX, XLSX, and PPTX conversion uses LibreOffice on your computer.",
+    processingText:
+      "The application reads the selected file and conversion settings locally. Files are not uploaded to a conversion server. DOCX, XLSX, and PPTX conversion uses LibreOffice on your computer.",
     storageTitle: "How long files are kept",
-    storage1: "Your original source file is kept unchanged when you convert or remove it from the interface.",
-    storage2: "XLSX conversion can create a temporary workbook. It is deleted when processing ends.",
-    storage3: "Generated files are stored in the system temporary folder. Save results you want to keep before clearing the selection or closing the application.",
-    storage4: "Clearing the selection removes previews and access to the current results. Automatic deletion of all temporary conversion files is not implemented yet.",
+    storage1:
+      "Your original source file is kept unchanged when you convert or remove it from the interface.",
+    storage2:
+      "XLSX conversion can create a temporary workbook. It is deleted when processing ends.",
+    storage3:
+      "Generated files are stored in the system temporary folder. Save results you want to keep before clearing the selection or closing the application.",
+    storage4:
+      "Clearing the selection removes previews and access to the current results. Automatic deletion of all temporary conversion files is not implemented yet.",
     sensitiveTitle: "Sensitive files",
-    sensitiveText: "Only process files you are allowed to use. Conversion happens locally; downloaded copies and temporary files remain on your computer.",
+    sensitiveText:
+      "Only process files you are allowed to use. Conversion happens locally; downloaded copies and temporary files remain on your computer.",
     back: "Back to converter",
   },
   notFound: {

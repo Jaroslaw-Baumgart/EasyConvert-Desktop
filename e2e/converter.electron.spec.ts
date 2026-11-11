@@ -36,6 +36,17 @@ async function downloadResult(app: ElectronApplication, button: Locator, output:
   }
 }
 
+async function saveResultAs(app: ElectronApplication, button: Locator, output: string) {
+  await app.evaluate(({ dialog }, outputPath) => {
+    dialog.showSaveDialog = async () => ({ canceled: false, filePath: outputPath });
+  }, output);
+  await button.click();
+  await expect.poll(async () => {
+    try { return (await readFile(output)).byteLength; }
+    catch { return 0; }
+  }).toBeGreaterThan(0);
+}
+
 // Only OS dialogs are replaced; preload, IPC, filesystem and Sharp run for real.
 const test = base.extend<{ electronApp: ElectronApplication }>({
   electronApp: async ({}, use, testInfo) => {
@@ -133,10 +144,10 @@ for (const scenario of [
     await page.getByRole("button", { name: "Choose File" }).click();
     await page.getByRole("button", { name: new RegExp(`${scenario.source}.*${scenario.target}`, "i") }).click();
     await page.getByRole("button", { name: "Convert", exact: true }).click();
-    const button = page.getByRole("button", { name: "Download file", exact: true });
+    const button = page.getByRole("button", { name: "Save as…", exact: true });
     await expect(button).toBeVisible({ timeout: 60_000 });
     const output = testInfo.outputPath(`result.${scenario.target}`);
-    expect(await downloadResult(electronApp, button, output)).toBe(`input.${scenario.target}`);
+    await saveResultAs(electronApp, button, output);
     if (scenario.target === "jpg") {
       const decoded = await sharp(output).raw().toBuffer({ resolveWithObject: true });
       expect(decoded.info.width).toBe(16);
@@ -164,10 +175,10 @@ for (const selection of ["Revenue", "Costs", "All sheets"]) {
     await page.getByLabel("A3", { exact: true }).check();
     await page.getByLabel("Landscape", { exact: true }).check();
     await page.getByRole("button", { name: "Convert", exact: true }).click();
-    const button = page.getByRole("button", { name: "Download file", exact: true });
+    const button = page.getByRole("button", { name: "Save as…", exact: true });
     await expect(button).toBeVisible({ timeout: 60_000 });
     const output = testInfo.outputPath("workbook.pdf");
-    expect(await downloadResult(electronApp, button, output)).toBe("workbook.pdf");
+    await saveResultAs(electronApp, button, output);
     const text = await pdfText(output);
     if (selection !== "Costs") expect(text).toContain("REVENUE_ONLY");
     else expect(text).not.toContain("REVENUE_ONLY");
@@ -183,10 +194,10 @@ test("extracts PDF text through the desktop and downloads both pages", async ({ 
   await page.getByRole("button", { name: "Choose File" }).click();
   await page.getByRole("button", { name: /PDF.*TXT/ }).click();
   await page.getByRole("button", { name: "Convert", exact: true }).click();
-  const button = page.getByRole("button", { name: "Download file", exact: true });
+  const button = page.getByRole("button", { name: "Save as…", exact: true });
   await expect(button).toBeVisible();
   const output = testInfo.outputPath("two-pages.txt");
-  expect(await downloadResult(electronApp, button, output)).toBe("two-pages.txt");
+  await saveResultAs(electronApp, button, output);
   expect(await readFile(output, "utf8")).toMatch(/Page 1[\s\S]*Page 2/);
 });
 
@@ -195,7 +206,7 @@ test("converts PDF pages, downloads their ZIP and resets all previews", async ({
   await page.getByRole("button", { name: "Choose File" }).click();
   await page.getByRole("button", { name: /PDF.*JPG/ }).click();
   await page.getByRole("button", { name: "Convert", exact: true }).click();
-  const downloads = page.getByRole("button", { name: "Download file", exact: true });
+  const downloads = page.getByRole("button", { name: "Save as…", exact: true });
   await expect(downloads).toBeVisible();
   await expect(page.getByRole("button", { name: "Page 1", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Page 2", exact: true })).toBeVisible();
@@ -203,7 +214,7 @@ test("converts PDF pages, downloads their ZIP and resets all previews", async ({
   for (const number of [1, 2]) {
     await page.getByRole("button", { name: `Page ${number}`, exact: true }).click();
     const individual = testInfo.outputPath(`page-${number}.jpg`);
-    expect(await downloadResult(electronApp, downloads, individual)).toBe(`two-pages-page-${number}.jpg`);
+    await saveResultAs(electronApp, downloads, individual);
     individualPages.push(await readFile(individual));
   }
   const output = testInfo.outputPath("pages.zip");
@@ -227,7 +238,7 @@ test("converts JPG through IPC and downloads a real PNG without an HTTP server",
   await expect(page.getByRole("img", { name: "Preview", exact: true })).toBeVisible();
   await page.getByRole("button", { name: /JPG.*PNG/ }).click();
   await page.getByRole("button", { name: "Convert", exact: true }).click();
-  const download = page.getByRole("button", { name: "Download file" });
+  const download = page.getByRole("button", { name: "Save", exact: true });
   await expect(download).toBeVisible();
   await expect(download).toBeFocused();
   await expect(page.getByText("Conversion complete", { exact: true })).toBeVisible();
@@ -239,26 +250,7 @@ test("converts JPG through IPC and downloads a real PNG without an HTTP server",
   }))).toEqual([true, true]);
   await expect(page.getByText("sample.png", { exact: true })).toBeVisible();
   const output = testInfo.outputPath("sample.png");
-  // Return a wrapper so evaluateHandle does not await the completion Promise
-  // before the click that starts the download.
-  const transfer = await electronApp.evaluateHandle(({ session }, outputPath) => {
-    const finished = new Promise<{ state: string; filename: string }>((resolve) => {
-      session.defaultSession.once("will-download", (_event, item) => {
-        item.setSavePath(outputPath);
-        item.once("done", (_doneEvent, state) => {
-          resolve({ state, filename: item.getFilename() });
-        });
-      });
-    });
-    return { finished };
-  }, output);
-  try {
-    await download.click();
-    const completed = await transfer.evaluate(({ finished }) => finished);
-    expect(completed).toEqual({ state: "completed", filename: "sample.png" });
-  } finally {
-    await transfer.dispose();
-  }
+  await saveResultAs(electronApp, page.getByRole("button", { name: "Save as…", exact: true }), output);
 
   const bytes = await readFile(output);
   expect((await sharp(bytes).metadata()).format).toBe("png");
@@ -269,6 +261,18 @@ test("converts JPG through IPC and downloads a real PNG without an HTTP server",
   expect(actual.info.width).toBe(expected.info.width);
   expect(actual.info.height).toBe(expected.info.height);
   expect(actual.data.equals(expected.data)).toBe(true);
+
+  const desktopDirectory = testInfo.outputPath("desktop");
+  await mkdir(desktopDirectory, { recursive: true });
+  await electronApp.evaluate(({ app }, directory) => app.setPath("desktop", directory), desktopDirectory);
+  for (const name of ["sample.png", "sample (1).png"]) {
+    await download.click();
+    const savedPath = path.join(desktopDirectory, "EasyConvert Output", name);
+    await expect.poll(async () => {
+      try { return (await readFile(savedPath)).equals(bytes); }
+      catch { return false; }
+    }).toBe(true);
+  }
 });
 
 test("cancels the native dialog and allows another selection", async ({ electronApp, page }) => {

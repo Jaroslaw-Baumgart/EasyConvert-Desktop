@@ -24,7 +24,9 @@ function setup() {
     getJobState: vi.fn(),
     onJobStateChanged: vi.fn(),
     resetSource: vi.fn(),
-    saveResult: vi.fn(),
+    saveResult: vi.fn().mockResolvedValue({ status: "saved" }),
+
+    saveResultAs: vi.fn().mockResolvedValue({ status: "saved" }),
   };
 
   const response = {

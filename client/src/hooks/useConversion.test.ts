@@ -52,6 +52,7 @@ describe("conversion cancellation", () => {
     let resolveArchive!: (file: File) => void;
     vi.mocked(convertDesktopFile).mockResolvedValueOnce([
       {
+        resultId: "result-1",
         url: "app://easyconvert/preview/result/photo.png",
         file: new File(["converted"], "photo.png", { type: "image/png" }),
       },
@@ -93,12 +94,14 @@ describe("conversion cancellation", () => {
     vi.mocked(convertDesktopFile)
       .mockResolvedValueOnce([
         {
+          resultId: "result-2",
           url: "app://easyconvert/preview/result/first.png",
           file: new File(["first"], "first.png", { type: "image/png" }),
         },
       ])
       .mockResolvedValueOnce([
         {
+          resultId: "result-3",
           url: "app://easyconvert/preview/result/second.png",
           file: new File(["second"], "second.png", { type: "image/png" }),
         },
@@ -136,6 +139,7 @@ describe("conversion cancellation", () => {
     let resolveArchive!: (file: File) => void;
     vi.mocked(convertDesktopFile).mockResolvedValueOnce([
       {
+        resultId: "result-4",
         url: "app://easyconvert/preview/result/photo.png",
         file: new File(["converted"], "photo.png", { type: "image/png" }),
       },

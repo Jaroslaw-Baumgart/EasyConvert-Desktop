@@ -238,3 +238,27 @@ describe("preload conversion start response", () => {
     await expect(api.startConversion(request)).rejects.toBe(error);
   });
 });
+
+describe.each([
+  { method: "saveResult", channel: "easyconvert:save-result" },
+  { method: "saveResultAs", channel: "easyconvert:save-result-as" },
+] as const)("$method preload", ({ method, channel }) => {
+  it.each(["saved", "cancelled"] as const)("validates the %s response", async (status) => {
+    const api = await loadApi();
+    mocks.invoke.mockResolvedValue({ status, extra: "discarded" });
+    await expect(api[method]("result-1")).resolves.toEqual({ status });
+    expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith(channel, "result-1");
+  });
+
+  it.each(["", "x".repeat(129)])("rejects an invalid identifier before IPC: %s", async (id) => {
+    const api = await loadApi();
+    await expect(api[method](id)).rejects.toThrow("identifier");
+    expect(mocks.invoke).not.toHaveBeenCalled();
+  });
+
+  it.each([null, [], {}, { status: "selected" }])("rejects an invalid response: %j", async (value) => {
+    const api = await loadApi();
+    mocks.invoke.mockResolvedValue(value);
+    await expect(api[method]("result-1")).rejects.toThrow("Invalid save response.");
+  });
+});

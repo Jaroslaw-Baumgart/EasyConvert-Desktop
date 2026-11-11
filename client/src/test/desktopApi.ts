@@ -11,12 +11,14 @@ export function createDesktopApi(): EasyConvertApi {
     getJobState: vi.fn(),
     onJobStateChanged: vi.fn(),
     resetSource: vi.fn().mockResolvedValue(undefined),
-    saveResult: vi.fn(),
+    saveResult: vi.fn().mockResolvedValue({ status: "saved" }),
+    saveResultAs: vi.fn().mockResolvedValue({ status: "saved" }),
   };
 }
 
 export function convertedResult(name = "converted.png", type = "image/png"): ConvertedResults {
   return [{
+    resultId: "result-1",
     url: "app://easyconvert/preview/result/result-1",
     file: new File(["converted content"], name, { type }),
   }];

@@ -20,13 +20,19 @@ export const pl = {
     quality: "Jakość musi mieścić się w zakresie od 1 do 100.",
   },
   errors: {
-    "conversion-failed": "Nie udało się przekonwertować pliku. Spróbuj ponownie.",
-    "invalid-response": "Aplikacja zwróciła nieoczekiwaną odpowiedź. Spróbuj ponownie.",
-    "download-failed": "Nie udało się pobrać przekonwertowanego pliku. Spróbuj ponownie.",
-    "tool-unavailable": "Ta konwersja jest obecnie niedostępna. Spróbuj ponownie później.",
-    "invalid-settings": "Wybrane ustawienia nie mieszczą się na stronie. Wybierz A3 w orientacji poziomej.",
+    "conversion-failed":
+      "Nie udało się przekonwertować pliku. Spróbuj ponownie.",
+    "invalid-response":
+      "Aplikacja zwróciła nieoczekiwaną odpowiedź. Spróbuj ponownie.",
+    "download-failed":
+      "Nie udało się pobrać przekonwertowanego pliku. Spróbuj ponownie.",
+    "tool-unavailable":
+      "Ta konwersja jest obecnie niedostępna. Spróbuj ponownie później.",
+    "invalid-settings":
+      "Wybrane ustawienia nie mieszczą się na stronie. Wybierz A3 w orientacji poziomej.",
     "service-busy": "Usługa konwersji jest zajęta. Spróbuj ponownie za chwilę.",
-    unexpected: "Coś poszło nie tak. Użyj nawigacji, aby otworzyć inną stronę, lub odśwież stronę i spróbuj ponownie.",
+    unexpected:
+      "Coś poszło nie tak. Użyj nawigacji, aby otworzyć inną stronę, lub odśwież stronę i spróbuj ponownie.",
   },
   upload: {
     label: "Prześlij plik",
@@ -34,7 +40,8 @@ export const pl = {
     dragHint: "lub przeciągnij i upuść plik tutaj",
     maxSize: "Maksymalny rozmiar pliku: {{size}} MB.",
     viewConversions: "Zobacz obsługiwane konwersje",
-    unsupported: "Nieobsługiwany format pliku. Obsługiwane formaty: {{formats}}.",
+    unsupported:
+      "Nieobsługiwany format pliku. Obsługiwane formaty: {{formats}}.",
     tooLarge: "Plik jest za duży. Maksymalny rozmiar to {{size}} MB.",
   },
   converter: {
@@ -65,6 +72,8 @@ export const pl = {
     preparing: "Przygotowywanie archiwum...",
     files: "Przekonwertowane pliki",
     page: "Strona {{index}}",
+    save: "Zapisz",
+    saveAs: "Zapisz jako…",
   },
   preview: {
     expand: "Powiększ podgląd",
@@ -72,7 +81,8 @@ export const pl = {
     label: "Podgląd pliku",
     pdf: "Podgląd PDF",
     unavailable: "Podgląd tego typu pliku nie jest dostępny",
-    unavailableDescription: "Ten format nadal można przekonwertować, gdy dostępna jest odpowiednia opcja.",
+    unavailableDescription:
+      "Ten format nadal można przekonwertować, gdy dostępna jest odpowiednia opcja.",
     type: "Typ: {{type}}",
     imageError: "Nie udało się wczytać podglądu obrazu",
     imageAlt: "Podgląd",
@@ -90,8 +100,10 @@ export const pl = {
     allSheets: "Wszystkie arkusze",
     sheetEmpty: "Ten arkusz jest pusty.",
     showingRows: "Wyświetlono pierwsze {{shown}} z {{total}} wierszy.",
-    dependency: "Jeśli ten arkusz zależy od formuł lub wykresów z innych arkuszy, wybierz Wszystkie arkusze.",
-    charts: "Wykresy nie są pokazywane w tym podglądzie. Aby je zobaczyć, przekonwertuj plik do PDF",
+    dependency:
+      "Jeśli ten arkusz zależy od formuł lub wykresów z innych arkuszy, wybierz Wszystkie arkusze.",
+    charts:
+      "Wykresy nie są pokazywane w tym podglądzie. Aby je zobaczyć, przekonwertuj plik do PDF",
     pptxLoading: "Wczytywanie treści PPTX...",
     pptxError: "Nie udało się wyrenderować prezentacji PowerPoint.",
     slideAlt: "Slajd PowerPoint {{index}}",
@@ -107,29 +119,40 @@ export const pl = {
     step3: "Ustaw opcje strony lub obrazu, gdy są dostępne.",
     step4: "Przekonwertuj plik i pobierz wynik.",
     conversionsTitle: "Obsługiwane konwersje",
-    conversionsText: "Dostępne opcje zmieniają się zależnie od przesłanego pliku. Serwer dodatkowo sprawdza plik przed rozpoczęciem konwersji.",
+    conversionsText:
+      "Dostępne opcje zmieniają się zależnie od przesłanego pliku. Serwer dodatkowo sprawdza plik przed rozpoczęciem konwersji.",
     previewsTitle: "Podglądy",
-    previewsText: "Przed konwersją można wyświetlić podgląd obrazów, plików PDF i tekstowych, CSV, dokumentów DOCX, skoroszytów XLSX oraz prezentacji PPTX. Dla XLSX można wyświetlić jeden arkusz albo wszystkie arkusze.",
+    previewsText:
+      "Przed konwersją można wyświetlić podgląd obrazów, plików PDF i tekstowych, CSV, dokumentów DOCX, skoroszytów XLSX oraz prezentacji PPTX. Dla XLSX można wyświetlić jeden arkusz albo wszystkie arkusze.",
     settingsTitle: "Ustawienia konwersji",
     setting1: "PNG do JPG: jakość obrazu i kolor tła.",
-    setting2: "JPG, TXT i CSV do PDF: A4 lub A3, orientacja pionowa albo pozioma.",
-    setting3: "XLSX do PDF: jeden arkusz albo wszystkie arkusze, rozmiar strony, orientacja i dopasowanie do strony.",
+    setting2:
+      "JPG, TXT i CSV do PDF: A4 lub A3, orientacja pionowa albo pozioma.",
+    setting3:
+      "XLSX do PDF: jeden arkusz albo wszystkie arkusze, rozmiar strony, orientacja i dopasowanie do strony.",
     filesTitle: "Pliki i wyniki",
-    filesText: "Pliki są przetwarzane lokalnie na Twoim komputerze. Konwersja DOCX, XLSX i PPTX do PDF używa lokalnego LibreOffice. Wyniki są tymczasowe, dlatego pobierz wszystko, co chcesz zachować. Szczegóły znajdziesz na <privacyLink>stronie prywatności</privacyLink>.",
+    filesText:
+      "Pliki są przetwarzane lokalnie na Twoim komputerze. Konwersja DOCX, XLSX i PPTX do PDF używa lokalnego LibreOffice. Wyniki są tymczasowe, dlatego pobierz wszystko, co chcesz zachować. Szczegóły znajdziesz na <privacyLink>stronie prywatności</privacyLink>.",
   },
   privacy: {
     eyebrow: "Prywatność",
     title: "Prywatność",
     lead: "Pliki są używane wyłącznie do żądanej konwersji. Aplikacja nie wymaga konta ani nie przechowuje osobistej historii konwersji.",
     processingTitle: "Co jest przetwarzane",
-    processingText: "Aplikacja odczytuje wybrany plik i ustawienia konwersji lokalnie. Pliki nie są wysyłane na serwer konwersji. Konwersja DOCX, XLSX i PPTX korzysta z LibreOffice na Twoim komputerze.",
+    processingText:
+      "Aplikacja odczytuje wybrany plik i ustawienia konwersji lokalnie. Pliki nie są wysyłane na serwer konwersji. Konwersja DOCX, XLSX i PPTX korzysta z LibreOffice na Twoim komputerze.",
     storageTitle: "Jak długo przechowywane są pliki",
-    storage1: "Oryginalny plik źródłowy pozostaje bez zmian po konwersji i usunięciu go z interfejsu.",
-    storage2: "Konwersja XLSX może utworzyć tymczasowy skoroszyt. Jest on usuwany po zakończeniu przetwarzania.",
-    storage3: "Wyniki są zapisywane w systemowym folderze tymczasowym. Pobierz potrzebne wyniki przed wyczyszczeniem wyboru lub zamknięciem aplikacji.",
-    storage4: "Wyczyszczenie wyboru usuwa podglądy i dostęp do bieżących wyników. Automatyczne usuwanie wszystkich plików tymczasowych konwersji nie jest jeszcze zaimplementowane.",
+    storage1:
+      "Oryginalny plik źródłowy pozostaje bez zmian po konwersji i usunięciu go z interfejsu.",
+    storage2:
+      "Konwersja XLSX może utworzyć tymczasowy skoroszyt. Jest on usuwany po zakończeniu przetwarzania.",
+    storage3:
+      "Wyniki są zapisywane w systemowym folderze tymczasowym. Pobierz potrzebne wyniki przed wyczyszczeniem wyboru lub zamknięciem aplikacji.",
+    storage4:
+      "Wyczyszczenie wyboru usuwa podglądy i dostęp do bieżących wyników. Automatyczne usuwanie wszystkich plików tymczasowych konwersji nie jest jeszcze zaimplementowane.",
     sensitiveTitle: "Pliki wrażliwe",
-    sensitiveText: "Przetwarzaj tylko pliki, do których masz uprawnienia. Konwersja odbywa się lokalnie; pobrane kopie i pliki tymczasowe pozostają na Twoim komputerze.",
+    sensitiveText:
+      "Przetwarzaj tylko pliki, do których masz uprawnienia. Konwersja odbywa się lokalnie; pobrane kopie i pliki tymczasowe pozostają na Twoim komputerze.",
     back: "Wróć do konwertera",
   },
   notFound: {

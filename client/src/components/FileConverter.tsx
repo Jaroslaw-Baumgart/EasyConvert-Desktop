@@ -50,6 +50,7 @@ export default function FileConverter({
     downloadConvertedFile,
     isPreparingArchive,
     downloadAllConvertedFiles,
+    isSaving,
   } = useConversion();
 
   const [hasFormError, setHasFormError] = useState(false);
@@ -110,9 +111,12 @@ export default function FileConverter({
     await convert(option, settings);
   };
 
-  const handleDownloadBlob = (result: ConvertedResult) => {
+  const handleDownloadBlob = async (
+    result: ConvertedResult,
+    saveAs = false,
+  ): Promise<void> => {
     setHasFormError(false);
-    downloadConvertedFile(result);
+    await downloadConvertedFile(result, saveAs);
   };
 
   return (
@@ -135,7 +139,7 @@ export default function FileConverter({
                 className={styles["remove-file-btn"]}
                 onClick={handleFileRemove}
                 disabled={
-                  isRemoving ||
+                  isRemoving || isSaving ||
                   (window.easyConvert?.platform === "desktop" && isConverting)
                 }
               >
@@ -150,7 +154,7 @@ export default function FileConverter({
               />
             </div>
           </section>
-          <aside className={styles["conversion-sidebar"]} inert={isRemoving}>
+          <aside className={styles["conversion-sidebar"]} inert={isRemoving || isSaving}>
             <ConversionOptions
               options={availableOptions}
               onConvert={handleConvert}
@@ -186,6 +190,7 @@ export default function FileConverter({
           onDownloadAll={downloadAllConvertedFiles}
           previewRef={convertedPreviewRef}
           onPreviewReady={scrollToConvertedPreview}
+          isSaving={isSaving}
         />
       )}
     </div>

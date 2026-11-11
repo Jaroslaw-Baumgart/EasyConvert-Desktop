@@ -55,7 +55,8 @@ function setup() {
     getJobState: vi.fn(),
     onJobStateChanged: vi.fn(),
     resetSource: vi.fn().mockResolvedValue(undefined),
-    saveResult: vi.fn(),
+    saveResult: vi.fn().mockResolvedValue({ status: "saved" }),
+    saveResultAs: vi.fn().mockResolvedValue({ status: "saved" }),
   };
 
   const file = new File(["jpg"], "photo.jpg", {
@@ -64,6 +65,7 @@ function setup() {
 
   const output: ConvertedResults = [
     {
+      resultId: "result-1",
       url: "app://easyconvert/preview/result/result-1",
       file: new File(["png"], "photo.png", {
         type: "image/png",
@@ -129,6 +131,7 @@ describe("desktop useConversion", () => {
       type: "text/csv",
     });
     const output: ConvertedResults = [{
+      resultId: "result-2",
       url: "app://easyconvert/preview/result/result-csv",
       file: new File(["pdf"], "table.pdf", { type: "application/pdf" }),
     }];
@@ -183,6 +186,7 @@ describe("desktop useConversion", () => {
     });
     const output: ConvertedResults = [
       {
+        resultId: "result-3",
         url: "app://easyconvert/preview/result/result-2",
         file: new File(["jpg"], "transparent.jpg", {
           type: "image/jpeg",
@@ -401,6 +405,7 @@ describe("desktop useConversion", () => {
     const { api, result, file } = setup();
     const output: ConvertedResults = [
       {
+        resultId: "result-4",
         url: "app://easyconvert/preview/result/result-pdf",
         file: new File(["pdf"], "photo.pdf", {
           type: "application/pdf",
@@ -450,6 +455,7 @@ describe("desktop useConversion", () => {
     const { api, result } = setup();
     const file = new File(["pdf"], "document.pdf", { type: "application/pdf" });
     const output: ConvertedResults = [{
+      resultId: "result-5",
       url: "app://easyconvert/preview/result/result-text",
       file: new File(["Page 1\n\fPage 2"], "document.txt", { type: "text/plain" }),
     }];
@@ -503,6 +509,7 @@ describe("desktop useConversion", () => {
     });
     const output: ConvertedResults = [
       {
+        resultId: "result-6",
         url: "app://easyconvert/preview/result/result-txt",
         file: new File(["pdf"], "polski-tekst.pdf", {
           type: "application/pdf",
@@ -546,5 +553,107 @@ describe("desktop useConversion", () => {
     );
     expect(result.current.convertedResults).toBe(output);
     expect(result.current.isConverting).toBe(false);
+  });
+});
+
+describe("native result saving", () => {
+  it("blocks duplicate saves, reset, replacement, conversion and ZIP while saving", async () => {
+    const { api, result, output, file } = await setupConvertedFile();
+    const pending = deferred<{ status: "saved" }>();
+    vi.mocked(api.saveResult).mockReturnValueOnce(pending.promise);
+    vi.mocked(convertDesktopFile).mockClear();
+    let saving!: Promise<void>;
+
+    act(() => { saving = result.current.downloadConvertedFile(output[0]); });
+    expect(result.current.isSaving).toBe(true);
+    await act(async () => {
+      await result.current.downloadConvertedFile(output[0]);
+      await result.current.downloadConvertedFile(output[0], true);
+      await result.current.removeFile();
+      result.current.selectFile(new File(["other"], "other.jpg"), "source-other");
+      await result.current.convert(option);
+      await result.current.downloadAllConvertedFiles();
+    });
+
+    expect(api.saveResult).toHaveBeenCalledTimes(1);
+    expect(api.saveResultAs).not.toHaveBeenCalled();
+    expect(api.resetSource).not.toHaveBeenCalled();
+    expect(convertDesktopFile).not.toHaveBeenCalled();
+    expect(result.current.file).toBe(file);
+    expect(result.current.convertedResults).toBe(output);
+    expect(result.current.isPreparingArchive).toBe(false);
+
+    await act(async () => { pending.resolve({ status: "saved" }); await saving; });
+    expect(result.current.isSaving).toBe(false);
+    await act(async () => { await result.current.removeFile(); });
+    expect(api.resetSource).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not start saving while reset is pending", async () => {
+    const { api, result, output } = await setupConvertedFile();
+    const pending = deferred<void>();
+    vi.mocked(api.resetSource).mockReturnValueOnce(pending.promise);
+    let removing!: Promise<void>;
+    act(() => { removing = result.current.removeFile(); });
+
+    await act(async () => { await result.current.downloadConvertedFile(output[0], true); });
+    expect(api.saveResultAs).not.toHaveBeenCalled();
+    expect(result.current.isSaving).toBe(false);
+    await act(async () => { pending.resolve(); await removing; });
+  });
+
+  it.each(["cancelled", "failed"] as const)("releases the save lock after %s", async (outcome) => {
+    const { api, result, output } = await setupConvertedFile();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    if (outcome === "cancelled") {
+      vi.mocked(api.saveResultAs).mockResolvedValueOnce({ status: "cancelled" });
+    } else {
+      vi.mocked(api.saveResultAs).mockRejectedValueOnce(new Error("Disk full"));
+    }
+
+    await act(async () => { await result.current.downloadConvertedFile(output[0], true); });
+    expect(result.current.isSaving).toBe(false);
+    await act(async () => { await result.current.downloadConvertedFile(output[0]); });
+    expect(api.saveResult).toHaveBeenCalledExactlyOnceWith(output[0].resultId);
+    expect(result.current.conversionError).toBeNull();
+  });
+
+  it("ignores a save failure after unmount", async () => {
+    const { api, result, output, unmount } = await setupConvertedFile();
+    const pending = deferred<{ status: "saved" }>();
+    vi.mocked(api.saveResult).mockReturnValueOnce(pending.promise);
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    let saving!: Promise<void>;
+    act(() => { saving = result.current.downloadConvertedFile(output[0]); });
+    unmount();
+    pending.reject(new Error("Late disk failure"));
+    await expect(saving).resolves.toBeUndefined();
+    expect(errorLog).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("saves the registered identifier with saveAs=%s", async (saveAs) => {
+    const { api, result, output } = await setupConvertedFile();
+    await act(async () => { await result.current.downloadConvertedFile(output[0], saveAs); });
+    const selected = saveAs ? api.saveResultAs : api.saveResult;
+    const other = saveAs ? api.saveResult : api.saveResultAs;
+    expect(selected).toHaveBeenCalledExactlyOnceWith(output[0].resultId);
+    expect(other).not.toHaveBeenCalled();
+    expect(result.current.convertedResults).toBe(output);
+    expect(result.current.conversionError).toBeNull();
+  });
+
+  it("keeps the preview and error state when the user cancels Save as", async () => {
+    const { api, result, output } = await setupConvertedFile();
+    vi.mocked(api.saveResult).mockRejectedValueOnce(new Error("Disk full"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await act(async () => { await result.current.downloadConvertedFile(output[0]); });
+    const previousError = result.current.conversionError;
+    expect(previousError).not.toBeNull();
+    vi.mocked(api.saveResultAs).mockResolvedValueOnce({ status: "cancelled" });
+    await act(async () => { await result.current.downloadConvertedFile(output[0], true); });
+    expect(result.current.conversionError).toBe(previousError);
+    expect(result.current.convertedResults).toBe(output);
+    await act(async () => { await result.current.downloadConvertedFile(output[0]); });
+    expect(result.current.conversionError).toBeNull();
   });
 });

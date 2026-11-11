@@ -23,13 +23,17 @@ type UseConversionResult = {
   isConverting: boolean;
   isPreparingArchive: boolean;
   isRemoving: boolean;
+  isSaving: boolean;
   selectFile: (selectedFile: File, sourceId?: string) => void;
   removeFile: () => Promise<void>;
   convert: (
     option: ConversionOption,
     settings?: ConversionSettings,
   ) => Promise<void>;
-  downloadConvertedFile: (result: ConvertedResult) => void;
+  downloadConvertedFile: (
+    result: ConvertedResult,
+    saveAs?: boolean,
+  ) => Promise<void>;
   downloadAllConvertedFiles: () => Promise<void>;
 };
 
@@ -46,7 +50,11 @@ export function useConversion(): UseConversionResult {
   const abortControllerRef = useRef<AbortController | null>(null);
   const sourceIdRef = useRef<string | null>(null);
   const removalPendingRef = useRef(false);
+  const savingPendingRef = useRef(false);
+
   const [isRemoving, setIsRemoving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPreparingArchive, setIsPreparingArchive] = useState(false);
   const [removalError, setRemovalError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -59,8 +67,6 @@ export function useConversion(): UseConversionResult {
     };
   }, []);
 
-  const [isPreparingArchive, setIsPreparingArchive] = useState(false);
-
   const file = conversionState.kind === "empty" ? null : conversionState.file;
 
   const isConverting = conversionState.kind === "loading";
@@ -71,23 +77,47 @@ export function useConversion(): UseConversionResult {
       ? conversionState.convertedResults
       : null;
 
+  const stateError =
+    conversionState.kind === "downloadError" ||
+    conversionState.kind === "conversionError"
+      ? conversionState.error
+      : null;
+
   const conversionError =
     removalError ??
-    (conversionState.kind === "downloadError" ||
-    conversionState.kind === "conversionError"
-      ? isConversionErrorCode(conversionState.error)
-        ? t(`errors.${conversionState.error}`)
-        : conversionState.error
-      : null);
+    (stateError && isConversionErrorCode(stateError)
+      ? t(`errors.${stateError}`)
+      : stateError);
 
-  const selectFile = (selectedFile: File, sourceId?: string) => {
-    if (removalPendingRef.current) return;
-    setRemovalError(null);
-    sourceIdRef.current = sourceId ?? null;
+  const isFileActionPending = (): boolean =>
+    removalPendingRef.current || savingPendingRef.current;
+
+  const isConversionPending = (): boolean =>
+    isConverting ||
+    (abortControllerRef.current !== null &&
+      !abortControllerRef.current.signal.aborted);
+
+  const isCurrentRequest = (requestId: number): boolean =>
+    isMountedRef.current && requestIdRef.current === requestId;
+
+  const invalidatePendingWork = (): void => {
     requestIdRef.current += 1;
     archiveIdRef.current += 1;
     abortControllerRef.current?.abort();
     setIsPreparingArchive(false);
+  };
+
+  const reportDownloadError = (cause: unknown): void => {
+    const error = new ConversionError("download-failed", cause);
+    console.error(error);
+    dispatch({ type: "downloadFailed", error: error.code });
+  };
+
+  const selectFile = (selectedFile: File, sourceId?: string) => {
+    if (!isMountedRef.current || isFileActionPending()) return;
+    setRemovalError(null);
+    sourceIdRef.current = sourceId ?? null;
+    invalidatePendingWork();
     dispatch({
       type: "fileSelected",
       file: selectedFile,
@@ -95,14 +125,11 @@ export function useConversion(): UseConversionResult {
   };
 
   const removeFile = async (): Promise<void> => {
-    if (!file || removalPendingRef.current) {
-      return;
-    }
-
     if (
-      isConverting ||
-      (abortControllerRef.current !== null &&
-        !abortControllerRef.current.signal.aborted)
+      !isMountedRef.current ||
+      !file ||
+      isFileActionPending() ||
+      isConversionPending()
     ) {
       return;
     }
@@ -117,10 +144,7 @@ export function useConversion(): UseConversionResult {
       if (!isMountedRef.current) return;
 
       sourceIdRef.current = null;
-      requestIdRef.current += 1;
-      archiveIdRef.current += 1;
-      abortControllerRef.current?.abort();
-      setIsPreparingArchive(false);
+      invalidatePendingWork();
 
       dispatch({ type: "fileRemoved" });
     } catch (error: unknown) {
@@ -141,21 +165,17 @@ export function useConversion(): UseConversionResult {
   const convert = async (
     option: ConversionOption,
     settings?: ConversionSettings,
-  ) => {
-    if (!file || removalPendingRef.current) {
-      return;
-    }
-
+  ): Promise<void> => {
     if (
-      conversionState.kind === "loading" ||
-      (abortControllerRef.current && !abortControllerRef.current.signal.aborted)
+      !isMountedRef.current ||
+      !file ||
+      isFileActionPending() ||
+      isConversionPending()
     ) {
       return;
     }
 
-    requestIdRef.current += 1;
-    archiveIdRef.current += 1;
-    setIsPreparingArchive(false);
+    invalidatePendingWork();
     const requestId = requestIdRef.current;
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -186,13 +206,15 @@ export function useConversion(): UseConversionResult {
         controller.signal,
       );
 
+      if (!isCurrentRequest(requestId) || controller.signal.aborted) return;
+
       dispatch({
         type: "conversionSucceeded",
         convertedResults,
         requestId,
       });
     } catch (err: unknown) {
-      if (controller.signal.aborted) return;
+      if (!isCurrentRequest(requestId) || controller.signal.aborted) return;
       console.error(err);
 
       const errorCode =
@@ -204,28 +226,54 @@ export function useConversion(): UseConversionResult {
         requestId,
       });
     } finally {
-      if (abortControllerRef.current === controller)
+      if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
+      }
     }
   };
 
-  const downloadConvertedFile = (result: ConvertedResult) => {
+  const downloadConvertedFile = async (
+    result: ConvertedResult,
+    saveAs = false,
+  ): Promise<void> => {
+    if (
+      !isMountedRef.current ||
+      isFileActionPending() ||
+      isConversionPending()
+    ) {
+      return;
+    }
+
+    const requestId = requestIdRef.current;
+    savingPendingRef.current = true;
+    setIsSaving(true);
+
     try {
-      downloadFile(result.file);
+      const response = saveAs
+        ? await window.easyConvert.saveResultAs(result.resultId)
+        : await window.easyConvert.saveResult(result.resultId);
+
+      if (!isCurrentRequest(requestId) || response.status === "cancelled") return;
       dispatch({ type: "downloadSucceeded" });
     } catch (cause: unknown) {
-      const downloadError = new ConversionError("download-failed", cause);
+      if (!isCurrentRequest(requestId)) return;
+      reportDownloadError(cause);
+    } finally {
+      savingPendingRef.current = false;
 
-      console.error(downloadError);
-      dispatch({
-        type: "downloadFailed",
-        error: downloadError.code,
-      });
+      if (isMountedRef.current) {
+        setIsSaving(false);
+      }
     }
   };
 
-  const downloadAllConvertedFiles = async () => {
-    if (!convertedResults || isPreparingArchive) {
+  const downloadAllConvertedFiles = async (): Promise<void> => {
+    if (
+      !isMountedRef.current ||
+      !convertedResults ||
+      isPreparingArchive ||
+      isFileActionPending()
+    ) {
       return;
     }
 
@@ -242,13 +290,7 @@ export function useConversion(): UseConversionResult {
       dispatch({ type: "downloadSucceeded" });
     } catch (cause: unknown) {
       if (archiveIdRef.current !== archiveId || !isMountedRef.current) return;
-      const downloadError = new ConversionError("download-failed", cause);
-
-      console.error(downloadError);
-      dispatch({
-        type: "downloadFailed",
-        error: downloadError.code,
-      });
+      reportDownloadError(cause);
     } finally {
       if (archiveIdRef.current === archiveId && isMountedRef.current) {
         setIsPreparingArchive(false);
@@ -262,6 +304,7 @@ export function useConversion(): UseConversionResult {
     conversionError,
     isConverting,
     isRemoving,
+    isSaving,
     selectFile,
     removeFile,
     convert,

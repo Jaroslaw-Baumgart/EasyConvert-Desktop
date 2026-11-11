@@ -10,12 +10,14 @@ vi.mock("docx-preview", () => ({
 
 const createMultipleResults = (): ConvertedResults => [
   {
+    resultId: "result-1",
     url: "https://example.com/page-1.jpg",
     file: new File(["page one"], "page-1.jpg", {
       type: "image/jpeg",
     }),
   },
   {
+    resultId: "result-2",
     url: "https://example.com/page-2.jpg",
     file: new File(["page two"], "page-2.jpg", {
       type: "image/jpeg",
@@ -26,8 +28,11 @@ const createMultipleResults = (): ConvertedResults => [
 const renderDownloadSection = (file: File, url: string) => {
   render(
     <DownloadSection
+
+      isSaving={false}
       convertedResults={[
         {
+          resultId: "result-3",
           url,
           file,
         },
@@ -40,10 +45,48 @@ const renderDownloadSection = (file: File, url: string) => {
 };
 
 describe("DownloadSection", () => {
+  it("disables export actions while saving and enables them afterwards", () => {
+    const onDownload = vi.fn().mockResolvedValue(undefined);
+    const onDownloadAll = vi.fn();
+    const results = createMultipleResults();
+    const { rerender } = render(
+      <DownloadSection
+        convertedResults={results}
+        onDownload={onDownload}
+        onDownloadAll={onDownloadAll}
+        isPreparingArchive={false}
+        isSaving
+      />,
+    );
+
+    for (const name of ["Save", "Save as…", "Download all"]) {
+      const button = screen.getByRole("button", { name });
+      expect(button).toBeDisabled();
+      fireEvent.click(button);
+    }
+    expect(onDownload).not.toHaveBeenCalled();
+    expect(onDownloadAll).not.toHaveBeenCalled();
+
+    rerender(
+      <DownloadSection
+        convertedResults={results}
+        onDownload={onDownload}
+        onDownloadAll={onDownloadAll}
+        isPreparingArchive={false}
+        isSaving={false}
+      />,
+    );
+
+    for (const name of ["Save", "Save as…", "Download all"]) {
+      expect(screen.getByRole("button", { name })).toBeEnabled();
+    }
+  });
+
   it("requests scrolling only when the preview URL changes", async () => {
     const onPreviewReady = vi.fn();
     const result: ConvertedResults = [
       {
+        resultId: "result-4",
         url: "https://example.com/converted.png",
         file: new File(["image content"], "converted.png", {
           type: "image/png",
@@ -52,6 +95,7 @@ describe("DownloadSection", () => {
     ];
     const { rerender } = render(
       <DownloadSection
+        isSaving={false}
         convertedResults={result}
         onDownload={vi.fn()}
         onDownloadAll={vi.fn()}
@@ -66,6 +110,7 @@ describe("DownloadSection", () => {
 
     rerender(
       <DownloadSection
+        isSaving={false}
         convertedResults={result}
         onDownload={vi.fn()}
         onDownloadAll={vi.fn()}
@@ -173,10 +218,12 @@ describe("DownloadSection", () => {
     });
 
     const firstResult = {
+      resultId: "result-5",
       url: "https://example.com/page-1.jpg",
       file: firstFile,
     };
     const secondResult = {
+      resultId: "result-6",
       url: "https://example.com/page-2.jpg",
       file: secondFile,
     };
@@ -185,6 +232,8 @@ describe("DownloadSection", () => {
 
     render(
       <DownloadSection
+
+        isSaving={false}
         convertedResults={[firstResult, secondResult]}
         onDownload={onDownload}
         onDownloadAll={vi.fn()}
@@ -215,11 +264,13 @@ describe("DownloadSection", () => {
 
     fireEvent.click(
       screen.getByRole("button", {
-        name: "Download file",
+        name: "Save",
       }),
     );
 
     expect(onDownload).toHaveBeenCalledWith(secondResult);
+    fireEvent.click(screen.getByRole("button", { name: "Save as…" }));
+    expect(onDownload).toHaveBeenLastCalledWith(secondResult, true);
   });
 
   it("does not show Download all for a single result", () => {
@@ -241,6 +292,8 @@ describe("DownloadSection", () => {
 
     render(
       <DownloadSection
+
+        isSaving={false}
         convertedResults={createMultipleResults()}
         onDownload={vi.fn()}
         onDownloadAll={onDownloadAll}
@@ -260,6 +313,8 @@ describe("DownloadSection", () => {
   it("disables Download all while the archive is being prepared", () => {
     render(
       <DownloadSection
+
+        isSaving={false}
         convertedResults={createMultipleResults()}
         onDownload={vi.fn()}
         onDownloadAll={vi.fn()}

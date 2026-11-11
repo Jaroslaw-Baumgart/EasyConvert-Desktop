@@ -14,11 +14,12 @@ import { useObjectUrl } from "../hooks/useObjectUrl";
 
 interface DownloadSectionProps {
   convertedResults: ConvertedResults;
-  onDownload: (result: ConvertedResult) => void;
+  onDownload: (result: ConvertedResult, saveAs?: boolean) => Promise<void>;
   onDownloadAll: () => void;
   isPreparingArchive: boolean;
   previewRef?: Ref<HTMLDivElement>;
   onPreviewReady?: () => void;
+  isSaving: boolean;
 }
 
 export default function DownloadSection({
@@ -28,6 +29,7 @@ export default function DownloadSection({
   isPreparingArchive,
   previewRef,
   onPreviewReady,
+  isSaving,
 }: DownloadSectionProps) {
   const { t } = useTranslation();
   const downloadButtonRef = useRef<HTMLButtonElement>(null);
@@ -64,7 +66,9 @@ export default function DownloadSection({
           </span>
           <div>
             <h2 className={panelStyles.heading}>{t("download.title")}</h2>
-            <p className={styles["success-message"]}>{t("download.complete")}</p>
+            <p className={styles["success-message"]}>
+              {t("download.complete")}
+            </p>
           </div>
         </div>
 
@@ -72,18 +76,25 @@ export default function DownloadSection({
           <button
             ref={downloadButtonRef}
             type="button"
+            disabled={isSaving}
             className={`${primaryActionStyles.button} ${styles["download-btn"]}`}
-            onClick={() => onDownload(activeResult)}
+            onClick={() => void onDownload(activeResult)}
           >
             <DownloadIcon className={primaryActionStyles.icon} />
-            {t("download.file")}
+            {t("download.save")}
           </button>
-
+          <button
+            type="button"
+            onClick={() => void onDownload(activeResult, true)}
+            disabled={isSaving}
+          >
+            {t("download.saveAs")}
+          </button>
           {convertedResults.length > 1 && (
             <button
               type="button"
               onClick={onDownloadAll}
-              disabled={isPreparingArchive}
+              disabled={isPreparingArchive || isSaving}
             >
               {isPreparingArchive ? t("download.preparing") : t("download.all")}
             </button>
@@ -92,8 +103,12 @@ export default function DownloadSection({
       </div>
       <div className={styles["result-details"]}>
         <FileIcon className={styles["result-file-icon"]} />
-        <span className={styles["result-file-name"]}>{activeResult.file.name}</span>
-        {targetFormat ? <span className={styles["format-badge"]}>{targetFormat}</span> : null}
+        <span className={styles["result-file-name"]}>
+          {activeResult.file.name}
+        </span>
+        {targetFormat ? (
+          <span className={styles["format-badge"]}>{targetFormat}</span>
+        ) : null}
       </div>
       {convertedResults.length > 1 && (
         <div

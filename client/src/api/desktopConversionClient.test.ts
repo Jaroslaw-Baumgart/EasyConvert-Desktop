@@ -29,7 +29,9 @@ function setup() {
     getJobState: vi.fn(),
     onJobStateChanged: vi.fn(),
     resetSource: vi.fn(),
-    saveResult: vi.fn(),
+    saveResult: vi.fn().mockResolvedValue({ status: "saved" }),
+
+    saveResultAs: vi.fn().mockResolvedValue({ status: "saved" }),
   };
 
   vi.mocked(waitForDesktopJob).mockResolvedValue(["result-1"]);
@@ -66,6 +68,7 @@ describe("convertDesktopFile", () => {
     const results = await convertDesktopFile(api, request, "workbook.v2.xlsx");
     expect(api.startConversion).toHaveBeenCalledExactlyOnceWith(request);
     expect(results).toHaveLength(1);
+    expect(results[0].resultId).toBe("result-1");
     expect(results[0].file.name).toBe("workbook.v2.pdf");
     expect(results[0].file.type).toBe("application/pdf");
     expect(await readFile(results[0].file)).toBe("pdf");
@@ -119,6 +122,7 @@ describe("convertDesktopFile", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       2, "app://easyconvert/preview/result/result-2", { signal: undefined },
     );
+    expect(results.map(({ resultId }) => resultId)).toEqual(["result-1", "result-2"]);
     expect(results.map(({ file }) => file.name)).toEqual([
       "document-page-1.jpg", "document-page-2.jpg",
     ]);

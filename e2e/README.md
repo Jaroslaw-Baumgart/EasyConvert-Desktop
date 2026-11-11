@@ -13,7 +13,10 @@ event; it does not automate dragging in Windows Explorer.
 Failed tests retain screenshots, Electron logs and a Playwright trace. CI uploads
 these together with the HTML report, excluding the temporary browser profiles.
 
-The suite covers all ten conversion pairs and validates downloaded output.
+The suite covers all ten conversion pairs and validates files written through
+Save as. The JPG-to-PNG scenario also checks two quick saves to an isolated
+desktop directory, including the numbered filename when the first name is taken.
+ZIP export still uses the renderer download path.
 Office fixtures are generated in each test's output directory, independent of
 ignored manual fixtures. XLSX tests export each of two sheets separately and all
 sheets together, check PDF text for unwanted sheet data and check A3 landscape

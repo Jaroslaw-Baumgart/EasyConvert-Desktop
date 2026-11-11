@@ -157,6 +157,32 @@ function parseStartConversionResponse(value: unknown): StartConversionResponse {
   };
 }
 
+function parseSaveResponse(value: unknown): { status: "saved" | "cancelled" } {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Invalid save response.");
+  }
+
+  if (!("status" in value)) {
+    throw new Error("Invalid save response.");
+  }
+
+  if (value.status !== "saved" && value.status !== "cancelled") {
+    throw new Error("Invalid save response.");
+  }
+
+  return { status: value.status };
+}
+
+async function invokeSave(
+  channel: "easyconvert:save-result" | "easyconvert:save-result-as",
+  resultId: string,
+): Promise<{ status: "saved" | "cancelled" }> {
+  const identifier = parseIdentifier(resultId);
+  const value: unknown = await ipcRenderer.invoke(channel, identifier);
+
+  return parseSaveResponse(value);
+}
+
 const api: EasyConvertApi = {
   platform: "desktop",
 
@@ -223,8 +249,10 @@ const api: EasyConvertApi = {
     };
   },
 
-  saveResult: (resultId) =>
-    ipcRenderer.invoke("easyconvert:save-result", resultId),
+  saveResult: (resultId) => invokeSave("easyconvert:save-result", resultId),
+
+  saveResultAs: (resultId) =>
+    invokeSave("easyconvert:save-result-as", resultId),
 };
 
 contextBridge.exposeInMainWorld("easyConvert", api);

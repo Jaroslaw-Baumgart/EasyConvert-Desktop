@@ -1,5 +1,6 @@
 import { selectDesktopSource } from "../api/desktopSource";
 import {
+  act,
   render,
   screen,
   within,
@@ -223,7 +224,7 @@ describe("FileConverter", () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.getByRole("button", { name: "Download file" }),
+      screen.getByRole("button", { name: "Save" }),
     ).toHaveFocus();
     await waitFor(() => {
       expect(screen.getByTestId("converted-file-preview")).toHaveAttribute(
@@ -448,7 +449,42 @@ describe("FileConverter", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows an error when downloading the converted file fails", async () => {
+  it.each([false, true])("blocks file actions while saving and restores them after completion (saveAs=%s)", async (saveAs) => {
+    const { user, input } = setupFileConverter();
+    await selectNativeFile(user, input, createTestFile.jpg());
+    await user.click(getConvertButton("JPG→PNG"));
+    const saveButton = await screen.findByRole("button", { name: "Save" });
+    const saveAsButton = screen.getByRole("button", { name: "Save as…" });
+    const removeButton = screen.getByRole("button", { name: "Remove file" });
+    const convertButton = screen.getByRole("button", { name: "Convert" });
+    const settingsPanel = convertButton.closest("aside");
+    expect(settingsPanel).not.toBeNull();
+    let finish!: (value: { status: "saved" }) => void;
+    const save = saveAs ? window.easyConvert.saveResultAs : window.easyConvert.saveResult;
+    vi.mocked(save).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+
+    await user.click(saveAs ? saveAsButton : saveButton);
+
+    expect(saveButton).toBeDisabled();
+    expect(saveAsButton).toBeDisabled();
+    expect(removeButton).toBeDisabled();
+    expect(settingsPanel).toHaveAttribute("inert");
+    await user.click(saveButton);
+    await user.click(saveAsButton);
+    await user.click(removeButton);
+    expect(save).toHaveBeenCalledExactlyOnceWith("result-1");
+    expect(window.easyConvert.resetSource).not.toHaveBeenCalled();
+
+    await act(async () => { finish({ status: "saved" }); });
+
+    expect(saveButton).toBeEnabled();
+    expect(saveAsButton).toBeEnabled();
+    expect(removeButton).toBeEnabled();
+    expect(settingsPanel).not.toHaveAttribute("inert");
+    expect(screen.getByTestId("converted-file-preview")).toBeInTheDocument();
+  });
+
+  it.each([false, true])("shows an error and allows retry when saving fails (saveAs=%s)", async (saveAs) => {
 
 
     const { user, input } = setupFileConverter();
@@ -457,14 +493,14 @@ describe("FileConverter", () => {
     await user.click(getConvertButton("JPG→PNG"));
 
     const downloadButton = await screen.findByRole("button", {
-      name: "Download file",
+      name: saveAs ? "Save as…" : "Save",
     });
 
-    vi.spyOn(URL, "createObjectURL").mockImplementationOnce(() => {
-      throw new Error("Browser download failed");
-    });
+    const save = saveAs ? window.easyConvert.saveResultAs : window.easyConvert.saveResult;
+    vi.mocked(save).mockRejectedValueOnce(new Error("Disk full"));
 
     await user.click(downloadButton);
+    expect(save).toHaveBeenCalledExactlyOnceWith("result-1");
 
     expect(
       await screen.findByText(
@@ -527,8 +563,8 @@ describe("FileConverter", () => {
   it("downloads and displays every file returned by a conversion", async () => {
 
     vi.mocked(convertDesktopFile).mockResolvedValueOnce([
-      { url: "app://easyconvert/preview/result/page-1", file: new File(["one"], "page-1.jpg", { type: "image/jpeg" }) },
-      { url: "app://easyconvert/preview/result/page-2", file: new File(["two"], "page-2.jpg", { type: "image/jpeg" }) },
+      { resultId: "page-1", url: "app://easyconvert/preview/result/page-1", file: new File(["one"], "page-1.jpg", { type: "image/jpeg" }) },
+      { resultId: "page-2", url: "app://easyconvert/preview/result/page-2", file: new File(["two"], "page-2.jpg", { type: "image/jpeg" }) },
     ]);
 
     const { user, input } = setupFileConverter();
