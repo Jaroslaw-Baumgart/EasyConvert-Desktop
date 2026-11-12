@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ handle: vi.fn(), showSaveDialog: vi.fn(), trusted: vi.fn(), getPath: vi.fn() }));
-vi.mock("electron", () => ({ app: { getPath: mocks.getPath }, ipcMain: { handle: mocks.handle }, dialog: { showSaveDialog: mocks.showSaveDialog } }));
+const mocks = vi.hoisted(() => ({ handle: vi.fn(), showSaveDialog: vi.fn(), trusted: vi.fn(), getPath: vi.fn(), showItemInFolder: vi.fn() }));
+vi.mock("electron", () => ({ shell: { showItemInFolder: mocks.showItemInFolder }, app: { getPath: mocks.getPath }, ipcMain: { handle: mocks.handle }, dialog: { showSaveDialog: mocks.showSaveDialog } }));
 vi.mock("../main/assertTrustedSender", () => ({ assertTrustedSender: mocks.trusted }));
 import { registerFileActionsIpc } from "../main/fileActionsIpc";
 import { registerSource, clearSource, getSourcePath } from "../main/sourceRegistry";
@@ -45,7 +45,7 @@ describe("native file actions", () => {
     mocks.showSaveDialog.mockResolvedValue({ canceled: false, filePath: destination });
 
     await expect(handler("easyconvert:save-archive")(event, [resultId], true))
-      .resolves.toEqual({ status: "saved" });
+      .resolves.toEqual({ status: "saved", fileName: path.basename(destination) });
 
     expect(mocks.showSaveDialog).toHaveBeenCalledWith(expect.anything(), {
       defaultPath: "source.zip",
@@ -97,7 +97,7 @@ describe("native file actions", () => {
     succeedJob(startJob(), ids);
 
     for (const name of ["Raport Łódź.zip", "Raport Łódź (1).zip"]) {
-      await expect(handler("easyconvert:save-archive")(event, ids)).resolves.toEqual({ status: "saved" });
+      await expect(handler("easyconvert:save-archive")(event, ids)).resolves.toEqual({ status: "saved", fileName: name });
       const files = unzipSync(await readFile(path.join(directory, "EasyConvert Output", name)));
       expect(Object.keys(files)).toEqual(["Raport Łódź-page-1.jpg", "Raport Łódź-page-2.jpg"]);
       expect(Buffer.from(files["Raport Łódź-page-1.jpg"]!).toString()).toBe("first page");
@@ -129,8 +129,12 @@ describe("native file actions", () => {
 
   it("saves without a dialog and chooses a free name on the next save", async () => {
     const save = handler("easyconvert:save-result");
-    await expect(save(event, resultId)).resolves.toEqual({ status: "saved" });
-    await expect(save(event, resultId)).resolves.toEqual({ status: "saved" });
+    await expect(save(event, resultId)).resolves.toEqual({ status: "saved", fileName: "source.png" });
+    await expect(save(event, resultId)).resolves.toEqual({ status: "saved", fileName: "source (1).png" });
+    await handler("easyconvert:show-last-saved-file")(event);
+    expect(mocks.showItemInFolder).toHaveBeenCalledExactlyOnceWith(
+      path.join(directory, "EasyConvert Output", "source (1).png"),
+    );
     const outputDirectory = path.join(directory, "EasyConvert Output");
     expect(await readFile(path.join(outputDirectory, "source.png"), "utf8")).toBe("PNG result");
     expect(await readFile(path.join(outputDirectory, "source (1).png"), "utf8")).toBe("PNG result");
@@ -160,7 +164,7 @@ describe("native file actions", () => {
       const destination = path.join(directory, `chosen-${index}.jpg`);
       mocks.showSaveDialog.mockResolvedValue({ canceled: false, filePath: destination });
 
-      await expect(handler("easyconvert:save-result-as")(event, id)).resolves.toEqual({ status: "saved" });
+      await expect(handler("easyconvert:save-result-as")(event, id)).resolves.toEqual({ status: "saved", fileName: path.basename(destination) });
       expect(mocks.showSaveDialog).toHaveBeenLastCalledWith(expect.anything(), {
         defaultPath: fileName,
         filters: [{ name: "JPG file", extensions: ["jpg"] }],
@@ -168,7 +172,7 @@ describe("native file actions", () => {
       });
       expect(await readFile(destination, "utf8")).toBe(`page ${index + 1}`);
 
-      await expect(handler("easyconvert:save-result")(event, id)).resolves.toEqual({ status: "saved" });
+      await expect(handler("easyconvert:save-result")(event, id)).resolves.toEqual({ status: "saved", fileName });
       expect(await readFile(path.join(directory, "EasyConvert Output", fileName), "utf8"))
         .toBe(`page ${index + 1}`);
       expect(getResultPath(id)).toBe(pages[index]);
@@ -199,7 +203,7 @@ describe("native file actions", () => {
   it("copies the result only to the dialog-approved destination", async () => {
     const destination = path.join(directory, "export.png");
     mocks.showSaveDialog.mockResolvedValue({ canceled: false, filePath: destination });
-    await expect(handler("easyconvert:save-result-as")(event, resultId)).resolves.toEqual({ status: "saved" });
+    await expect(handler("easyconvert:save-result-as")(event, resultId)).resolves.toEqual({ status: "saved", fileName: "export.png" });
     expect(mocks.showSaveDialog).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       defaultPath: "source.png",
       filters: [{ name: "PNG file", extensions: ["png"] }],

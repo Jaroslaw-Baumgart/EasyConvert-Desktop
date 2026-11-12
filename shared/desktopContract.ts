@@ -24,9 +24,10 @@ export interface EasyConvertApi {
   getJobState(): Promise<ConversionJobState>;
   onJobStateChanged(listener: (state: ConversionJobState) => void): () => void;
   resetSource(): Promise<void>;
-  saveResult(resultId: string): Promise<{ status: "saved" | "cancelled" }>;
-  saveResultAs(resultId: string): Promise<{ status: "saved" | "cancelled" }>;
-  saveArchive(resultIds: string[], saveAs?: boolean): Promise<{ status: "saved" | "cancelled" }>;
+  saveResult(resultId: string): Promise<SaveResponse>;
+  saveResultAs(resultId: string): Promise<SaveResponse>;
+  saveArchive(resultIds: string[], saveAs?: boolean): Promise<SaveResponse>;
+  showLastSavedFile(): Promise<void>;
 }
 
 export type StartConversionRequest =
@@ -51,3 +52,7 @@ export type ConversionJobState =
   | { status: "succeeded"; jobId: string; resultIds: string[] }
   | { status: "failed"; jobId: string; message: string }
   | { status: "cancelled"; jobId: string };
+
+export type SaveResponse =
+  | { status: "cancelled" }
+  | { status: "saved"; fileName: string };

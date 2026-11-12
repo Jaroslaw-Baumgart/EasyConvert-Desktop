@@ -1,3 +1,4 @@
+import type { SaveResponse } from "../../../shared/desktopContract";
 import { selectDesktopSource } from "../api/desktopSource";
 import {
   act,
@@ -459,7 +460,7 @@ describe("FileConverter", () => {
     const convertButton = screen.getByRole("button", { name: "Convert" });
     const settingsPanel = convertButton.closest("aside");
     expect(settingsPanel).not.toBeNull();
-    let finish!: (value: { status: "saved" }) => void;
+    let finish!: (value: SaveResponse) => void;
     const save = saveAs ? window.easyConvert.saveResultAs : window.easyConvert.saveResult;
     vi.mocked(save).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
 
@@ -475,7 +476,7 @@ describe("FileConverter", () => {
     expect(save).toHaveBeenCalledExactlyOnceWith("result-1");
     expect(window.easyConvert.resetSource).not.toHaveBeenCalled();
 
-    await act(async () => { finish({ status: "saved" }); });
+    await act(async () => { finish({ status: "saved", fileName: "converted.png" }); });
 
     expect(saveButton).toBeEnabled();
     expect(saveAsButton).toBeEnabled();

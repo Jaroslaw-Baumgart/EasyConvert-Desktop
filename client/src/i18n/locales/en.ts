@@ -73,6 +73,10 @@ export const en = {
     page: "Page {{index}}",
     save: "Save",
     saveAs: "Save as…",
+    saved: "Saved “{{fileName}}”",
+    showInFolder: "Show in folder",
+    closeNotification: "Dismiss notification",
+    folderError: "Could not show the saved file in its folder.",
   },
   preview: {
     expand: "Expand preview",

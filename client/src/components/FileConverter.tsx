@@ -14,6 +14,7 @@ import { useConversion } from "../hooks/useConversion";
 import type { ConversionSettings } from "../schemas/conversionSettings";
 import type { ConvertedResult } from "../types/conversionResult";
 import { useTranslation } from "react-i18next";
+import SaveNotification from "./SaveNotification";
 
 function getAvailableOptions(
   file: File | null,
@@ -51,6 +52,8 @@ export default function FileConverter({
     isPreparingArchive,
     downloadAllConvertedFiles,
     isSaving,
+    savedFileName,
+    dismissSaveNotification,
   } = useConversion();
 
   const [hasFormError, setHasFormError] = useState(false);
@@ -139,7 +142,8 @@ export default function FileConverter({
                 className={styles["remove-file-btn"]}
                 onClick={handleFileRemove}
                 disabled={
-                  isRemoving || isSaving ||
+                  isRemoving ||
+                  isSaving ||
                   (window.easyConvert?.platform === "desktop" && isConverting)
                 }
               >
@@ -154,7 +158,10 @@ export default function FileConverter({
               />
             </div>
           </section>
-          <aside className={styles["conversion-sidebar"]} inert={isRemoving || isSaving}>
+          <aside
+            className={styles["conversion-sidebar"]}
+            inert={isRemoving || isSaving}
+          >
             <ConversionOptions
               options={availableOptions}
               onConvert={handleConvert}
@@ -191,6 +198,13 @@ export default function FileConverter({
           previewRef={convertedPreviewRef}
           onPreviewReady={scrollToConvertedPreview}
           isSaving={isSaving}
+        />
+      )}
+      {savedFileName && (
+        <SaveNotification
+          fileName={savedFileName}
+          onClose={dismissSaveNotification}
+          onShowInFolder={() => window.easyConvert.showLastSavedFile()}
         />
       )}
     </div>

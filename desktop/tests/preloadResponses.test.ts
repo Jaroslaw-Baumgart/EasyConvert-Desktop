@@ -245,8 +245,9 @@ describe.each([
 ] as const)("$method preload", ({ method, channel }) => {
   it.each(["saved", "cancelled"] as const)("validates the %s response", async (status) => {
     const api = await loadApi();
-    mocks.invoke.mockResolvedValue({ status, extra: "discarded" });
-    await expect(api[method]("result-1")).resolves.toEqual({ status });
+    const response = status === "saved" ? { status, fileName: "photo (1).png" } : { status };
+    mocks.invoke.mockResolvedValue({ ...response, extra: "discarded" });
+    await expect(api[method]("result-1")).resolves.toEqual(response);
     expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith(channel, "result-1");
   });
 
@@ -256,11 +257,20 @@ describe.each([
     expect(mocks.invoke).not.toHaveBeenCalled();
   });
 
-  it.each([null, [], {}, { status: "selected" }])("rejects an invalid response: %j", async (value) => {
+  it.each([null, [], {}, { status: "selected" }, { status: "saved" },
+    { status: "saved", fileName: "" }, { status: "saved", fileName: 123 },
+  ])("rejects an invalid response: %j", async (value) => {
     const api = await loadApi();
     mocks.invoke.mockResolvedValue(value);
     await expect(api[method]("result-1")).rejects.toThrow("Invalid save response.");
   });
+});
+
+it("reveals the last saved file without accepting a renderer path", async () => {
+  const api = await loadApi();
+  mocks.invoke.mockResolvedValue(undefined);
+  await expect(api.showLastSavedFile()).resolves.toBeUndefined();
+  expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith("easyconvert:show-last-saved-file");
 });
 
 describe("archive saving preload", () => {
@@ -274,8 +284,8 @@ describe("archive saving preload", () => {
   it.each([1, 100])("accepts %i result identifiers", async (count) => {
     const api = await loadApi();
     const identifiers = Array.from({ length: count }, (_, index) => `result-${index}`);
-    mocks.invoke.mockResolvedValue({ status: "saved" });
-    await expect(api.saveArchive(identifiers)).resolves.toEqual({ status: "saved" });
+    mocks.invoke.mockResolvedValue({ status: "saved", fileName: "photos.zip" });
+    await expect(api.saveArchive(identifiers)).resolves.toEqual({ status: "saved", fileName: "photos.zip" });
     expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith("easyconvert:save-archive", identifiers);
   });
 

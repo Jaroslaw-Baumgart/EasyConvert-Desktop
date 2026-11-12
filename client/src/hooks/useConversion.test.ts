@@ -1,3 +1,4 @@
+import type { SaveResponse } from "../../../shared/desktopContract";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useConversion } from "./useConversion";
@@ -42,7 +43,7 @@ describe("native archive saving", () => {
 
   it("passes identifiers and blocks other file actions until the archive is saved", async () => {
     const { api, result, output, file } = await setupArchive();
-    let finish!: (value: { status: "saved" }) => void;
+    let finish!: (value: SaveResponse) => void;
     vi.mocked(api.saveArchive).mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
     vi.mocked(convertDesktopFile).mockClear();
     let saving!: Promise<void>;
@@ -65,7 +66,7 @@ describe("native archive saving", () => {
     expect(result.current.file).toBe(file);
     expect(result.current.convertedResults).toBe(output);
 
-    await act(async () => { finish({ status: "saved" }); await saving; });
+    await act(async () => { finish({ status: "saved", fileName: "converted.png" }); await saving; });
     expect(result.current.isSaving).toBe(false);
     expect(result.current.isPreparingArchive).toBe(false);
     expect(result.current.conversionError).toBeNull();

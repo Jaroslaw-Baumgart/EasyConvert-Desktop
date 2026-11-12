@@ -155,9 +155,10 @@ describe("FileUpload", () => {
       getJobState: vi.fn(),
       onJobStateChanged: vi.fn(),
       resetSource: vi.fn(),
-      saveResult: vi.fn().mockResolvedValue({ status: "saved" }),
-      saveResultAs: vi.fn().mockResolvedValue({ status: "saved" }),
-      saveArchive: vi.fn().mockResolvedValue({ status: "saved" }),
+      saveResult: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.png" }),
+      saveResultAs: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.png" }),
+      saveArchive: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.zip" }),
+      showLastSavedFile: vi.fn().mockResolvedValue(undefined),
     };
     vi.stubGlobal("easyConvert", api);
 

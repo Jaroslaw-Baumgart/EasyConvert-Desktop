@@ -75,6 +75,10 @@ export const pl = {
     page: "Strona {{index}}",
     save: "Zapisz",
     saveAs: "Zapisz jako…",
+    saved: "Zapisano „{{fileName}}”",
+    showInFolder: "Pokaż w folderze",
+    closeNotification: "Zamknij powiadomienie",
+    folderError: "Nie można pokazać zapisanego pliku w folderze.",
   },
   preview: {
     expand: "Powiększ podgląd",

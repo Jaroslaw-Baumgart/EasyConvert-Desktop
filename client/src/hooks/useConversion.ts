@@ -33,6 +33,8 @@ type UseConversionResult = {
     saveAs?: boolean,
   ) => Promise<void>;
   downloadAllConvertedFiles: (saveAs?: boolean) => Promise<void>;
+  savedFileName: string | null;
+  dismissSaveNotification: () => void;
 };
 
 export function useConversion(): UseConversionResult {
@@ -53,6 +55,7 @@ export function useConversion(): UseConversionResult {
   const [isSaving, setIsSaving] = useState(false);
   const [isPreparingArchive, setIsPreparingArchive] = useState(false);
   const [removalError, setRemovalError] = useState<string | null>(null);
+  const [savedFileName, setSavedFileName] = useState<string | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -241,6 +244,7 @@ export function useConversion(): UseConversionResult {
 
     const requestId = requestIdRef.current;
     savingPendingRef.current = true;
+    setSavedFileName(null);
     setIsSaving(true);
 
     try {
@@ -250,6 +254,9 @@ export function useConversion(): UseConversionResult {
 
       if (!isCurrentRequest(requestId) || response.status === "cancelled")
         return;
+
+      setSavedFileName(response.fileName);
+
       dispatch({ type: "downloadSucceeded" });
     } catch (cause: unknown) {
       if (!isCurrentRequest(requestId)) return;
@@ -276,6 +283,7 @@ export function useConversion(): UseConversionResult {
     const requestId = requestIdRef.current;
     savingPendingRef.current = true;
     setIsSaving(true);
+    setSavedFileName(null);
     setIsPreparingArchive(true);
 
     try {
@@ -286,6 +294,8 @@ export function useConversion(): UseConversionResult {
 
       if (!isCurrentRequest(requestId)) return;
       if (response.status === "cancelled") return;
+
+      setSavedFileName(response.fileName);
 
       dispatch({ type: "downloadSucceeded" });
     } catch (cause: unknown) {
@@ -301,6 +311,10 @@ export function useConversion(): UseConversionResult {
     }
   };
 
+  const dismissSaveNotification = (): void => {
+    setSavedFileName(null);
+  };
+
   return {
     file,
     convertedResults,
@@ -313,6 +327,8 @@ export function useConversion(): UseConversionResult {
     convert,
     downloadConvertedFile,
     isPreparingArchive,
+    savedFileName,
+    dismissSaveNotification,
     downloadAllConvertedFiles,
   };
 }

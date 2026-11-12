@@ -1,3 +1,4 @@
+import type { SaveResponse } from "../../../shared/desktopContract";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EasyConvertApi } from "../../../shared/desktopContract";
@@ -55,9 +56,10 @@ function setup() {
     getJobState: vi.fn(),
     onJobStateChanged: vi.fn(),
     resetSource: vi.fn().mockResolvedValue(undefined),
-    saveResult: vi.fn().mockResolvedValue({ status: "saved" }),
-    saveResultAs: vi.fn().mockResolvedValue({ status: "saved" }),
-    saveArchive: vi.fn().mockResolvedValue({ status: "saved" }),
+    saveResult: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.png" }),
+    saveResultAs: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.png" }),
+    saveArchive: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.zip" }),
+    showLastSavedFile: vi.fn().mockResolvedValue(undefined),
   };
 
   const file = new File(["jpg"], "photo.jpg", {
@@ -560,7 +562,7 @@ describe("desktop useConversion", () => {
 describe("native result saving", () => {
   it("blocks duplicate saves, reset, replacement, conversion and ZIP while saving", async () => {
     const { api, result, output, file } = await setupConvertedFile();
-    const pending = deferred<{ status: "saved" }>();
+    const pending = deferred<SaveResponse>();
     vi.mocked(api.saveResult).mockReturnValueOnce(pending.promise);
     vi.mocked(convertDesktopFile).mockClear();
     let saving!: Promise<void>;
@@ -584,7 +586,7 @@ describe("native result saving", () => {
     expect(result.current.convertedResults).toBe(output);
     expect(result.current.isPreparingArchive).toBe(false);
 
-    await act(async () => { pending.resolve({ status: "saved" }); await saving; });
+    await act(async () => { pending.resolve({ status: "saved", fileName: "converted.png" }); await saving; });
     expect(result.current.isSaving).toBe(false);
     await act(async () => { await result.current.removeFile(); });
     expect(api.resetSource).toHaveBeenCalledTimes(1);
@@ -621,7 +623,7 @@ describe("native result saving", () => {
 
   it("ignores a save failure after unmount", async () => {
     const { api, result, output, unmount } = await setupConvertedFile();
-    const pending = deferred<{ status: "saved" }>();
+    const pending = deferred<SaveResponse>();
     vi.mocked(api.saveResult).mockReturnValueOnce(pending.promise);
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
     let saving!: Promise<void>;

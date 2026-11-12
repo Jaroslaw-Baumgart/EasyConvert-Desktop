@@ -6,6 +6,7 @@ import type {
   SelectedSource,
   SourceSelection,
   StartConversionResponse,
+  SaveResponse,
 } from "../../shared/desktopContract";
 
 function parseIdentifier(value: unknown): string {
@@ -157,26 +158,39 @@ function parseStartConversionResponse(value: unknown): StartConversionResponse {
   };
 }
 
-function parseSaveResponse(value: unknown): { status: "saved" | "cancelled" } {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+function parseSaveResponse(value: unknown): SaveResponse {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    !("status" in value)
+  ) {
     throw new Error("Invalid save response.");
   }
 
-  if (!("status" in value)) {
-    throw new Error("Invalid save response.");
+  if (value.status === "cancelled") {
+    return { status: "cancelled" };
   }
 
-  if (value.status !== "saved" && value.status !== "cancelled") {
-    throw new Error("Invalid save response.");
+  if (
+    value.status === "saved" &&
+    "fileName" in value &&
+    typeof value.fileName === "string" &&
+    value.fileName.length > 0
+  ) {
+    return {
+      status: "saved",
+      fileName: value.fileName,
+    };
   }
 
-  return { status: value.status };
+  throw new Error("Invalid save response.");
 }
 
 async function invokeSave(
   channel: "easyconvert:save-result" | "easyconvert:save-result-as",
   resultId: string,
-): Promise<{ status: "saved" | "cancelled" }> {
+): Promise<SaveResponse> {
   const identifier = parseIdentifier(resultId);
   const value: unknown = await ipcRenderer.invoke(channel, identifier);
 
@@ -274,6 +288,10 @@ const api: EasyConvertApi = {
 
   saveResultAs: (resultId) =>
     invokeSave("easyconvert:save-result-as", resultId),
+
+  showLastSavedFile: async () => {
+    await ipcRenderer.invoke("easyconvert:show-last-saved-file");
+  },
 };
 
 contextBridge.exposeInMainWorld("easyConvert", api);

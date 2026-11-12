@@ -1,4 +1,4 @@
-import { dialog, ipcMain, type BrowserWindow } from "electron";
+import { dialog, ipcMain, shell, type BrowserWindow } from "electron";
 import { copyFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { assertTrustedSender } from "./assertTrustedSender";
@@ -22,8 +22,10 @@ async function assertExportDestination(
     destination = await stat(destinationPath);
   } catch (error: unknown) {
     if (
-      typeof error !== "object" || error === null ||
-      !("code" in error) || error.code !== "ENOENT"
+      typeof error !== "object" ||
+      error === null ||
+      !("code" in error) ||
+      error.code !== "ENOENT"
     ) {
       throw error;
     }
@@ -33,7 +35,9 @@ async function assertExportDestination(
     const info = await stat(protectedPath);
     if (
       normalize(protectedPath) === normalize(destinationPath) ||
-      (destination && info.dev === destination.dev && info.ino === destination.ino)
+      (destination &&
+        info.dev === destination.dev &&
+        info.ino === destination.ino)
     ) {
       throw new Error("Cannot overwrite the source or temporary result.");
     }
@@ -113,6 +117,8 @@ function resolveArchiveEntries(): {
   });
 }
 
+let lastSavedPath: string | null = null;
+
 export function registerFileActionsIpc(
   owner: BrowserWindow,
   rendererUrl: string,
@@ -134,12 +140,23 @@ export function registerFileActionsIpc(
     async (event, ...args: unknown[]) => {
       assertTrustedSender(event, owner, rendererUrl);
 
-      const { resultPath, fileName } = resolveResult(parseResultIdentifier(args));
+      const { resultPath, fileName } = resolveResult(
+        parseResultIdentifier(args),
+      );
       const outputDirectory = getDefaultOutputDirectory();
 
-      await saveResultFile(resultPath, outputDirectory, fileName);
+      const savedPath = await saveResultFile(
+        resultPath,
+        outputDirectory,
+        fileName,
+      );
 
-      return { status: "saved" };
+      lastSavedPath = savedPath;
+
+      return {
+        status: "saved",
+        fileName: path.basename(savedPath),
+      };
     },
   );
 
@@ -181,6 +198,7 @@ export function registerFileActionsIpc(
       }
 
       const fileName = `${path.parse(sourcePath).name}.zip`;
+      let savedPath: string;
 
       if (args[1] === true) {
         const selection = await dialog.showSaveDialog(owner, {
@@ -199,8 +217,10 @@ export function registerFileActionsIpc(
             current.status !== "succeeded" ||
             current.jobId !== job.jobId ||
             current.resultIds.length !== resultIds.length ||
-            !resultIds.every((id, index) =>
-              id === current.resultIds[index] && getResultPath(id) === entries[index]!.resultPath,
+            !resultIds.every(
+              (id, index) =>
+                id === current.resultIds[index] &&
+                getResultPath(id) === entries[index]!.resultPath,
             ) ||
             getCurrentSourcePath() !== sourcePath
           ) {
@@ -209,19 +229,27 @@ export function registerFileActionsIpc(
         };
 
         const destinationPath = selection.filePath;
-        const protectedPaths = [sourcePath, ...entries.map((entry) => entry.resultPath)];
+        const protectedPaths = [
+          sourcePath,
+          ...entries.map((entry) => entry.resultPath),
+        ];
         assertCurrentResults();
         await assertExportDestination(destinationPath, protectedPaths);
-        await saveArchiveAs(entries, destinationPath, async () => {
+        savedPath = await saveArchiveAs(entries, destinationPath, async () => {
           assertCurrentResults();
           await assertExportDestination(destinationPath, protectedPaths);
           assertCurrentResults();
         });
       } else {
-        await saveArchive(entries, outputDirectory, fileName);
+        savedPath = await saveArchive(entries, outputDirectory, fileName);
       }
 
-      return { status: "saved" };
+      lastSavedPath = savedPath;
+
+      return {
+        status: "saved",
+        fileName: path.basename(savedPath),
+      };
     },
   );
 
@@ -230,7 +258,9 @@ export function registerFileActionsIpc(
     async (event, ...args: unknown[]) => {
       assertTrustedSender(event, owner, rendererUrl);
 
-      const { resultId, resultPath, fileName } = resolveResult(parseResultIdentifier(args));
+      const { resultId, resultPath, fileName } = resolveResult(
+        parseResultIdentifier(args),
+      );
       const extension = path.extname(resultPath).slice(1).toLowerCase();
 
       const selection = await dialog.showSaveDialog(owner, {
@@ -266,7 +296,37 @@ export function registerFileActionsIpc(
 
       await copyFile(resultPath, selection.filePath);
 
-      return { status: "saved" };
+      lastSavedPath = selection.filePath;
+
+      return {
+        status: "saved",
+        fileName: path.basename(selection.filePath),
+      };
+    },
+  );
+
+  ipcMain.handle(
+    "easyconvert:show-last-saved-file",
+    async (event, ...args: unknown[]) => {
+      assertTrustedSender(event, owner, rendererUrl);
+
+      if (args.length > 0) {
+        throw new Error("Unexpected arguments.");
+      }
+
+      const savedPath = lastSavedPath;
+
+      if (!savedPath) {
+        throw new Error("No saved file available.");
+      }
+
+      const metadata = await stat(savedPath);
+
+      if (!metadata.isFile()) {
+        throw new Error("Saved file is no longer available.");
+      }
+
+      shell.showItemInFolder(savedPath);
     },
   );
 }
