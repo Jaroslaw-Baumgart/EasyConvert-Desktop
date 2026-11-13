@@ -2,7 +2,11 @@ import { dialog, ipcMain, shell, type BrowserWindow } from "electron";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { assertTrustedSender } from "./assertTrustedSender";
-import { clearSource, getCurrentSourcePath } from "./sourceRegistry";
+import {
+  clearSource,
+  getCurrentSourcePath,
+  getOriginalSourcePath,
+} from "./sourceRegistry";
 import { clearResult, getResultPath } from "./resultRegistry";
 import { getJobState, resetJob } from "./jobRegistry";
 import { getDefaultOutputDirectory, saveResultFile } from "./saveResultFile";
@@ -34,13 +38,30 @@ async function assertExportDestination(
   }
 
   for (const protectedPath of protectedPaths) {
-    const info = await stat(protectedPath);
-    if (
-      normalize(protectedPath) === normalize(destinationPath) ||
-      (destination &&
-        info.dev === destination.dev &&
-        info.ino === destination.ino)
-    ) {
+    if (normalize(protectedPath) === normalize(destinationPath)) {
+      throw new Error("Cannot overwrite the source or temporary result.");
+    }
+
+    if (!destination) continue;
+
+    let info: Awaited<ReturnType<typeof stat>>;
+
+    try {
+      info = await stat(protectedPath);
+    } catch (error: unknown) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
+        continue;
+      }
+
+      throw error;
+    }
+
+    if (info.dev === destination.dev && info.ino === destination.ino) {
       throw new Error("Cannot overwrite the source or temporary result.");
     }
   }
@@ -84,7 +105,7 @@ function resolveResult(resultId: string): {
   }
 
   const resultPath = getResultPath(resultId);
-  const sourcePath = getCurrentSourcePath();
+  const sourcePath = getOriginalSourcePath();
 
   if (!sourcePath) {
     throw new Error("Unknown source.");
@@ -217,7 +238,7 @@ export function registerFileActionsIpc(
 
       const entries = resolveArchiveEntries();
       const outputDirectory = getDefaultOutputDirectory();
-      const sourcePath = getCurrentSourcePath();
+      const sourcePath = getOriginalSourcePath();
 
       if (!sourcePath) {
         throw new Error("Unknown source.");
@@ -249,7 +270,7 @@ export function registerFileActionsIpc(
                   id === current.resultIds[index] &&
                   getResultPath(id) === entries[index]!.resultPath,
               ) ||
-              getCurrentSourcePath() !== sourcePath
+              getOriginalSourcePath() !== sourcePath
             ) {
               throw new Error("Conversion results have expired.");
             }
@@ -260,6 +281,11 @@ export function registerFileActionsIpc(
             sourcePath,
             ...entries.map((entry) => entry.resultPath),
           ];
+          const copiedPath = getCurrentSourcePath();
+
+          if (copiedPath) {
+            protectedPaths.push(copiedPath);
+          }
           assertCurrentResults();
           await assertExportDestination(destinationPath, protectedPaths);
           savedPath = await saveArchiveAs(
@@ -321,11 +347,18 @@ export function registerFileActionsIpc(
         throw new Error("Result has expired.");
       }
 
-      const sourcePath = getCurrentSourcePath();
-      await assertExportDestination(
-        selection.filePath,
-        sourcePath ? [resultPath, sourcePath] : [resultPath],
-      );
+      const protectedPaths = [resultPath];
+
+      for (const sourcePath of [
+        getOriginalSourcePath(),
+        getCurrentSourcePath(),
+      ]) {
+        if (sourcePath) {
+          protectedPaths.push(sourcePath);
+        }
+      }
+
+      await assertExportDestination(selection.filePath, protectedPaths);
 
       if (getResultPath(resultId) !== resultPath) {
         throw new Error("Result has expired.");

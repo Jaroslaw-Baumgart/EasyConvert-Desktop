@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -25,39 +26,34 @@ const createMultipleResults = (): ConvertedResults => [
   },
 ];
 
-const renderDownloadSection = (file: File, url: string) => {
-  render(
-    <DownloadSection
+type Props = ComponentProps<typeof DownloadSection>;
 
-      isSaving={false}
-      convertedResults={[
-        {
-          resultId: "result-3",
-          url,
-          file,
-        },
-      ]}
-      onDownload={vi.fn()}
-      onDownloadAll={vi.fn()}
-      isPreparingArchive={false}
-    />,
-  );
-};
+function setup(overrides: Partial<Props> = {}) {
+  const props = {
+    convertedResults: createMultipleResults(),
+    onDownload: vi.fn(),
+    onDownloadAll: vi.fn(),
+    isSaving: false,
+    isPreparingArchive: false,
+    ...overrides,
+  };
+  const view = render(<DownloadSection {...props} />);
+  return {
+    ...view,
+    ...props,
+    rerender: (changes: Partial<Props>) => view.rerender(<DownloadSection {...props} {...changes} />),
+  };
+}
+
+const renderDownloadSection = (file: File, url: string) =>
+  setup({ convertedResults: [{ resultId: "result-3", url, file }] });
 
 describe("DownloadSection", () => {
   it("disables export actions while saving and enables them afterwards", () => {
     const onDownload = vi.fn().mockResolvedValue(undefined);
     const onDownloadAll = vi.fn();
     const results = createMultipleResults();
-    const { rerender } = render(
-      <DownloadSection
-        convertedResults={results}
-        onDownload={onDownload}
-        onDownloadAll={onDownloadAll}
-        isPreparingArchive={false}
-        isSaving
-      />,
-    );
+    const { rerender } = setup({ convertedResults: results, onDownload, onDownloadAll, isSaving: true });
 
     for (const name of ["Save", "Save as…", "Save all as ZIP"]) {
       const button = screen.getByRole("button", { name });
@@ -67,15 +63,7 @@ describe("DownloadSection", () => {
     expect(onDownload).not.toHaveBeenCalled();
     expect(onDownloadAll).not.toHaveBeenCalled();
 
-    rerender(
-      <DownloadSection
-        convertedResults={results}
-        onDownload={onDownload}
-        onDownloadAll={onDownloadAll}
-        isPreparingArchive={false}
-        isSaving={false}
-      />,
-    );
+    rerender({ isSaving: false });
 
     for (const name of ["Save", "Save as…", "Save all as ZIP"]) {
       expect(screen.getByRole("button", { name })).toBeEnabled();
@@ -93,31 +81,13 @@ describe("DownloadSection", () => {
         }),
       },
     ];
-    const { rerender } = render(
-      <DownloadSection
-        isSaving={false}
-        convertedResults={result}
-        onDownload={vi.fn()}
-        onDownloadAll={vi.fn()}
-        isPreparingArchive={false}
-        onPreviewReady={onPreviewReady}
-      />,
-    );
+    const { rerender } = setup({ convertedResults: result, onPreviewReady });
 
     await waitFor(() => {
       expect(onPreviewReady).toHaveBeenCalledTimes(1);
     });
 
-    rerender(
-      <DownloadSection
-        isSaving={false}
-        convertedResults={result}
-        onDownload={vi.fn()}
-        onDownloadAll={vi.fn()}
-        isPreparingArchive
-        onPreviewReady={onPreviewReady}
-      />,
-    );
+    rerender({ isPreparingArchive: true });
 
     expect(onPreviewReady).toHaveBeenCalledTimes(1);
   });
@@ -210,36 +180,11 @@ describe("DownloadSection", () => {
   });
 
   it("selects and downloads a specific converted result", () => {
-    const firstFile = new File(["page one"], "page-1.jpg", {
-      type: "image/jpeg",
-    });
-    const secondFile = new File(["page two"], "page-2.jpg", {
-      type: "image/jpeg",
-    });
-
-    const firstResult = {
-      resultId: "result-5",
-      url: "https://example.com/page-1.jpg",
-      file: firstFile,
-    };
-    const secondResult = {
-      resultId: "result-6",
-      url: "https://example.com/page-2.jpg",
-      file: secondFile,
-    };
+    const [firstResult, secondResult] = createMultipleResults();
 
     const onDownload = vi.fn();
 
-    render(
-      <DownloadSection
-
-        isSaving={false}
-        convertedResults={[firstResult, secondResult]}
-        onDownload={onDownload}
-        onDownloadAll={vi.fn()}
-        isPreparingArchive={false}
-      />,
-    );
+    setup({ convertedResults: [firstResult, secondResult], onDownload });
 
     const firstPageButton = screen.getByRole("button", {
       name: "Page 1",
@@ -290,16 +235,7 @@ describe("DownloadSection", () => {
   it.each([false, true])("saves the archive with saveAs=%s", (saveAs) => {
     const onDownloadAll = vi.fn();
 
-    render(
-      <DownloadSection
-
-        isSaving={false}
-        convertedResults={createMultipleResults()}
-        onDownload={vi.fn()}
-        onDownloadAll={onDownloadAll}
-        isPreparingArchive={false}
-      />,
-    );
+    setup({ onDownloadAll });
 
     const popup = screen.getByRole("group", { hidden: true });
     popup.style.display = "block";
@@ -313,16 +249,7 @@ describe("DownloadSection", () => {
   });
 
   it("disables Save all as ZIP while the archive is being prepared", () => {
-    render(
-      <DownloadSection
-
-        isSaving={false}
-        convertedResults={createMultipleResults()}
-        onDownload={vi.fn()}
-        onDownloadAll={vi.fn()}
-        isPreparingArchive
-      />,
-    );
+    setup({ isPreparingArchive: true });
 
     expect(
       screen.getByRole("button", {

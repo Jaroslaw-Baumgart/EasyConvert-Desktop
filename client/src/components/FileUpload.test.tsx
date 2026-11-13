@@ -1,3 +1,4 @@
+import { createDesktopApi } from "../test/desktopApi";
 import { selectDesktopSource } from "../api/desktopSource";
 import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -147,19 +148,8 @@ describe("FileUpload", () => {
     const selectDroppedSource = vi.fn<EasyConvertApi["selectDroppedSource"]>(
       () => new Promise((resolve) => { finishRegistration = resolve; }),
     );
-    const api: EasyConvertApi = {
-      platform: "desktop",
-      selectSource: vi.fn(),
-      selectDroppedSource,
-      startConversion: vi.fn(),
-      getJobState: vi.fn(),
-      onJobStateChanged: vi.fn(),
-      resetSource: vi.fn(),
-      saveResult: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.png" }),
-      saveResultAs: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.png" }),
-      saveArchive: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.zip" }),
-      showLastSavedFile: vi.fn().mockResolvedValue(undefined),
-    };
+    const api = createDesktopApi();
+    vi.mocked(api.selectDroppedSource).mockImplementation(selectDroppedSource);
     vi.stubGlobal("easyConvert", api);
 
     renderFileUpload(onFileSelect);

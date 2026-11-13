@@ -35,10 +35,10 @@ describe("writeZip", () => {
       "Raport Łódź-page-1.jpg",
       "Raport Łódź-page-2.jpg",
     ]);
-    expect(Buffer.from(files["Raport Łódź-page-1.jpg"]!)).toEqual(secondBytes);
-    expect(Buffer.from(files["Raport Łódź-page-2.jpg"]!)).toEqual(firstBytes);
-    expect(await readFile(firstPath)).toEqual(firstBytes);
-    expect(await readFile(secondPath)).toEqual(secondBytes);
+    expect(Buffer.from(files["Raport Łódź-page-1.jpg"]!).equals(secondBytes)).toBe(true);
+    expect(Buffer.from(files["Raport Łódź-page-2.jpg"]!).equals(firstBytes)).toBe(true);
+    expect((await readFile(firstPath)).equals(firstBytes)).toBe(true);
+    expect((await readFile(secondPath)).equals(secondBytes)).toBe(true);
   });
 
   it("does not overwrite or delete an existing destination", async () => {

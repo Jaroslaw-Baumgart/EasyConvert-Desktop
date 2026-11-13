@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile, readFile, readdir, rm } from "node:fs/promises";
+import { copyFile, mkdtemp, writeFile, readFile, readdir, rm } from "node:fs/promises";
 import { unzipSync } from "fflate";
 import os from "node:os";
 import path from "node:path";
@@ -17,30 +17,61 @@ let sourceId: string;
 let resultId: string;
 let sourcePath: string;
 let resultPath: string;
+let copiedSourcePath: string;
+async function registerTestSource(original: string): Promise<string> {
+  const ownedDirectory = await mkdtemp(path.join(directory, "source-copy-"));
+  copiedSourcePath = path.join(ownedDirectory, path.basename(original));
+  await copyFile(original, copiedSourcePath);
+  return registerSource(copiedSourcePath, original, ownedDirectory);
+}
 type Handler = (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown;
 const event = {} as IpcMainInvokeEvent;
 function handler(channel: string): Handler {
-  return mocks.handle.mock.calls.find(([name]) => name === channel)![1];
+  const registered = mocks.handle.mock.calls.find(([name]) => name === channel);
+  if (!registered) throw new Error(`Missing IPC handler: ${channel}`);
+  return registered[1];
 }
 beforeEach(async () => {
   vi.resetAllMocks();
-  resetJob(); clearSource(); clearResult();
+  resetJob();
+  clearSource();
+  clearResult();
   directory = await mkdtemp(path.join(os.tmpdir(), "easyconvert-actions-test-"));
   mocks.getPath.mockReturnValue(directory);
   sourcePath = path.join(directory, "source.jpg");
   resultPath = path.join(directory, "result.png");
-  await writeFile(sourcePath, "source bytes"); await writeFile(resultPath, "PNG result");
-  sourceId = registerSource(sourcePath); resultId = registerResult(resultPath);
+  await writeFile(sourcePath, "source bytes");
+  await writeFile(resultPath, "PNG result");
+  sourceId = await registerTestSource(sourcePath);
+  resultId = registerResult(resultPath);
   succeedJob(startJob(), [resultId]);
   registerFileActionsIpc({} as BrowserWindow, "app://easyconvert/");
 });
 afterEach(async () => {
   vi.restoreAllMocks();
-  const job = getJobState(); if (job.status === "running") failJob(job.jobId, "test cleanup");
-  resetJob(); clearSource(); clearResult();
+  const job = getJobState();
+  if (job.status === "running") failJob(job.jobId, "test cleanup");
+  resetJob();
+  clearSource();
+  clearResult();
+  await expect.poll(async () => (await readdir(directory)).some((name) => name.startsWith("source-copy-"))).toBe(false);
   await rm(directory, { recursive: true, force: true });
 });
 describe("native file actions", () => {
+  it.each([false, true])("exports after the original has been deleted (archive=%s)", async (archive) => {
+    await rm(sourcePath);
+    const destination = path.join(directory, archive ? "chosen.zip" : "chosen.png");
+    mocks.showSaveDialog.mockResolvedValue({ canceled: false, filePath: destination });
+    const action = archive ? handler("easyconvert:save-archive") : handler("easyconvert:save-result-as");
+    const response = archive ? action(event, [resultId], true) : action(event, resultId);
+
+    await expect(response).resolves.toEqual({ status: "saved", fileName: path.basename(destination) });
+    const bytes = await readFile(destination);
+    const exported = archive ? Buffer.from(unzipSync(bytes)["source.png"]!) : bytes;
+    expect(exported.toString()).toBe("PNG result");
+    expect(await readFile(copiedSourcePath, "utf8")).toBe("source bytes");
+  });
+
   it.each([
     ["ENOSPC", "disk-full"],
     ["EACCES", "permission-denied"],
@@ -89,8 +120,9 @@ describe("native file actions", () => {
     expect(getResultPath(resultId)).toBe(resultPath);
   });
 
-  it.each(["source", "result"])("protects the %s when choosing an archive destination", async (kind) => {
-    mocks.showSaveDialog.mockResolvedValue({ canceled: false, filePath: kind === "source" ? sourcePath : resultPath });
+  it.each(["source", "copy", "result"] as const)("protects the %s when choosing an archive destination", async (kind) => {
+    const protectedPath = { source: sourcePath, copy: copiedSourcePath, result: resultPath }[kind];
+    mocks.showSaveDialog.mockResolvedValue({ canceled: false, filePath: protectedPath });
     await expect(handler("easyconvert:save-archive")(event, [resultId], true))
       .resolves.toEqual({ status: "failed", code: "save-failed" });
     expect(await readFile(sourcePath, "utf8")).toBe("source bytes");
@@ -112,7 +144,7 @@ describe("native file actions", () => {
   it("saves an archive with ordered page names, handles a collision and cleans temporary files", async () => {
     sourcePath = path.join(directory, "Raport Łódź.pdf");
     await writeFile(sourcePath, "source PDF");
-    registerSource(sourcePath);
+    await registerTestSource(sourcePath);
     const pages = [path.join(directory, "page-09.jpg"), path.join(directory, "page-01.jpg")];
     await writeFile(pages[0]!, "first page");
     await writeFile(pages[1]!, "second page");
@@ -136,15 +168,18 @@ describe("native file actions", () => {
       const ids = registerResults([resultPath, path.join(directory, "another.jpg")]);
       succeedJob(startJob(), ids);
       if (scenario === "running") startJob();
-      const args = scenario === "invalid mode" ? [ids, "yes"] : scenario === "missing" ? [] : [
-        scenario === "not an array" ? "wrong" :
-        scenario === "foreign" ? ["foreign", ids[1]] :
-        scenario === "partial" ? [ids[0]] :
-        scenario === "reversed" ? [...ids].reverse() :
-        scenario === "sparse" ? new Array(2) : ids,
-      ];
+      const requests: Record<string, unknown[]> = {
+        missing: [],
+        "not an array": ["wrong"],
+        foreign: [["foreign", ids[1]]],
+        partial: [[ids[0]]],
+        reversed: [[...ids].reverse()],
+        sparse: [new Array(2)],
+        running: [ids],
+        "invalid mode": [ids, "yes"],
+      };
 
-      await expect(handler("easyconvert:save-archive")(event, ...args)).rejects.toThrow();
+      await expect(handler("easyconvert:save-archive")(event, ...requests[scenario]!)).rejects.toThrow();
       expect(mocks.getPath).not.toHaveBeenCalled();
       expect(mocks.showSaveDialog).not.toHaveBeenCalled();
     },
@@ -170,7 +205,7 @@ describe("native file actions", () => {
     const originalName = "Raport Łódź.v2";
     sourcePath = path.join(directory, `${originalName}.pdf`);
     await writeFile(sourcePath, "original PDF");
-    sourceId = registerSource(sourcePath);
+    sourceId = await registerTestSource(sourcePath);
     const pages = Array.from({ length: pageCount }, (_, index) =>
       path.join(directory, `page-${index + 10}.jpg`),
     );
@@ -211,9 +246,10 @@ describe("native file actions", () => {
     },
   );
 
-  it("resets source/result identifiers without deleting their files", async () => {
+  it("resets identifiers and removes only the private source copy", async () => {
     handler("easyconvert:reset-source")(event);
-    expect(() => getSourcePath(sourceId)).toThrow(); expect(() => getResultPath(resultId)).toThrow();
+    expect(() => getSourcePath(sourceId)).toThrow();
+    expect(() => getResultPath(resultId)).toThrow();
     expect(getJobState()).toEqual({ status: "idle" });
     expect(await readFile(sourcePath, "utf8")).toBe("source bytes");
     expect(await readFile(resultPath, "utf8")).toBe("PNG result");
@@ -221,7 +257,7 @@ describe("native file actions", () => {
   it("does not reset a running conversion", () => {
     startJob();
     expect(() => handler("easyconvert:reset-source")(event)).toThrow("already running");
-    expect(getSourcePath(sourceId)).toBe(sourcePath);
+    expect(getSourcePath(sourceId)).toBe(copiedSourcePath);
   });
   it("copies the result only to the dialog-approved destination", async () => {
     const destination = path.join(directory, "export.png");
@@ -234,8 +270,9 @@ describe("native file actions", () => {
     expect(await readFile(destination, "utf8")).toBe("PNG result");
     expect(await readFile(sourcePath, "utf8")).toBe("source bytes");
   });
-  it.each(["source", "result"])("refuses to overwrite the %s", async (kind) => {
-    mocks.showSaveDialog.mockResolvedValue({ canceled: false, filePath: kind === "source" ? sourcePath : resultPath });
+  it.each(["source", "copy", "result"] as const)("refuses to overwrite the %s", async (kind) => {
+    const protectedPath = { source: sourcePath, copy: copiedSourcePath, result: resultPath }[kind];
+    mocks.showSaveDialog.mockResolvedValue({ canceled: false, filePath: protectedPath });
     await expect(handler("easyconvert:save-result-as")(event, resultId)).rejects.toThrow("Cannot overwrite");
     expect(await readFile(sourcePath, "utf8")).toBe("source bytes");
   });
@@ -246,7 +283,8 @@ describe("native file actions", () => {
   });
   it("rejects a result invalidated while the save dialog is open", async () => {
     mocks.showSaveDialog.mockImplementation(async () => {
-      clearResult(); return { canceled: false, filePath: path.join(directory, "stale.png") };
+      clearResult();
+      return { canceled: false, filePath: path.join(directory, "stale.png") };
     });
     await expect(handler("easyconvert:save-result-as")(event, resultId)).rejects.toThrow();
   });

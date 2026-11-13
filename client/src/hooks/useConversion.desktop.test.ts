@@ -1,15 +1,14 @@
+import { createDesktopApi, convertedResult } from "../test/desktopApi";
 import type { SaveResponse } from "../../../shared/desktopContract";
+import type { ConvertedResults } from "../types/conversionResult";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { EasyConvertApi } from "../../../shared/desktopContract";
-import type { ConvertedResults } from "../types/conversionResult";
 import { useConversion } from "./useConversion";
 import { convertDesktopFile } from "../api/desktopConversionClient";
 
 vi.mock("../api/desktopConversionClient", () => ({
   convertDesktopFile: vi.fn(),
 }));
-
 
 afterEach(() => {
   vi.resetAllMocks();
@@ -48,33 +47,13 @@ function deferred<T>() {
 }
 
 function setup() {
-  const api: EasyConvertApi = {
-    platform: "desktop",
-    selectSource: vi.fn(),
-    selectDroppedSource: vi.fn(),
-    startConversion: vi.fn(),
-    getJobState: vi.fn(),
-    onJobStateChanged: vi.fn(),
-    resetSource: vi.fn().mockResolvedValue(undefined),
-    saveResult: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.png" }),
-    saveResultAs: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.png" }),
-    saveArchive: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.zip" }),
-    showLastSavedFile: vi.fn().mockResolvedValue(undefined),
-  };
+  const api = createDesktopApi();
 
   const file = new File(["jpg"], "photo.jpg", {
     type: "image/jpeg",
   });
 
-  const output: ConvertedResults = [
-    {
-      resultId: "result-1",
-      url: "app://easyconvert/preview/result/result-1",
-      file: new File(["png"], "photo.png", {
-        type: "image/png",
-      }),
-    },
-  ];
+  const output = convertedResult("photo.png", "image/png");
 
   vi.stubGlobal("easyConvert", api);
   vi.mocked(convertDesktopFile).mockResolvedValue(output);
@@ -133,11 +112,7 @@ describe("desktop useConversion", () => {
     const file = new File(["ID,Name\n1,Łukasz"], "table.csv", {
       type: "text/csv",
     });
-    const output: ConvertedResults = [{
-      resultId: "result-2",
-      url: "app://easyconvert/preview/result/result-csv",
-      file: new File(["pdf"], "table.pdf", { type: "application/pdf" }),
-    }];
+    const output = convertedResult("table.pdf", "application/pdf");
     vi.mocked(convertDesktopFile).mockResolvedValue(output);
 
     act(() => {
@@ -187,15 +162,7 @@ describe("desktop useConversion", () => {
     const file = new File(["png"], "transparent.png", {
       type: "image/png",
     });
-    const output: ConvertedResults = [
-      {
-        resultId: "result-3",
-        url: "app://easyconvert/preview/result/result-2",
-        file: new File(["jpg"], "transparent.jpg", {
-          type: "image/jpeg",
-        }),
-      },
-    ];
+    const output = convertedResult("transparent.jpg", "image/jpeg");
 
     vi.mocked(convertDesktopFile).mockResolvedValue(output);
 
@@ -406,15 +373,7 @@ describe("desktop useConversion", () => {
 
   it("passes JPG to PDF page settings to the desktop adapter", async () => {
     const { api, result, file } = setup();
-    const output: ConvertedResults = [
-      {
-        resultId: "result-4",
-        url: "app://easyconvert/preview/result/result-pdf",
-        file: new File(["pdf"], "photo.pdf", {
-          type: "application/pdf",
-        }),
-      },
-    ];
+    const output = convertedResult("photo.pdf", "application/pdf");
 
     vi.mocked(convertDesktopFile).mockResolvedValue(output);
 
@@ -457,11 +416,7 @@ describe("desktop useConversion", () => {
   it("passes PDF to TXT without settings and stores the text result", async () => {
     const { api, result } = setup();
     const file = new File(["pdf"], "document.pdf", { type: "application/pdf" });
-    const output: ConvertedResults = [{
-      resultId: "result-5",
-      url: "app://easyconvert/preview/result/result-text",
-      file: new File(["Page 1\n\fPage 2"], "document.txt", { type: "text/plain" }),
-    }];
+    const output = convertedResult("document.txt", "text/plain");
     vi.mocked(convertDesktopFile).mockResolvedValue(output);
 
     act(() => result.current.selectFile(file, "source-pdf"));
@@ -510,15 +465,7 @@ describe("desktop useConversion", () => {
     const file = new File(["Zażółć gęślą jaźń"], "polski-tekst.txt", {
       type: "text/plain",
     });
-    const output: ConvertedResults = [
-      {
-        resultId: "result-6",
-        url: "app://easyconvert/preview/result/result-txt",
-        file: new File(["pdf"], "polski-tekst.pdf", {
-          type: "application/pdf",
-        }),
-      },
-    ];
+    const output = convertedResult("polski-tekst.pdf", "application/pdf");
 
     vi.mocked(convertDesktopFile).mockResolvedValue(output);
 

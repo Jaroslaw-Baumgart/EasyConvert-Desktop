@@ -1,4 +1,5 @@
-import { stat } from "node:fs/promises";
+import { copySourceFile } from "./copySourceFile";
+import { rm, stat } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import { isSupportedSourceFormat } from "../../shared/conversions";
 import { MAX_SOURCE_BYTES } from "../../shared/conversionLimits";
@@ -32,14 +33,29 @@ export async function prepareSource(
     throw new Error("Selected file is too large (max 10 MB).");
   }
 
-  const fileSize = metadata.size;
-  resetJob();
-  clearResult();
-  const sourceId = registerSource(sourcePath);
-  const fileName = basename(sourcePath);
-  return {
-    sourceId,
-    name: fileName,
-    sizeBytes: fileSize,
-  };
+  const copiedSource = await copySourceFile(sourcePath);
+
+  try {
+    if (getJobState().status === "running") {
+      throw new Error("A job is already running.");
+    }
+
+    resetJob();
+    clearResult();
+
+    const sourceId = registerSource(
+      copiedSource.path,
+      sourcePath,
+      copiedSource.directory,
+    );
+
+    return {
+      sourceId,
+      name: basename(sourcePath),
+      sizeBytes: copiedSource.sizeBytes,
+    };
+  } catch (error) {
+    await rm(copiedSource.directory, { recursive: true, force: true });
+    throw error;
+  }
 }

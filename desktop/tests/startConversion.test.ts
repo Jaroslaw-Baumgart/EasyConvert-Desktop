@@ -5,6 +5,8 @@ const mocks = vi.hoisted(() => ({
   runConversionJob: vi.fn(),
 }));
 
+vi.mock("node:fs/promises", () => ({ rm: vi.fn().mockResolvedValue(undefined) }));
+
 vi.mock("../main/runConversionJob", () => ({
   runConversionJob: mocks.runConversionJob,
 }));
@@ -29,7 +31,7 @@ describe("startConversion", () => {
     "starts JPG conversion for %s",
     async (inputPath) => {
       const { sources, startConversion } = await loadModules();
-      const sourceId = sources.registerSource(inputPath);
+      const sourceId = sources.registerSource(inputPath, inputPath, "unit-source-copy");
       const onStateChanged = vi.fn();
       const request = { sourceId, conversion: "jpg-to-png" } as const;
 
@@ -49,7 +51,7 @@ describe("startConversion", () => {
     "rejects $inputPath for $conversion without changing the completed job",
     async ({ inputPath, conversion }) => {
       const { sources, jobs, results, startConversion } = await loadModules();
-      const sourceId = sources.registerSource(inputPath);
+      const sourceId = sources.registerSource(inputPath, inputPath, "unit-source-copy");
       const resultId = results.registerResult("previous.png");
       const jobId = jobs.startJob();
       jobs.succeedJob(jobId, [resultId]);
@@ -73,7 +75,7 @@ describe("startConversion", () => {
       const { sources, jobs, results, startConversion } = await loadModules();
 
       const inputPath = conversion === "jpg-to-png" ? "photo.jpg" : "photo.png";
-      const sourceId = sources.registerSource(inputPath);
+      const sourceId = sources.registerSource(inputPath, inputPath, "unit-source-copy");
       const previousResultId = results.registerResult("previous.png");
 
       const request: StartConversionRequest =
@@ -113,7 +115,7 @@ describe("startConversion", () => {
 
   it("returns without waiting for conversion", async () => {
     const { sources, jobs, startConversion } = await loadModules();
-    const sourceId = sources.registerSource("photo.jpg");
+    const sourceId = sources.registerSource("photo.jpg", "photo.jpg", "unit-source-copy");
     const onStateChanged = vi.fn();
 
     mocks.runConversionJob.mockReturnValue(new Promise<void>(() => {}));
@@ -141,7 +143,7 @@ describe("startConversion", () => {
     async (scenario) => {
       const { sources, jobs, results, startConversion } = await loadModules();
 
-      const sourceId = sources.registerSource("photo.jpg");
+      const sourceId = sources.registerSource("photo.jpg", "photo.jpg", "unit-source-copy");
       const resultId = results.registerResult("previous.png");
       const onStateChanged = vi.fn();
 

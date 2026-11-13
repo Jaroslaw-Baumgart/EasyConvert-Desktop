@@ -1,4 +1,4 @@
-import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, readdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -26,7 +26,10 @@ beforeEach(async () => {
   }
 
   await writeFile(filePath, contents);
-  sourceId = registerSource(filePath);
+  const sourceDirectory = await mkdtemp(path.join(directory, "source-copy-"));
+  const copiedPath = path.join(sourceDirectory, path.basename(filePath));
+  await copyFile(filePath, copiedPath);
+  sourceId = registerSource(copiedPath, filePath, sourceDirectory);
   resultId = registerResult(filePath);
 });
 
@@ -35,6 +38,8 @@ afterEach(async () => {
   clearResult();
 
   if (directory) {
+    const root = directory;
+    await expect.poll(async () => (await readdir(root)).some((name) => name.startsWith("source-copy-"))).toBe(false);
     await rm(directory, { recursive: true, force: true });
     directory = undefined;
   }

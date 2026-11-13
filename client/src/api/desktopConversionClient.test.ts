@@ -1,8 +1,6 @@
+import { createDesktopApi } from "../test/desktopApi";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type {
-  EasyConvertApi,
-  StartConversionRequest,
-} from "../../../shared/desktopContract";
+import type { StartConversionRequest } from "../../../shared/desktopContract";
 import { convertDesktopFile } from "./desktopConversionClient";
 import { waitForDesktopJob } from "./waitForDesktopJob";
 
@@ -21,21 +19,8 @@ afterEach(() => {
 });
 
 function setup() {
-  const api: EasyConvertApi = {
-    platform: "desktop",
-    selectSource: vi.fn(),
-    selectDroppedSource: vi.fn(),
-    startConversion: vi.fn().mockResolvedValue({ jobId: "job-1" }),
-    getJobState: vi.fn(),
-    onJobStateChanged: vi.fn(),
-    resetSource: vi.fn(),
-    saveResult: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.png" }),
-
-    saveResultAs: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.png" }),
-
-    saveArchive: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.zip" }),
-    showLastSavedFile: vi.fn().mockResolvedValue(undefined),
-  };
+  const api = createDesktopApi();
+  vi.mocked(api.startConversion).mockResolvedValue({ jobId: "job-1" });
 
   vi.mocked(waitForDesktopJob).mockResolvedValue(["result-1"]);
 

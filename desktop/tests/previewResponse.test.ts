@@ -1,4 +1,4 @@
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { copyFile, readdir, mkdtemp, writeFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -12,10 +12,14 @@ beforeEach(async () => {
   directory = await mkdtemp(path.join(os.tmpdir(), "easyconvert-preview-test-"));
   const input = path.join(directory, "sample.jpg");
   await writeFile(input, "0123456789");
-  sourceId = registerSource(input);
+  const sourceDirectory = await mkdtemp(path.join(directory, "source-copy-"));
+  const copiedPath = path.join(sourceDirectory, path.basename(input));
+  await copyFile(input, copiedPath);
+  sourceId = registerSource(copiedPath, input, sourceDirectory);
 });
 afterEach(async () => {
   clearSource(); clearResult();
+  await expect.poll(async () => (await readdir(directory)).some((name) => name.startsWith("source-copy-"))).toBe(false);
   await rm(directory, { recursive: true, force: true });
 });
 function request(id = sourceId, options?: RequestInit) {

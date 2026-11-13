@@ -1,8 +1,6 @@
+import { createDesktopApi } from "../test/desktopApi";
 import { describe, expect, it, vi } from "vitest";
-import type {
-  ConversionJobState,
-  EasyConvertApi,
-} from "../../../shared/desktopContract";
+import type { ConversionJobState } from "../../../shared/desktopContract";
 import { waitForDesktopJob } from "./waitForDesktopJob";
 
 function setup(
@@ -14,32 +12,15 @@ function setup(
   const listeners = new Set<(state: ConversionJobState) => void>();
   const unsubscribe = vi.fn();
 
-  const api: EasyConvertApi = {
-    platform: "desktop",
-    selectDroppedSource: vi.fn(),
-    selectSource: vi.fn(),
-    startConversion: vi.fn(),
-    resetSource: vi.fn(),
-    saveResult: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.png" }),
-
-    saveResultAs: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.png" }),
-
-    saveArchive: vi.fn().mockResolvedValue({ status: "saved", fileName: "converted.zip" }),
-    showLastSavedFile: vi.fn().mockResolvedValue(undefined),
-    getJobState: vi
-      .fn<EasyConvertApi["getJobState"]>()
-      .mockResolvedValue(initialState),
-    onJobStateChanged: vi.fn<EasyConvertApi["onJobStateChanged"]>(
-      (callback) => {
-        listeners.add(callback);
-
-        return () => {
-          listeners.delete(callback);
-          unsubscribe();
-        };
-      },
-    ),
-  };
+  const api = createDesktopApi();
+  vi.mocked(api.getJobState).mockResolvedValue(initialState);
+  vi.mocked(api.onJobStateChanged).mockImplementation((callback) => {
+    listeners.add(callback);
+    return () => {
+      listeners.delete(callback);
+      unsubscribe();
+    };
+  });
 
   function emit(state: ConversionJobState) {
     listeners.forEach((listener) => listener(state));

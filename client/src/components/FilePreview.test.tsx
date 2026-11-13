@@ -112,8 +112,8 @@ describe("FilePreview", () => {
     expect(await screen.findByDisplayValue("text content")).toBeInTheDocument();
   });
 
-  it("renders a DOCX preview container", async () => {
-    const file = new File([], "document.docx", {
+  it("renders DOCX content inside the preview container", async () => {
+    const file = new File(["docx content"], "document.docx", {
       type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     });
 
@@ -126,7 +126,11 @@ describe("FilePreview", () => {
       />,
     );
 
-    expect(await screen.findByTestId("docx-preview")).toBeInTheDocument();
+    const container = await screen.findByTestId("docx-preview");
+    expect(container).toBeInTheDocument();
+    await waitFor(() => {
+      expect(renderAsync).toHaveBeenCalledExactlyOnceWith(expect.anything(), container);
+    });
   });
 
   it("shows loading while DOCX is rendering", async () => {
@@ -666,30 +670,6 @@ describe("FilePreview", () => {
     expect(
       screen.getByText("Showing first 100 of 105 rows."),
     ).toBeInTheDocument();
-  });
-
-  it("renders DOCX content inside the preview container", async () => {
-    const file = new File(["docx content"], "document.docx", {
-      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    });
-
-    render(
-      <FilePreview
-        preview={{
-          kind: "word",
-          file,
-        }}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(renderAsync).toHaveBeenCalledTimes(1);
-    });
-
-    expect(renderAsync).toHaveBeenCalledWith(
-      expect.anything(),
-      screen.getByTestId("docx-preview"),
-    );
   });
 
   it("shows XLSX columns that appear only in later rows", async () => {

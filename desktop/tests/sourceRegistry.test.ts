@@ -1,23 +1,34 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+vi.mock("node:fs/promises", () => ({ rm: vi.fn().mockResolvedValue(undefined) }));
+
 import {
   clearSource,
+  getCurrentSourceDirectory,
+  getCurrentSourcePath,
+  getOriginalSourcePath,
   getSourcePath,
   registerSource,
 } from "../main/sourceRegistry";
+
+function registerTestSource(name = "photo.jpg"): string {
+  return registerSource(`C:/working/${name}`, `C:/fixtures/${name}`, "C:/working");
+}
 
 afterEach(() => {
   clearSource();
 });
 
 describe("sourceRegistry", () => {
-  it("registers a path under an opaque identifier", () => {
-    const sourcePath = "C:/fixtures/photo.jpg";
-    const sourceId = registerSource(sourcePath);
+  it("keeps the original and working paths under an opaque identifier", () => {
+    const sourceId = registerTestSource();
 
     expect(sourceId).toEqual(expect.any(String));
     expect(sourceId.length).toBeGreaterThan(0);
-    expect(sourceId).not.toBe(sourcePath);
-    expect(getSourcePath(sourceId)).toBe(sourcePath);
+    expect(sourceId).not.toBe("C:/fixtures/photo.jpg");
+    expect(getSourcePath(sourceId)).toBe("C:/working/photo.jpg");
+    expect(getCurrentSourcePath()).toBe("C:/working/photo.jpg");
+    expect(getOriginalSourcePath()).toBe("C:/fixtures/photo.jpg");
+    expect(getCurrentSourceDirectory()).toBe("C:/working");
   });
 
   it("rejects an identifier when no source is registered", () => {
@@ -25,22 +36,22 @@ describe("sourceRegistry", () => {
   });
 
   it("rejects a foreign identifier", () => {
-    registerSource("C:/fixtures/photo.jpg");
+    registerTestSource();
 
     expect(() => getSourcePath("unknown")).toThrow("Unknown source.");
   });
 
   it("invalidates the previous identifier after a new registration", () => {
-    const firstId = registerSource("C:/fixtures/first.jpg");
-    const secondId = registerSource("C:/fixtures/second.jpg");
+    const firstId = registerTestSource("first.jpg");
+    const secondId = registerTestSource("second.jpg");
 
     expect(secondId).not.toBe(firstId);
-    expect(getSourcePath(secondId)).toBe("C:/fixtures/second.jpg");
+    expect(getSourcePath(secondId)).toBe("C:/working/second.jpg");
     expect(() => getSourcePath(firstId)).toThrow("Unknown source.");
   });
 
   it("invalidates the identifier when cleared", () => {
-    const sourceId = registerSource("C:/fixtures/photo.jpg");
+    const sourceId = registerTestSource();
 
     clearSource();
 
