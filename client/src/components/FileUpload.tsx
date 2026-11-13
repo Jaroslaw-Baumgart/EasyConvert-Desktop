@@ -108,9 +108,20 @@ export default function FileUpload({ onFileSelect }: FileUploadProps) {
   const handleDrop = async (e: DragEvent<HTMLDivElement>): Promise<void> => {
     e.preventDefault();
     setIsDragging(false);
-    if (selectionPendingRef.current || e.dataTransfer.files.length !== 1) {
+
+    if (selectionPendingRef.current) {
       return;
     }
+
+    if (e.dataTransfer.files.length > 1) {
+      setSelectionError(t("upload.singleFileOnly"));
+      return;
+    }
+
+    if (e.dataTransfer.files.length === 0) {
+      return;
+    }
+
     const droppedFile = e.dataTransfer.files[0];
     const validationError = validateFile(droppedFile);
 

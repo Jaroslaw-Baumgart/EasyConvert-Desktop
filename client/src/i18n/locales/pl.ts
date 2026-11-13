@@ -43,6 +43,7 @@ export const pl = {
     unsupported:
       "Nieobsługiwany format pliku. Obsługiwane formaty: {{formats}}.",
     tooLarge: "Plik jest za duży. Maksymalny rozmiar to {{size}} MB.",
+    singleFileOnly: "Wybierz tylko jeden plik.",
   },
   converter: {
     preview: "1. Podgląd pliku",
@@ -122,18 +123,22 @@ export const pl = {
     slideAlt: "Slajd PowerPoint {{index}}",
   },
   about: {
-    eyebrow: "Internetowy konwerter plików",
+    authorTitle: "Poznaj autora",
+    authorText: "Nazywam się Jarosław Baumgart i tworzę EasyConvert. Moje projekty znajdziesz na GitHubie. Dziękuję za korzystanie z aplikacji i dzielenie się uwagami!",
+    authorGithub: "Mój GitHub",
+    authorSupport: "Postaw mi kawę — wkrótce",
+    eyebrow: "EasyConvert",
     title: "O aplikacji",
     lead: "Konwertuj popularne obrazy, dokumenty, arkusze, prezentacje i pliki tekstowe w kilku prostych, przejrzystych krokach.",
     open: "Otwórz konwerter",
     howTitle: "Jak to działa",
-    step1: "Prześlij jeden plik o rozmiarze do 10 MB.",
+    step1: "Wybierz jeden plik o rozmiarze do 10 MB.",
     step2: "Wybierz jedną z dostępnych opcji konwersji.",
     step3: "Ustaw opcje strony lub obrazu, gdy są dostępne.",
-    step4: "Przekonwertuj plik i pobierz wynik.",
+    step4: "Przekonwertuj plik i zapisz wynik.",
     conversionsTitle: "Obsługiwane konwersje",
     conversionsText:
-      "Dostępne opcje zmieniają się zależnie od przesłanego pliku. Serwer dodatkowo sprawdza plik przed rozpoczęciem konwersji.",
+      "Dostępne opcje zależą od wybranego pliku. Aplikacja sprawdza plik lokalnie przed rozpoczęciem konwersji.",
     previewsTitle: "Podglądy",
     previewsText:
       "Przed konwersją można wyświetlić podgląd obrazów, plików PDF i tekstowych, CSV, dokumentów DOCX, skoroszytów XLSX oraz prezentacji PPTX. Dla XLSX można wyświetlić jeden arkusz albo wszystkie arkusze.",
@@ -145,7 +150,7 @@ export const pl = {
       "XLSX do PDF: jeden arkusz albo wszystkie arkusze, rozmiar strony, orientacja i dopasowanie do strony.",
     filesTitle: "Pliki i wyniki",
     filesText:
-      "Pliki są przetwarzane lokalnie na Twoim komputerze. Konwersja DOCX, XLSX i PPTX do PDF używa lokalnego LibreOffice. Wyniki są tymczasowe, dlatego pobierz wszystko, co chcesz zachować. Szczegóły znajdziesz na <privacyLink>stronie prywatności</privacyLink>.",
+      "Pliki są przetwarzane lokalnie na Twoim komputerze. Zapisz umieszcza wyniki w folderze EasyConvert Output na Pulpicie. Zapisz jako pozwala wybrać folder i nazwę pliku. Wiele wyników można zapisać jako archiwum ZIP. Informacje o plikach tymczasowych znajdziesz na <privacyLink>stronie prywatności</privacyLink>.",
   },
   privacy: {
     eyebrow: "Prywatność",
@@ -156,16 +161,16 @@ export const pl = {
       "Aplikacja odczytuje wybrany plik i ustawienia konwersji lokalnie. Pliki nie są wysyłane na serwer konwersji. Konwersja DOCX, XLSX i PPTX korzysta z LibreOffice na Twoim komputerze.",
     storageTitle: "Jak długo przechowywane są pliki",
     storage1:
-      "Oryginalny plik źródłowy pozostaje bez zmian po konwersji i usunięciu go z interfejsu.",
+      "Aplikacja tworzy tymczasową kopię wybranego pliku na potrzeby podglądu i konwersji. Oryginał pozostaje bez zmian. Przy wyczyszczeniu lub zmianie wyboru oraz zamknięciu okna aplikacja próbuje usunąć tę kopię.",
     storage2:
       "Konwersja XLSX może utworzyć tymczasowy skoroszyt. Jest on usuwany po zakończeniu przetwarzania.",
     storage3:
-      "Wyniki są zapisywane w systemowym folderze tymczasowym. Pobierz potrzebne wyniki przed wyczyszczeniem wyboru lub zamknięciem aplikacji.",
+      "Wyniki są zapisywane w systemowym folderze tymczasowym. Zapisz potrzebne wyniki przed wyczyszczeniem wyboru lub zamknięciem aplikacji.",
     storage4:
-      "Wyczyszczenie wyboru usuwa podglądy i dostęp do bieżących wyników. Automatyczne usuwanie wszystkich plików tymczasowych konwersji nie jest jeszcze zaimplementowane.",
+      "Wyczyszczenie wyboru usuwa podglądy i dostęp do bieżących wyników, ale nie usuwa zapisanych eksportów. Tymczasowe wyniki konwersji nie są jeszcze usuwane automatycznie. Część plików tymczasowych może też pozostać po błędzie lub nieoczekiwanym zamknięciu aplikacji.",
     sensitiveTitle: "Pliki wrażliwe",
     sensitiveText:
-      "Przetwarzaj tylko pliki, do których masz uprawnienia. Konwersja odbywa się lokalnie; pobrane kopie i pliki tymczasowe pozostają na Twoim komputerze.",
+      "Przetwarzaj tylko pliki, do których masz uprawnienia. Zapisane wyniki i pozostałe pliki tymczasowe pozostają na Twoim komputerze. Pamiętaj o tym przy pracy z poufnymi dokumentami.",
     back: "Wróć do konwertera",
   },
   notFound: {

@@ -63,6 +63,24 @@ export default function AboutPage() {
 
         <p><Trans i18nKey="about.filesText" components={{ privacyLink: <Link to="/privacy" /> }} /></p>
       </section>
+
+      <section className={styles.card} aria-labelledby="about-author">
+        <h2 id="about-author">{t("about.authorTitle")}</h2>
+        <p>{t("about.authorText")}</p>
+        <div className={styles["author-links"]}>
+          <a
+            href="https://github.com/Jaroslaw-Baumgart"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles["secondary-link"]}
+          >
+            {t("about.authorGithub")}
+          </a>
+          <button type="button" className={styles["secondary-link"]} disabled>
+            {t("about.authorSupport")}
+          </button>
+        </div>
+      </section>
     </article>
   );
 }

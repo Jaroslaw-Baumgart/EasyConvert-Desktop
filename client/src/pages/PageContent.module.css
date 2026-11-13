@@ -107,6 +107,12 @@
   background: #fffbeb;
 }
 
+.author-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
 .primary-link,
 .secondary-link {
   display: inline-flex;
@@ -135,10 +141,15 @@
   color: var(--color-text);
 }
 
-.secondary-link:hover {
+.secondary-link:hover:not(:disabled) {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
   color: var(--color-primary-hover);
+}
+
+.secondary-link:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .primary-link:focus-visible,

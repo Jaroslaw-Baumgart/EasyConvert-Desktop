@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, protocol } from "electron";
+import { app, BrowserWindow, Menu, protocol, shell } from "electron";
 import path from "node:path";
 import { registerSourceIpc } from "./sourceIpc";
 import { clearSource } from "./sourceRegistry";
@@ -43,7 +43,12 @@ function createWindow(): void {
     event.preventDefault();
   });
 
-  window.webContents.setWindowOpenHandler(() => {
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    if (url === "https://github.com/Jaroslaw-Baumgart") {
+      void shell.openExternal(url).catch((error: unknown) => {
+        console.error("Could not open the developer's GitHub page.", error);
+      });
+    }
     return { action: "deny" };
   });
 
