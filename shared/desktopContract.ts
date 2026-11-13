@@ -53,6 +53,9 @@ export type ConversionJobState =
   | { status: "failed"; jobId: string; message: string }
   | { status: "cancelled"; jobId: string };
 
+export type SaveErrorCode = "disk-full" | "permission-denied" | "save-failed";
+
 export type SaveResponse =
   | { status: "cancelled" }
-  | { status: "saved"; fileName: string };
+  | { status: "saved"; fileName: string }
+  | { status: "failed"; code: SaveErrorCode };

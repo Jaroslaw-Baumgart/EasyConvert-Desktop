@@ -52,7 +52,7 @@ export default function FileConverter({
     isPreparingArchive,
     downloadAllConvertedFiles,
     isSaving,
-    savedFileName,
+    saveNotification,
     dismissSaveNotification,
   } = useConversion();
 
@@ -200,9 +200,9 @@ export default function FileConverter({
           isSaving={isSaving}
         />
       )}
-      {savedFileName && (
+      {saveNotification && (
         <SaveNotification
-          fileName={savedFileName}
+          notification={saveNotification}
           onClose={dismissSaveNotification}
           onShowInFolder={() => window.easyConvert.showLastSavedFile()}
         />

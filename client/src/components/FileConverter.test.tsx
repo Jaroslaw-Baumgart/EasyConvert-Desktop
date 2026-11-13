@@ -505,7 +505,7 @@ describe("FileConverter", () => {
 
     expect(
       await screen.findByText(
-        "The converted file could not be downloaded. Please try again.",
+        "Could not save the file. Try again or use “Save as”.",
       ),
     ).toBeInTheDocument();
 
@@ -515,7 +515,7 @@ describe("FileConverter", () => {
 
     expect(
       screen.queryByText(
-        "The converted file could not be downloaded. Please try again.",
+        "Could not save the file. Try again or use “Save as”.",
       ),
     ).not.toBeInTheDocument();
   });

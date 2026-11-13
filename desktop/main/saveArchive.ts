@@ -1,9 +1,10 @@
 import { app } from "electron";
-import { copyFile, mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
 import { writeZip } from "../../conversion-core/archive/writeZip";
 import type { ArchiveEntry } from "../../conversion-core/archive/createZipChunks";
 import { saveResultFile } from "./saveResultFile";
+import { replaceResultFile } from "./replaceResultFile";
 
 async function withTemporaryArchive(
   entries: readonly ArchiveEntry[],
@@ -39,7 +40,7 @@ export function saveArchiveAs(
 ): Promise<string> {
   return withTemporaryArchive(entries, async (archivePath) => {
     await beforeCopy();
-    await copyFile(archivePath, destinationPath);
+    await replaceResultFile(archivePath, destinationPath);
     return destinationPath;
   });
 }

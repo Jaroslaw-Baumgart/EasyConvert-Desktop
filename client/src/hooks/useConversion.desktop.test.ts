@@ -645,16 +645,16 @@ describe("native result saving", () => {
     expect(result.current.conversionError).toBeNull();
   });
 
-  it("keeps the preview and error state when the user cancels Save as", async () => {
+  it("keeps the preview without a new notification when the user cancels Save as", async () => {
     const { api, result, output } = await setupConvertedFile();
     vi.mocked(api.saveResult).mockRejectedValueOnce(new Error("Disk full"));
     vi.spyOn(console, "error").mockImplementation(() => {});
     await act(async () => { await result.current.downloadConvertedFile(output[0]); });
-    const previousError = result.current.conversionError;
-    expect(previousError).not.toBeNull();
+    expect(result.current.saveNotification).toEqual({ status: "failed", code: "save-failed" });
     vi.mocked(api.saveResultAs).mockResolvedValueOnce({ status: "cancelled" });
     await act(async () => { await result.current.downloadConvertedFile(output[0], true); });
-    expect(result.current.conversionError).toBe(previousError);
+    expect(result.current.conversionError).toBeNull();
+    expect(result.current.saveNotification).toBeNull();
     expect(result.current.convertedResults).toBe(output);
     await act(async () => { await result.current.downloadConvertedFile(output[0]); });
     expect(result.current.conversionError).toBeNull();

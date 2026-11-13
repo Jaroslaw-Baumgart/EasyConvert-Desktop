@@ -13,6 +13,9 @@ import type {
 } from "../types/conversionResult";
 import { convertDesktopFile } from "../api/desktopConversionClient";
 import { createConversionRequest } from "../api/createConversionRequest";
+import type { SaveResponse } from "../../../shared/desktopContract";
+
+type SaveNotification = Exclude<SaveResponse, { status: "cancelled" }>;
 
 type UseConversionResult = {
   file: File | null;
@@ -33,8 +36,8 @@ type UseConversionResult = {
     saveAs?: boolean,
   ) => Promise<void>;
   downloadAllConvertedFiles: (saveAs?: boolean) => Promise<void>;
-  savedFileName: string | null;
   dismissSaveNotification: () => void;
+  saveNotification: SaveNotification | null;
 };
 
 export function useConversion(): UseConversionResult {
@@ -55,7 +58,8 @@ export function useConversion(): UseConversionResult {
   const [isSaving, setIsSaving] = useState(false);
   const [isPreparingArchive, setIsPreparingArchive] = useState(false);
   const [removalError, setRemovalError] = useState<string | null>(null);
-  const [savedFileName, setSavedFileName] = useState<string | null>(null);
+  const [saveNotification, setSaveNotification] =
+    useState<SaveNotification | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -105,10 +109,12 @@ export function useConversion(): UseConversionResult {
     setIsPreparingArchive(false);
   };
 
-  const reportDownloadError = (cause: unknown): void => {
-    const error = new ConversionError("download-failed", cause);
-    console.error(error);
-    dispatch({ type: "downloadFailed", error: error.code });
+  const reportSaveError = (cause: unknown): void => {
+    console.error(cause);
+    setSaveNotification({
+      status: "failed",
+      code: "save-failed",
+    });
   };
 
   const selectFile = (selectedFile: File, sourceId?: string) => {
@@ -244,7 +250,7 @@ export function useConversion(): UseConversionResult {
 
     const requestId = requestIdRef.current;
     savingPendingRef.current = true;
-    setSavedFileName(null);
+    setSaveNotification(null);
     setIsSaving(true);
 
     try {
@@ -255,12 +261,14 @@ export function useConversion(): UseConversionResult {
       if (!isCurrentRequest(requestId) || response.status === "cancelled")
         return;
 
-      setSavedFileName(response.fileName);
+      setSaveNotification(response);
 
-      dispatch({ type: "downloadSucceeded" });
+      if (response.status === "saved") {
+        dispatch({ type: "downloadSucceeded" });
+      }
     } catch (cause: unknown) {
       if (!isCurrentRequest(requestId)) return;
-      reportDownloadError(cause);
+      reportSaveError(cause);
     } finally {
       savingPendingRef.current = false;
 
@@ -283,7 +291,7 @@ export function useConversion(): UseConversionResult {
     const requestId = requestIdRef.current;
     savingPendingRef.current = true;
     setIsSaving(true);
-    setSavedFileName(null);
+    setSaveNotification(null);
     setIsPreparingArchive(true);
 
     try {
@@ -295,12 +303,14 @@ export function useConversion(): UseConversionResult {
       if (!isCurrentRequest(requestId)) return;
       if (response.status === "cancelled") return;
 
-      setSavedFileName(response.fileName);
+      setSaveNotification(response);
 
-      dispatch({ type: "downloadSucceeded" });
+      if (response.status === "saved") {
+        dispatch({ type: "downloadSucceeded" });
+      }
     } catch (cause: unknown) {
       if (!isCurrentRequest(requestId)) return;
-      reportDownloadError(cause);
+      reportSaveError(cause);
     } finally {
       savingPendingRef.current = false;
 
@@ -312,7 +322,7 @@ export function useConversion(): UseConversionResult {
   };
 
   const dismissSaveNotification = (): void => {
-    setSavedFileName(null);
+    setSaveNotification(null);
   };
 
   return {
@@ -327,7 +337,7 @@ export function useConversion(): UseConversionResult {
     convert,
     downloadConvertedFile,
     isPreparingArchive,
-    savedFileName,
+    saveNotification,
     dismissSaveNotification,
     downloadAllConvertedFiles,
   };

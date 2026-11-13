@@ -2,15 +2,16 @@ import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import styles from "./SaveNotification.module.css";
 import primaryActionStyles from "./PrimaryAction.module.css";
+import type { SaveResponse } from "../../../shared/desktopContract";
 
 type SaveNotificationProps = {
-  fileName: string;
+  notification: Exclude<SaveResponse, { status: "cancelled" }>;
   onClose: () => void;
   onShowInFolder: () => Promise<void>;
 };
 
 export default function SaveNotification({
-  fileName,
+  notification,
   onClose,
   onShowInFolder,
 }: SaveNotificationProps) {
@@ -22,7 +23,13 @@ export default function SaveNotification({
   const remainingTime = useRef(10_000);
 
   useEffect(() => {
-    if (isHovered || hasFocus || folderError) return;
+    if (
+      notification.status === "failed" ||
+      isHovered ||
+      hasFocus ||
+      folderError
+    )
+      return;
 
     const startedAt = performance.now();
     const timer = window.setTimeout(onClose, remainingTime.current);
@@ -34,7 +41,7 @@ export default function SaveNotification({
         remainingTime.current - (performance.now() - startedAt),
       );
     };
-  }, [isHovered, hasFocus, folderError, onClose]);
+  }, [notification.status, isHovered, hasFocus, folderError, onClose]);
 
   const showInFolder = async (): Promise<void> => {
     setFolderError(false);
@@ -59,16 +66,23 @@ export default function SaveNotification({
         }
       }}
     >
-      <p role="status" className={styles.message}>
-        {t("download.saved", { fileName })}
-      </p>
-      <button
-        type="button"
-        className={`${primaryActionStyles.button} ${styles.show}`}
-        onClick={showInFolder}
+      <p
+        role={notification.status === "failed" ? "alert" : "status"}
+        className={styles.message}
       >
-        {t("download.showInFolder")}
-      </button>
+        {notification.status === "saved"
+          ? t("download.saved", { fileName: notification.fileName })
+          : t(`download.saveErrors.${notification.code}`)}
+      </p>
+      {notification.status === "saved" && (
+        <button
+          type="button"
+          className={`${primaryActionStyles.button} ${styles.show}`}
+          onClick={showInFolder}
+        >
+          {t("download.showInFolder")}
+        </button>
+      )}
       {folderError && (
         <p role="alert" className={styles.message}>
           {t("download.folderError")}

@@ -77,6 +77,12 @@ export const en = {
     showInFolder: "Show in folder",
     closeNotification: "Dismiss notification",
     folderError: "Could not show the saved file in its folder.",
+    saveErrors: {
+      "disk-full": "Not enough disk space. Free up space or use “Save as”.",
+      "permission-denied":
+        "Permission to save was denied. Use “Save as” and choose another folder.",
+      "save-failed": "Could not save the file. Try again or use “Save as”.",
+    },
   },
   preview: {
     expand: "Expand preview",

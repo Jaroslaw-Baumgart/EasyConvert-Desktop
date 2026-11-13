@@ -1,5 +1,5 @@
 import { dialog, ipcMain, shell, type BrowserWindow } from "electron";
-import { copyFile, stat } from "node:fs/promises";
+import { stat } from "node:fs/promises";
 import path from "node:path";
 import { assertTrustedSender } from "./assertTrustedSender";
 import { clearSource, getCurrentSourcePath } from "./sourceRegistry";
@@ -7,6 +7,8 @@ import { clearResult, getResultPath } from "./resultRegistry";
 import { getJobState, resetJob } from "./jobRegistry";
 import { getDefaultOutputDirectory, saveResultFile } from "./saveResultFile";
 import { saveArchive, saveArchiveAs } from "./saveArchive";
+import { replaceResultFile } from "./replaceResultFile";
+import type { SaveErrorCode } from "../../shared/desktopContract";
 
 async function assertExportDestination(
   destinationPath: string,
@@ -117,6 +119,22 @@ function resolveArchiveEntries(): {
   });
 }
 
+function getSaveErrorCode(error: unknown): SaveErrorCode {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return "save-failed";
+  }
+
+  if (error.code === "ENOSPC") {
+    return "disk-full";
+  }
+
+  if (error.code === "EACCES" || error.code === "EPERM") {
+    return "permission-denied";
+  }
+
+  return "save-failed";
+}
+
 let lastSavedPath: string | null = null;
 
 export function registerFileActionsIpc(
@@ -143,20 +161,28 @@ export function registerFileActionsIpc(
       const { resultPath, fileName } = resolveResult(
         parseResultIdentifier(args),
       );
+
       const outputDirectory = getDefaultOutputDirectory();
 
-      const savedPath = await saveResultFile(
-        resultPath,
-        outputDirectory,
-        fileName,
-      );
+      try {
+        const savedPath = await saveResultFile(
+          resultPath,
+          outputDirectory,
+          fileName,
+        );
 
-      lastSavedPath = savedPath;
+        lastSavedPath = savedPath;
 
-      return {
-        status: "saved",
-        fileName: path.basename(savedPath),
-      };
+        return {
+          status: "saved",
+          fileName: path.basename(savedPath),
+        };
+      } catch (error: unknown) {
+        return {
+          status: "failed",
+          code: getSaveErrorCode(error),
+        };
+      }
     },
   );
 
@@ -200,56 +226,67 @@ export function registerFileActionsIpc(
       const fileName = `${path.parse(sourcePath).name}.zip`;
       let savedPath: string;
 
-      if (args[1] === true) {
-        const selection = await dialog.showSaveDialog(owner, {
-          defaultPath: fileName,
-          filters: [{ name: "ZIP archive", extensions: ["zip"] }],
-          properties: ["showOverwriteConfirmation"],
-        });
-        if (selection.canceled || !selection.filePath) {
-          return { status: "cancelled" };
-        }
-
-        const assertCurrentResults = (): void => {
-          assertTrustedSender(event, owner, rendererUrl);
-          const current = getJobState();
-          if (
-            current.status !== "succeeded" ||
-            current.jobId !== job.jobId ||
-            current.resultIds.length !== resultIds.length ||
-            !resultIds.every(
-              (id, index) =>
-                id === current.resultIds[index] &&
-                getResultPath(id) === entries[index]!.resultPath,
-            ) ||
-            getCurrentSourcePath() !== sourcePath
-          ) {
-            throw new Error("Conversion results have expired.");
+      try {
+        if (args[1] === true) {
+          const selection = await dialog.showSaveDialog(owner, {
+            defaultPath: fileName,
+            filters: [{ name: "ZIP archive", extensions: ["zip"] }],
+            properties: ["showOverwriteConfirmation"],
+          });
+          if (selection.canceled || !selection.filePath) {
+            return { status: "cancelled" };
           }
-        };
 
-        const destinationPath = selection.filePath;
-        const protectedPaths = [
-          sourcePath,
-          ...entries.map((entry) => entry.resultPath),
-        ];
-        assertCurrentResults();
-        await assertExportDestination(destinationPath, protectedPaths);
-        savedPath = await saveArchiveAs(entries, destinationPath, async () => {
+          const assertCurrentResults = (): void => {
+            assertTrustedSender(event, owner, rendererUrl);
+            const current = getJobState();
+            if (
+              current.status !== "succeeded" ||
+              current.jobId !== job.jobId ||
+              current.resultIds.length !== resultIds.length ||
+              !resultIds.every(
+                (id, index) =>
+                  id === current.resultIds[index] &&
+                  getResultPath(id) === entries[index]!.resultPath,
+              ) ||
+              getCurrentSourcePath() !== sourcePath
+            ) {
+              throw new Error("Conversion results have expired.");
+            }
+          };
+
+          const destinationPath = selection.filePath;
+          const protectedPaths = [
+            sourcePath,
+            ...entries.map((entry) => entry.resultPath),
+          ];
           assertCurrentResults();
           await assertExportDestination(destinationPath, protectedPaths);
-          assertCurrentResults();
-        });
-      } else {
-        savedPath = await saveArchive(entries, outputDirectory, fileName);
+          savedPath = await saveArchiveAs(
+            entries,
+            destinationPath,
+            async () => {
+              assertCurrentResults();
+              await assertExportDestination(destinationPath, protectedPaths);
+              assertCurrentResults();
+            },
+          );
+        } else {
+          savedPath = await saveArchive(entries, outputDirectory, fileName);
+        }
+
+        lastSavedPath = savedPath;
+
+        return {
+          status: "saved",
+          fileName: path.basename(savedPath),
+        };
+      } catch (error: unknown) {
+        return {
+          status: "failed",
+          code: getSaveErrorCode(error),
+        };
       }
-
-      lastSavedPath = savedPath;
-
-      return {
-        status: "saved",
-        fileName: path.basename(savedPath),
-      };
     },
   );
 
@@ -294,14 +331,21 @@ export function registerFileActionsIpc(
         throw new Error("Result has expired.");
       }
 
-      await copyFile(resultPath, selection.filePath);
+      try {
+        await replaceResultFile(resultPath, selection.filePath);
 
-      lastSavedPath = selection.filePath;
+        lastSavedPath = selection.filePath;
 
-      return {
-        status: "saved",
-        fileName: path.basename(selection.filePath),
-      };
+        return {
+          status: "saved",
+          fileName: path.basename(selection.filePath),
+        };
+      } catch (error: unknown) {
+        return {
+          status: "failed",
+          code: getSaveErrorCode(error),
+        };
+      }
     },
   );
 

@@ -79,6 +79,14 @@ export const pl = {
     showInFolder: "Pokaż w folderze",
     closeNotification: "Zamknij powiadomienie",
     folderError: "Nie można pokazać zapisanego pliku w folderze.",
+    saveErrors: {
+      "disk-full":
+        "Brak miejsca na dysku. Zwolnij miejsce lub użyj „Zapisz jako”.",
+      "permission-denied":
+        "Brak uprawnień do zapisu. Użyj „Zapisz jako” i wybierz inny folder.",
+      "save-failed":
+        "Nie udało się zapisać pliku. Spróbuj ponownie lub użyj „Zapisz jako”.",
+    },
   },
   preview: {
     expand: "Powiększ podgląd",

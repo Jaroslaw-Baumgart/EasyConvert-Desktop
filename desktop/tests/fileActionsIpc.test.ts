@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({ handle: vi.fn(), showSaveDialog: vi.fn(), trus
 vi.mock("electron", () => ({ shell: { showItemInFolder: mocks.showItemInFolder }, app: { getPath: mocks.getPath }, ipcMain: { handle: mocks.handle }, dialog: { showSaveDialog: mocks.showSaveDialog } }));
 vi.mock("../main/assertTrustedSender", () => ({ assertTrustedSender: mocks.trusted }));
 import { registerFileActionsIpc } from "../main/fileActionsIpc";
+import * as resultFiles from "../main/saveResultFile";
 import { registerSource, clearSource, getSourcePath } from "../main/sourceRegistry";
 import { registerResult, registerResults, clearResult, getResultPath } from "../main/resultRegistry";
 import { startJob, succeedJob, failJob, resetJob, getJobState } from "../main/jobRegistry";
@@ -34,11 +35,31 @@ beforeEach(async () => {
   registerFileActionsIpc({} as BrowserWindow, "app://easyconvert/");
 });
 afterEach(async () => {
+  vi.restoreAllMocks();
   const job = getJobState(); if (job.status === "running") failJob(job.jobId, "test cleanup");
   resetJob(); clearSource(); clearResult();
   await rm(directory, { recursive: true, force: true });
 });
 describe("native file actions", () => {
+  it.each([
+    ["ENOSPC", "disk-full"],
+    ["EACCES", "permission-denied"],
+    ["EPERM", "permission-denied"],
+    ["EIO", "save-failed"],
+  ])("reports %s and permits a successful retry", async (systemCode, code) => {
+    const save = handler("easyconvert:save-result");
+    vi.spyOn(resultFiles, "saveResultFile").mockRejectedValueOnce(
+      Object.assign(new Error("Simulated write failure"), { code: systemCode }),
+    );
+
+    await expect(save(event, resultId)).resolves.toEqual({ status: "failed", code });
+    expect(getResultPath(resultId)).toBe(resultPath);
+    expect(await readFile(resultPath, "utf8")).toBe("PNG result");
+    await expect(save(event, resultId)).resolves.toEqual({ status: "saved", fileName: "source.png" });
+    expect(await readFile(path.join(directory, "EasyConvert Output", "source.png"), "utf8"))
+      .toBe("PNG result");
+  });
+
   it("saves an archive to the dialog-approved destination and allows confirmed overwrite", async () => {
     const destination = path.join(directory, "chosen.zip");
     await writeFile(destination, "previous archive");
@@ -70,7 +91,8 @@ describe("native file actions", () => {
 
   it.each(["source", "result"])("protects the %s when choosing an archive destination", async (kind) => {
     mocks.showSaveDialog.mockResolvedValue({ canceled: false, filePath: kind === "source" ? sourcePath : resultPath });
-    await expect(handler("easyconvert:save-archive")(event, [resultId], true)).rejects.toThrow("Cannot overwrite");
+    await expect(handler("easyconvert:save-archive")(event, [resultId], true))
+      .resolves.toEqual({ status: "failed", code: "save-failed" });
     expect(await readFile(sourcePath, "utf8")).toBe("source bytes");
     expect(await readFile(resultPath, "utf8")).toBe("PNG result");
   });
@@ -82,7 +104,8 @@ describe("native file actions", () => {
       resetJob();
       return { canceled: false, filePath: destination };
     });
-    await expect(handler("easyconvert:save-archive")(event, [resultId], true)).rejects.toThrow("expired");
+    await expect(handler("easyconvert:save-archive")(event, [resultId], true))
+      .resolves.toEqual({ status: "failed", code: "save-failed" });
     expect(await readFile(destination, "utf8")).toBe("previous bytes");
   });
 

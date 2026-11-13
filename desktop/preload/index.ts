@@ -184,6 +184,19 @@ function parseSaveResponse(value: unknown): SaveResponse {
     };
   }
 
+  if (
+    value.status === "failed" &&
+    "code" in value &&
+    (value.code === "disk-full" ||
+      value.code === "permission-denied" ||
+      value.code === "save-failed")
+  ) {
+    return {
+      status: "failed",
+      code: value.code,
+    };
+  }
+
   throw new Error("Invalid save response.");
 }
 
