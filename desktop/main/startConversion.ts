@@ -7,6 +7,11 @@ import { startJob } from "./jobRegistry";
 import { clearResult } from "./resultRegistry";
 import { runConversionJob } from "./runConversionJob";
 
+let activeConversion: {
+  jobId: string;
+  controller: AbortController;
+} | null = null;
+
 export function startConversion(
   value: unknown,
   onStateChanged: () => void,
@@ -24,6 +29,24 @@ export function startConversion(
   const jobId = startJob();
   clearResult();
   onStateChanged();
-  void runConversionJob(jobId, sourcePath, onStateChanged, request);
+  const controller = new AbortController();
+  activeConversion = { jobId, controller };
+  void runConversionJob(
+    jobId,
+    sourcePath,
+    onStateChanged,
+    request,
+    controller.signal,
+  ).finally(() => {
+    if (activeConversion?.jobId === jobId) {
+      activeConversion = null;
+    }
+  });
   return { jobId };
+}
+
+export function cancelConversion(jobId: string): void {
+  if (activeConversion?.jobId === jobId) {
+    activeConversion.controller.abort();
+  }
 }

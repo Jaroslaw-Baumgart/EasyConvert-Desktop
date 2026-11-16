@@ -117,3 +117,40 @@ describe("worker failures", () => {
     await expect(runConversionWorker("input.jpg", "result.png", { sourceId: "source-1", conversion: "jpg-to-png" })).rejects.toBe(error);
   });
 });
+
+
+it("does not launch a worker for an already aborted signal", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  await expect(runConversionWorker("input.jpg", "result.png", cases[0]!.request, controller.signal))
+    .rejects.toBe(controller.signal.reason);
+  expect(mocks.fork).not.toHaveBeenCalled();
+});
+
+it.each([0, 1])("waits for exit %i after abort and removes the listener", async (code) => {
+  const worker = Object.assign(new EventEmitter(), { kill: vi.fn() });
+  mocks.fork.mockReturnValue(worker);
+  const controller = new AbortController();
+  const remove = vi.spyOn(controller.signal, "removeEventListener");
+  const completion = runConversionWorker("input.jpg", "result.png", cases[0]!.request, controller.signal);
+  const settled = vi.fn();
+  void completion.then(settled, settled);
+  controller.abort();
+  await Promise.resolve();
+  expect(worker.kill).toHaveBeenCalledOnce();
+  expect(settled).not.toHaveBeenCalled();
+  worker.emit("exit", code);
+  await expect(completion).rejects.toBe(controller.signal.reason);
+  expect(remove).toHaveBeenCalledExactlyOnceWith("abort", expect.any(Function));
+});
+
+it("does not kill a worker when the signal is aborted after success", async () => {
+  const worker = Object.assign(new EventEmitter(), { kill: vi.fn() });
+  mocks.fork.mockReturnValue(worker);
+  const controller = new AbortController();
+  const completion = runConversionWorker("input.jpg", "result.png", cases[0]!.request, controller.signal);
+  worker.emit("exit", 0);
+  await completion;
+  controller.abort();
+  expect(worker.kill).not.toHaveBeenCalled();
+});

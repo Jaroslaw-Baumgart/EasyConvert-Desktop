@@ -81,7 +81,7 @@ it.each(["changed", "deleted"])("previews and starts conversion from the copy af
   } as const;
   const onStateChanged = vi.fn();
   const { jobId } = startConversion(request, onStateChanged);
-  expect(mocks.runConversionJob).toHaveBeenCalledExactlyOnceWith(jobId, copiedPath, onStateChanged, request);
+  expect(mocks.runConversionJob).toHaveBeenCalledExactlyOnceWith(jobId, copiedPath, onStateChanged, request, expect.any(AbortSignal));
 
   failJob(jobId, "test finished");
   clearSource();

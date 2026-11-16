@@ -8,6 +8,7 @@ export function createDesktopApi(): EasyConvertApi {
     selectSource: vi.fn(),
     selectDroppedSource: vi.fn(),
     startConversion: vi.fn(),
+    cancelConversion: vi.fn().mockResolvedValue(undefined),
     getJobState: vi.fn(),
     onJobStateChanged: vi.fn(),
     resetSource: vi.fn().mockResolvedValue(undefined),

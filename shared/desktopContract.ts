@@ -28,6 +28,7 @@ export interface EasyConvertApi {
   saveResultAs(resultId: string): Promise<SaveResponse>;
   saveArchive(resultIds: string[], saveAs?: boolean): Promise<SaveResponse>;
   showLastSavedFile(): Promise<void>;
+  cancelConversion(jobId: string): Promise<void>;
 }
 
 export type StartConversionRequest =

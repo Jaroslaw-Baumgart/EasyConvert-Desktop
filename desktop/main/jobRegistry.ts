@@ -49,3 +49,12 @@ export function failJob(jobId: string, message: string): boolean {
     return true;
   }
 }
+
+export function cancelJob(jobId: string): boolean {
+  if (currentJob.status !== "running" || currentJob.jobId !== jobId) {
+    return false;
+  } else {
+    currentJob = { status: "cancelled", jobId };
+    return true;
+  }
+}

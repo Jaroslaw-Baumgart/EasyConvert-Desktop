@@ -183,6 +183,7 @@ describe("runConversionJob", () => {
         inputPath,
         outputPath,
         request,
+        undefined,
       );
       expect(mocks.stat).toHaveBeenCalledWith(outputPath);
 
@@ -345,6 +346,7 @@ describe("PDF conversion job", () => {
       "input.pdf",
       pdfDirectory,
       pdfRequest,
+      undefined,
     );
     expect(mocks.getPdfPagePaths).toHaveBeenCalledExactlyOnceWith(pdfDirectory);
     expect(mocks.stat).toHaveBeenCalledTimes(2);
@@ -420,4 +422,33 @@ describe("PDF conversion job", () => {
     expect(results.getResultPath(previousId)).toBe("previous.png");
     expect(publish).not.toHaveBeenCalled();
   });
+});
+
+
+it.each(["before start", "worker", "output validation"])("publishes cancelled without registering results: %s", async (stage) => {
+  const { jobs, results, runConversionJob } = await loadModules();
+  const previousId = results.registerResult("previous.png");
+  const jobId = jobs.startJob();
+  const controller = new AbortController();
+  if (stage === "before start") controller.abort();
+  if (stage === "worker") mocks.runWorker.mockImplementation(async () => {
+    controller.abort();
+    throw controller.signal.reason;
+  });
+  if (stage === "output validation") mocks.stat.mockImplementation(async () => {
+    controller.abort();
+    return { isFile: () => true, size: 10 };
+  });
+  await runConversionJob(jobId, "input.jpg", mocks.onStateChanged, jpgRequest, controller.signal);
+  expect(jobs.getJobState()).toEqual({ status: "cancelled", jobId });
+  expect(results.getResultPath(previousId)).toBe("previous.png");
+  expect(mocks.onStateChanged).toHaveBeenCalledOnce();
+  if (stage === "before start") {
+    expect(mocks.mkdtemp).not.toHaveBeenCalled();
+    expect(mocks.runWorker).not.toHaveBeenCalled();
+  } else {
+    expect(mocks.runWorker).toHaveBeenCalledExactlyOnceWith(
+      "input.jpg", path.join("C:/temp/easyconvert-job-test", "result.png"), jpgRequest, controller.signal,
+    );
+  }
 });

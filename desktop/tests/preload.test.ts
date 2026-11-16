@@ -329,3 +329,20 @@ describe("preload job subscription", () => {
     expect(emitter.listenerCount(CHANNEL)).toBe(0);
   });
 });
+
+
+it("forwards a cancellation ID, returns no payload and propagates IPC failure", async () => {
+  const { api } = await setup();
+  mocks.invoke.mockResolvedValueOnce("ignored response");
+  await expect(api.cancelConversion("job-1")).resolves.toBeUndefined();
+  expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith("easyconvert:cancel-conversion", "job-1");
+  const error = new Error("IPC unavailable");
+  mocks.invoke.mockRejectedValueOnce(error);
+  await expect(api.cancelConversion("job-1")).rejects.toBe(error);
+});
+
+it.each([null, 123, "", "x".repeat(129)])("rejects invalid cancellation ID %j before invoking IPC", async (value) => {
+  const { api } = await setup();
+  await expect(api.cancelConversion(value as string)).rejects.toThrow("Invalid conversion job identifier.");
+  expect(mocks.invoke).not.toHaveBeenCalled();
+});

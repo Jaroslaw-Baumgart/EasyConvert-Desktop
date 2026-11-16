@@ -3,7 +3,7 @@ import { mkdtemp, stat } from "node:fs/promises";
 import path from "node:path";
 import type { StartConversionRequest } from "../../shared/desktopContract";
 import { getPdfPagePaths } from "../../conversion-core/pdf/convertPdfToJpg";
-import { failJob, getJobState, succeedJob } from "./jobRegistry";
+import { failJob, getJobState, succeedJob, cancelJob } from "./jobRegistry";
 import { registerResults } from "./resultRegistry";
 import { runConversionWorker } from "./runConversionWorker";
 import { getConversionDefinition } from "../../shared/conversions";
@@ -14,8 +14,10 @@ export async function runConversionJob(
   inputPath: string,
   onStateChanged: () => void,
   request: StartConversionRequest,
+  signal?: AbortSignal,
 ): Promise<void> {
   try {
+    signal?.throwIfAborted();
     const directory = await mkdtemp(
       path.join(app.getPath("temp"), "easyconvert-job-"),
     );
@@ -23,13 +25,13 @@ export async function runConversionJob(
     let outputPaths: string[];
 
     if (request.conversion === "pdf-to-jpg") {
-      await runConversionWorker(inputPath, directory, request);
+      await runConversionWorker(inputPath, directory, request, signal);
       outputPaths = await getPdfPagePaths(directory);
     } else {
       const { targetFormat } = getConversionDefinition(request.conversion);
       const outputPath = path.join(directory, `result.${targetFormat}`);
 
-      await runConversionWorker(inputPath, outputPath, request);
+      await runConversionWorker(inputPath, outputPath, request, signal);
       outputPaths = [outputPath];
     }
 
@@ -50,17 +52,24 @@ export async function runConversionJob(
       return;
     }
 
+    signal?.throwIfAborted();
+
     const resultIds = registerResults(outputPaths);
 
     if (succeedJob(jobId, resultIds)) {
       onStateChanged();
     }
   } catch (error) {
-    const changed = failJob(
-      jobId,
-      error instanceof Error ? error.message : "Conversion failed.",
-    );
+    let changed: boolean;
 
+    if (signal?.aborted) {
+      changed = cancelJob(jobId);
+    } else {
+      changed = failJob(
+        jobId,
+        error instanceof Error ? error.message : "Conversion failed.",
+      );
+    }
     if (changed) {
       onStateChanged();
     }

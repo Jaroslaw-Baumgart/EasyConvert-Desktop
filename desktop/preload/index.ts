@@ -247,6 +247,11 @@ const api: EasyConvertApi = {
     return parseStartConversionResponse(value);
   },
 
+  cancelConversion: async (jobId) => {
+    const identifier = parseIdentifier(jobId);
+    await ipcRenderer.invoke("easyconvert:cancel-conversion", identifier);
+  },
+
   getJobState: async () => {
     const value: unknown = await ipcRenderer.invoke(
       "easyconvert:get-job-state",

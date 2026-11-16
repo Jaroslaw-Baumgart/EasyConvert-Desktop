@@ -15,9 +15,9 @@ async function loadModules() {
   const sources = await import("../main/sourceRegistry");
   const jobs = await import("../main/jobRegistry");
   const results = await import("../main/resultRegistry");
-  const { startConversion } = await import("../main/startConversion");
+  const { startConversion, cancelConversion } = await import("../main/startConversion");
 
-  return { sources, jobs, results, startConversion };
+  return { sources, jobs, results, startConversion, cancelConversion };
 }
 
 beforeEach(() => {
@@ -38,7 +38,7 @@ describe("startConversion", () => {
       const { jobId } = startConversion(request, onStateChanged);
 
       expect(mocks.runConversionJob).toHaveBeenCalledExactlyOnceWith(
-        jobId, inputPath, onStateChanged, request,
+        jobId, inputPath, onStateChanged, request, expect.any(AbortSignal),
       );
     },
   );
@@ -109,6 +109,7 @@ describe("startConversion", () => {
         inputPath,
         onStateChanged,
         request,
+        expect.any(AbortSignal),
       );
     },
   );
@@ -177,4 +178,45 @@ describe("startConversion", () => {
       expect(mocks.runConversionJob).not.toHaveBeenCalled();
     },
   );
+});
+
+
+it("targets only the active job and leaves final state changes to the job", async () => {
+  const { sources, jobs, startConversion, cancelConversion } = await loadModules();
+  const sourceId = sources.registerSource("photo.jpg", "photo.jpg", "unit-source-copy");
+  let finish!: () => void;
+  const work = new Promise<void>((resolve) => { finish = resolve; });
+  mocks.runConversionJob.mockReturnValue(work);
+  const { jobId } = startConversion({ sourceId, conversion: "jpg-to-png" }, vi.fn());
+  const signal = mocks.runConversionJob.mock.calls[0][4] as AbortSignal;
+  cancelConversion("foreign");
+  expect(signal.aborted).toBe(false);
+  cancelConversion(jobId);
+  expect(signal.aborted).toBe(true);
+  expect(jobs.getJobState()).toEqual({ status: "running", jobId });
+  finish();
+  await work;
+  jobs.cancelJob(jobId);
+  const next = startConversion({ sourceId, conversion: "jpg-to-png" }, vi.fn());
+  const nextSignal = mocks.runConversionJob.mock.calls[1][4] as AbortSignal;
+  cancelConversion(jobId);
+  expect(nextSignal.aborted).toBe(false);
+  expect(next.jobId).not.toBe(jobId);
+});
+
+
+it("does not clear a newer controller when an older job finishes late", async () => {
+  const { sources, jobs, startConversion, cancelConversion } = await loadModules();
+  const sourceId = sources.registerSource("photo.jpg", "photo.jpg", "unit-source-copy");
+  let finishFirst!: () => void;
+  const firstWork = new Promise<void>((resolve) => { finishFirst = resolve; });
+  mocks.runConversionJob.mockReturnValueOnce(firstWork).mockReturnValueOnce(new Promise<void>(() => {}));
+  const first = startConversion({ sourceId, conversion: "jpg-to-png" }, vi.fn());
+  jobs.cancelJob(first.jobId);
+  const second = startConversion({ sourceId, conversion: "jpg-to-png" }, vi.fn());
+  const secondSignal = mocks.runConversionJob.mock.calls[1][4] as AbortSignal;
+  finishFirst();
+  await firstWork;
+  cancelConversion(second.jobId);
+  expect(secondSignal.aborted).toBe(true);
 });

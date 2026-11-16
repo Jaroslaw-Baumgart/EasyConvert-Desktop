@@ -1,6 +1,6 @@
 import { ipcMain, type BrowserWindow } from "electron";
 import { assertTrustedSender } from "./assertTrustedSender";
-import { startConversion } from "./startConversion";
+import { startConversion, cancelConversion } from "./startConversion";
 import { getJobState } from "./jobRegistry";
 
 export function registerConversionIpc(
@@ -49,4 +49,22 @@ export function registerConversionIpc(
 
     return getJobState();
   });
+
+  ipcMain.handle(
+    "easyconvert:cancel-conversion",
+    (event, ...args: unknown[]) => {
+      assertTrustedSender(event, owner, rendererUrl);
+      if (args.length !== 1) {
+        throw new Error("Expected exactly one argument.");
+      }
+      const jobId = args[0];
+      if (typeof jobId !== "string") {
+        throw new Error("Expected jobId to be a string.");
+      }
+      if (jobId.length === 0 || jobId.length > 128) {
+        throw new Error("Expected a job identifier.");
+      }
+      cancelConversion(jobId);
+    },
+  );
 }

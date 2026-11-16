@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   handle: vi.fn(),
   assertTrustedSender: vi.fn(),
   startConversion: vi.fn(),
+  cancelConversion: vi.fn(),
   getJobState: vi.fn(),
 }));
 
@@ -18,6 +19,7 @@ vi.mock("../main/assertTrustedSender", () => ({
 
 vi.mock("../main/startConversion", () => ({
   startConversion: mocks.startConversion,
+  cancelConversion: mocks.cancelConversion,
 }));
 
 vi.mock("../main/jobRegistry", () => ({
@@ -43,8 +45,9 @@ function setup() {
 
   registerConversionIpc(owner, rendererUrl);
 
-  expect(mocks.handle).toHaveBeenCalledTimes(2);
+  expect(mocks.handle).toHaveBeenCalledTimes(3);
   expect(mocks.handle.mock.calls.map(([channel]) => channel).sort()).toEqual([
+    "easyconvert:cancel-conversion",
     "easyconvert:get-job-state",
     "easyconvert:start-conversion",
   ]);
@@ -165,7 +168,7 @@ describe("conversion IPC", () => {
     expect(mocks.getJobState).not.toHaveBeenCalled();
   });
 
-  it.each(["easyconvert:start-conversion", "easyconvert:get-job-state"])(
+  it.each(["easyconvert:start-conversion", "easyconvert:get-job-state", "easyconvert:cancel-conversion"])(
     "rejects an untrusted sender on %s",
     (channel) => {
       const { event, handlerFor } = setup();
@@ -238,3 +241,20 @@ describe("conversion IPC", () => {
     expect(mocks.getJobState).not.toHaveBeenCalled();
   });
 });
+
+
+it("forwards cancellation after sender validation without publishing a terminal state", () => {
+  const { event, owner, rendererUrl, handlerFor, windowStub } = setup();
+  handlerFor("easyconvert:cancel-conversion")(event, "job-1");
+  expect(mocks.assertTrustedSender).toHaveBeenCalledExactlyOnceWith(event, owner, rendererUrl);
+  expect(mocks.cancelConversion).toHaveBeenCalledExactlyOnceWith("job-1");
+  expect(windowStub.webContents.send).not.toHaveBeenCalled();
+});
+
+it.each([[], [null], [123], [""], ["x".repeat(129)], ["job-1", "extra"]])(
+  "rejects invalid cancellation arguments %j", (...args) => {
+    const { event, handlerFor } = setup();
+    expect(() => handlerFor("easyconvert:cancel-conversion")(event, ...args)).toThrow();
+    expect(mocks.cancelConversion).not.toHaveBeenCalled();
+  },
+);

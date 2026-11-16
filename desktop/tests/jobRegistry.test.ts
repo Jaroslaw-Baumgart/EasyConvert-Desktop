@@ -137,3 +137,18 @@ describe("jobRegistry", () => {
     });
   });
 });
+
+
+it("cancels only the matching running job and permits a new start", async () => {
+  const jobs = await loadRegistry();
+  expect(jobs.cancelJob("missing")).toBe(false);
+  const jobId = jobs.startJob();
+  expect(jobs.cancelJob("foreign")).toBe(false);
+  expect(jobs.getJobState()).toEqual({ status: "running", jobId });
+  expect(jobs.cancelJob(jobId)).toBe(true);
+  expect(jobs.getJobState()).toEqual({ status: "cancelled", jobId });
+  expect(jobs.cancelJob(jobId)).toBe(false);
+  expect(jobs.succeedJob(jobId, ["late"])).toBe(false);
+  expect(jobs.failJob(jobId, "late")).toBe(false);
+  expect(jobs.startJob()).not.toBe(jobId);
+});

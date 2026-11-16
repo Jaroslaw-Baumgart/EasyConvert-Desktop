@@ -149,39 +149,39 @@ describe("waitForDesktopJob", () => {
     expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
-  it("rejects an already aborted signal without subscribing", async () => {
-    const { api } = setup();
-    const controller = new AbortController();
-    const reason = new Error("Already cancelled.");
-
-    controller.abort(reason);
-
-    await expect(
-      waitForDesktopJob(api, "job-1", controller.signal),
-    ).rejects.toBe(reason);
-
-    expect(api.onJobStateChanged).not.toHaveBeenCalled();
-    expect(api.getJobState).not.toHaveBeenCalled();
-  });
-
-  it("aborts waiting and removes both listeners", async () => {
-    const { api, unsubscribe, listeners } = setup();
+  it.each([false, true])("waits for main to confirm cancellation (already aborted=%s)", async (alreadyAborted) => {
+    const { api, emit, unsubscribe, listeners } = setup();
     const controller = new AbortController();
     const removeListener = vi.spyOn(controller.signal, "removeEventListener");
-    const reason = new Error("User cancelled.");
-
+    if (alreadyAborted) controller.abort();
     const completion = waitForDesktopJob(api, "job-1", controller.signal);
-    const assertion = expect(completion).rejects.toBe(reason);
+    const settled = vi.fn();
+    void completion.then(settled, settled);
+    const assertion = expect(completion).rejects.toThrow("Conversion cancelled.");
+    if (!alreadyAborted) controller.abort();
 
-    controller.abort(reason);
-
+    await Promise.resolve();
+    expect(api.cancelConversion).toHaveBeenCalledExactlyOnceWith("job-1");
+    expect(settled).not.toHaveBeenCalled();
+    expect(unsubscribe).not.toHaveBeenCalled();
+    emit({ status: "cancelled", jobId: "job-1" });
     await assertion;
-    expect(unsubscribe).toHaveBeenCalledTimes(1);
     expect(listeners.size).toBe(0);
-    expect(removeListener).toHaveBeenCalledExactlyOnceWith(
-      "abort",
-      expect.any(Function),
-    );
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(removeListener).toHaveBeenCalledExactlyOnceWith("abort", expect.any(Function));
+  });
+
+  it("propagates a cancellation IPC failure and cleans subscriptions", async () => {
+    const { api, unsubscribe, listeners } = setup();
+    const controller = new AbortController();
+    const error = new Error("IPC unavailable");
+    vi.mocked(api.cancelConversion).mockRejectedValue(error);
+    const completion = waitForDesktopJob(api, "job-1", controller.signal);
+    const assertion = expect(completion).rejects.toBe(error);
+    controller.abort();
+    await assertion;
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(listeners.size).toBe(0);
   });
 
   it("removes the abort listener after success", async () => {

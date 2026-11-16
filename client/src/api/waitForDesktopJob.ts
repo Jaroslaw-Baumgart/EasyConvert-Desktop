@@ -10,15 +10,11 @@ export async function waitForDesktopJob(
 ): Promise<string[]> {
   let removeAbortListener: () => void = () => {};
   let unsubscribe: () => void = () => {};
-  signal?.throwIfAborted();
 
   try {
     return await new Promise<string[]>((resolve, reject) => {
       const handleAbort = (): void => {
-        reject(
-          signal?.reason ??
-            new DOMException("Conversion cancelled.", "AbortError"),
-        );
+        void api.cancelConversion(jobId).catch(reject);
       };
 
       signal?.addEventListener("abort", handleAbort, { once: true });
@@ -52,6 +48,10 @@ export async function waitForDesktopJob(
       };
 
       unsubscribe = api.onJobStateChanged(handleState);
+
+      if (signal?.aborted) {
+        handleAbort();
+      }
 
       void api.getJobState().then((state) => {
         if (state.status === "idle" || state.jobId !== jobId) {
