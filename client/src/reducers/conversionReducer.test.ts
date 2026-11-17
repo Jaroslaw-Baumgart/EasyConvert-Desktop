@@ -268,3 +268,16 @@ describe("conversionReducer", () => {
     expect(nextState).toBe(activeState);
   });
 });
+
+
+it("keeps the source ready after confirmed cancellation", () => {
+  expect(conversionReducer(createTestState.loading(), {
+    type: "conversionCancelled", requestId: activeRequestId,
+  })).toEqual(createTestState.ready());
+});
+
+it.each([initialConversionState, ...Object.values(createTestState).map((create) => create())])(
+  "ignores stale cancellation in $kind", (state) => {
+    expect(conversionReducer(state, { type: "conversionCancelled", requestId: staleRequestId })).toBe(state);
+  },
+);

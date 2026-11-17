@@ -62,7 +62,7 @@ export async function runConversionJob(
   } catch (error) {
     let changed: boolean;
 
-    if (signal?.aborted) {
+    if (signal?.aborted && error === signal.reason) {
       changed = cancelJob(jobId);
     } else {
       changed = failJob(

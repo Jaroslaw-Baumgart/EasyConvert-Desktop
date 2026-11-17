@@ -2,7 +2,7 @@ import type { ConversionOption } from "../types/converter";
 import PngToJpgControls from "./conversion-settings/PngToJpgControls";
 import type { ConversionSettings } from "../schemas/conversionSettings";
 import PdfPageControls from "./conversion-settings/PdfPageControls";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import styles from "./ConversionOptions.module.css";
 import panelStyles from "./ConverterPanel.module.css";
 import primaryActionStyles from "./PrimaryAction.module.css";
@@ -15,6 +15,7 @@ interface ConversionOptionsProps {
   onConvert: (option: ConversionOption, settings?: ConversionSettings) => void;
   isConverting: boolean;
   selectedXlsxSheetName: string | undefined | null;
+  children?: ReactNode;
 }
 
 export default function ConversionOptions({
@@ -22,6 +23,7 @@ export default function ConversionOptions({
   onConvert,
   isConverting,
   selectedXlsxSheetName,
+  children,
 }: ConversionOptionsProps) {
   const { t } = useTranslation();
   const [selectedConversionType, setSelectedConversionType] = useState<
@@ -155,6 +157,7 @@ export default function ConversionOptions({
           {t("options.choose")}
         </p>
       )}
+      {children}
     </div>
   );
 }

@@ -48,6 +48,7 @@ export default function FileConverter({
     selectFile,
     removeFile,
     convert,
+    cancelConversion,
     downloadConvertedFile,
     isPreparingArchive,
     downloadAllConvertedFiles,
@@ -167,7 +168,17 @@ export default function FileConverter({
               onConvert={handleConvert}
               isConverting={isConverting}
               selectedXlsxSheetName={selectedXlsxSheetName}
-            />
+            >
+              {isConverting && (
+                <button
+                  type="button"
+                  className={styles["cancel-conversion-btn"]}
+                  onClick={cancelConversion}
+                >
+                  {t("common.cancel")}
+                </button>
+              )}
+            </ConversionOptions>
           </aside>
         </div>
       ) : file ? (

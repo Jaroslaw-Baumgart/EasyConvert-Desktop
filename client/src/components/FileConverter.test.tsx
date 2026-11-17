@@ -1,4 +1,4 @@
-import type { SaveResponse } from "../../../shared/desktopContract";
+import type { SaveResponse, ConversionJobState } from "../../../shared/desktopContract";
 import { selectDesktopSource } from "../api/desktopSource";
 import {
   act,
@@ -678,3 +678,32 @@ async function selectNativeFile(
   await user.click(button);
   await screen.findByText(file.name);
 }
+
+
+it("keeps controls blocked until main confirms Cancel, then permits retry", async () => {
+  const real = await vi.importActual<typeof import("../api/desktopConversionClient")>("../api/desktopConversionClient");
+  vi.mocked(convertDesktopFile).mockImplementationOnce(real.convertDesktopFile);
+  const { user, input } = setupFileConverter();
+  const api = window.easyConvert;
+  let notify!: (state: ConversionJobState) => void;
+  const unsubscribe = vi.fn();
+  vi.mocked(api.startConversion).mockResolvedValue({ jobId: "job-1" });
+  vi.mocked(api.getJobState).mockResolvedValue({ status: "running", jobId: "job-1" });
+  vi.mocked(api.onJobStateChanged).mockImplementation((listener) => { notify = listener; return unsubscribe; });
+  await selectNativeFile(user, input, createTestFile.jpg());
+  expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  await user.click(getConvertButton("JPG\u2192PNG"));
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(api.cancelConversion).toHaveBeenCalledExactlyOnceWith("job-1");
+  expect(screen.getByRole("button", { name: "Remove file" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Converting" })).toBeDisabled();
+  await user.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(api.cancelConversion).toHaveBeenCalledOnce();
+  await act(async () => { notify({ status: "cancelled", jobId: "job-1" }); });
+  expect(unsubscribe).toHaveBeenCalledOnce();
+  expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  expect(screen.getByText("image.jpg")).toBeInTheDocument();
+  await user.click(screen.getByRole("button", { name: "Convert" }));
+  expect(await screen.findByRole("button", { name: "Save" })).toBeInTheDocument();
+});

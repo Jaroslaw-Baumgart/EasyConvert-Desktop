@@ -43,7 +43,7 @@ export async function waitForDesktopJob(
         }
 
         if (state.status === "cancelled") {
-          reject(new Error("Conversion cancelled."));
+          reject(new DOMException("Conversion cancelled.", "AbortError"));
         }
       };
 

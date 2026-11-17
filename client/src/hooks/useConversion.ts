@@ -31,6 +31,7 @@ type UseConversionResult = {
     option: ConversionOption,
     settings?: ConversionSettings,
   ) => Promise<void>;
+  cancelConversion: () => void;
   downloadConvertedFile: (
     result: ConvertedResult,
     saveAs?: boolean,
@@ -218,7 +219,13 @@ export function useConversion(): UseConversionResult {
         requestId,
       });
     } catch (err: unknown) {
-      if (!isCurrentRequest(requestId) || controller.signal.aborted) return;
+      if (!isCurrentRequest(requestId)) return;
+
+      if (err instanceof DOMException && err.name === "AbortError") {
+        dispatch({ type: "conversionCancelled", requestId });
+        return;
+      }
+
       console.error(err);
 
       const errorCode =
@@ -233,6 +240,13 @@ export function useConversion(): UseConversionResult {
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
       }
+    }
+  };
+
+  const cancelConversion = (): void => {
+    if (!isMountedRef.current || !isConverting) return;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
   };
 
@@ -335,6 +349,7 @@ export function useConversion(): UseConversionResult {
     selectFile,
     removeFile,
     convert,
+    cancelConversion,
     downloadConvertedFile,
     isPreparingArchive,
     saveNotification,

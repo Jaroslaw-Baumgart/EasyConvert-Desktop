@@ -15,6 +15,7 @@ export const pl = {
     converting: "Konwertowanie",
     loadingPage: "Wczytywanie strony...",
     unknown: "nieznany",
+    cancel: "Anuluj",
   },
   validation: {
     quality: "Jakość musi mieścić się w zakresie od 1 do 100.",

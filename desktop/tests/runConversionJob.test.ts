@@ -452,3 +452,17 @@ it.each(["before start", "worker", "output validation"])("publishes cancelled wi
     );
   }
 });
+
+
+it("reports a stopping failure as failed even when cancellation was requested", async () => {
+  const { jobs, runConversionJob } = await loadModules();
+  const jobId = jobs.startJob();
+  const controller = new AbortController();
+  mocks.runWorker.mockImplementation(async () => {
+    controller.abort();
+    throw new Error("Could not stop process tree");
+  });
+  await runConversionJob(jobId, "input.jpg", mocks.onStateChanged, jpgRequest, controller.signal);
+  expect(jobs.getJobState()).toEqual({ status: "failed", jobId, message: "Could not stop process tree" });
+  expect(mocks.onStateChanged).toHaveBeenCalledOnce();
+});

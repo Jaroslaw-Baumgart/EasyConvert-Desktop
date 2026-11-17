@@ -607,3 +607,36 @@ describe("native result saving", () => {
     expect(result.current.conversionError).toBeNull();
   });
 });
+
+
+it.each(["confirmed", "IPC failure"])("handles user cancellation: %s", async (outcome) => {
+  const { result, api, file, output } = setup();
+  const pending = deferred<ConvertedResults>();
+  vi.mocked(convertDesktopFile).mockReturnValueOnce(pending.promise);
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  act(() => result.current.selectFile(file, "source-1"));
+  let converting!: Promise<void>;
+  act(() => { converting = result.current.convert(option); });
+  const signal = vi.mocked(convertDesktopFile).mock.calls[0][3]!;
+  act(() => { result.current.cancelConversion(); result.current.cancelConversion(); });
+  expect(signal.aborted).toBe(true);
+  expect(result.current.isConverting).toBe(true);
+  await act(async () => {
+    await result.current.removeFile();
+    await result.current.convert(option);
+  });
+  expect(api.resetSource).not.toHaveBeenCalled();
+  expect(convertDesktopFile).toHaveBeenCalledOnce();
+  await act(async () => {
+    pending.reject(outcome === "confirmed"
+      ? new DOMException("Conversion cancelled.", "AbortError") : new Error("IPC unavailable"));
+    await converting;
+  });
+  expect(result.current.file).toBe(file);
+  expect(result.current.isConverting).toBe(false);
+  expect(result.current.convertedResults).toBeNull();
+  if (outcome === "confirmed") expect(result.current.conversionError).toBeNull();
+  else expect(result.current.conversionError).not.toBeNull();
+  await act(async () => { await result.current.convert(option); });
+  expect(result.current.convertedResults).toBe(output);
+});

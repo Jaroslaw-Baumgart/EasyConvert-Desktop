@@ -2,6 +2,7 @@ import { utilityProcess } from "electron";
 import path from "node:path";
 import type { StartConversionRequest } from "../../shared/desktopContract";
 import { createWorkerRequest } from "./createWorkerRequest";
+import { killProcessTree } from "./killProcessTree";
 
 export function runConversionWorker(
   inputPath: string,
@@ -19,16 +20,36 @@ export function runConversionWorker(
       { stdio: "inherit", serviceName: "EasyConvert conversion" },
     );
 
+    let stopping: Promise<void> | undefined;
+    let stopError: unknown;
+
     const onAbort = () => {
-      worker.kill();
+      if (worker.pid === undefined || stopping) {
+        return;
+      }
+      stopping = killProcessTree(worker.pid).catch((error) => {
+        stopError = error;
+      });
     };
+
+    const onSpawn = () => {
+      if (signal?.aborted) {
+        onAbort();
+      }
+    };
+
+    worker.once("spawn", onSpawn);
 
     signal?.addEventListener("abort", onAbort, { once: true });
 
-    worker.once("exit", (code) => {
+    worker.once("exit", async (code) => {
       signal?.removeEventListener("abort", onAbort);
+      worker.removeListener("spawn", onSpawn);
+      await stopping;
 
-      if (signal?.aborted) {
+      if (stopError !== undefined) {
+        reject(stopError);
+      } else if (signal?.aborted) {
         reject(signal.reason);
       } else if (code === 0) {
         resolve();

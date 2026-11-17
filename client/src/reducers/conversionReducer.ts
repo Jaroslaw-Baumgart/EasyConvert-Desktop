@@ -58,6 +58,10 @@ export type ConversionAction =
     }
   | {
       type: "downloadSucceeded";
+    }
+  | {
+      type: "conversionCancelled";
+      requestId: number;
     };
 
 function assertNever(value: never): never {
@@ -143,6 +147,16 @@ export function conversionReducer(
         kind: "success",
         file: state.file,
         convertedResults: state.convertedResults,
+      };
+
+    case "conversionCancelled":
+      if (state.kind !== "loading" || state.requestId !== action.requestId) {
+        return state;
+      }
+
+      return {
+        kind: "ready",
+        file: state.file,
       };
   }
 

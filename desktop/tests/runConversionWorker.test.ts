@@ -5,6 +5,7 @@ import type { StartConversionRequest } from "../../shared/desktopContract";
 
 const mocks = vi.hoisted(() => ({
   fork: vi.fn(),
+  killProcessTree: vi.fn(),
   app: {
     isPackaged: false,
     getAppPath: vi.fn(),
@@ -16,6 +17,8 @@ vi.mock("electron", () => ({
   utilityProcess: { fork: mocks.fork },
 }));
 
+vi.mock("../main/killProcessTree", () => ({ killProcessTree: mocks.killProcessTree }));
+
 import { runConversionWorker } from "../main/runConversionWorker";
 
 const originalResourcesPath = Object.getOwnPropertyDescriptor(
@@ -25,6 +28,7 @@ const originalResourcesPath = Object.getOwnPropertyDescriptor(
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mocks.killProcessTree.mockResolvedValue(undefined);
 
   mocks.app.isPackaged = false;
   mocks.app.getAppPath.mockReturnValue("C:/projects/EasyConvert");
@@ -127,30 +131,70 @@ it("does not launch a worker for an already aborted signal", async () => {
   expect(mocks.fork).not.toHaveBeenCalled();
 });
 
-it.each([0, 1])("waits for exit %i after abort and removes the listener", async (code) => {
-  const worker = Object.assign(new EventEmitter(), { kill: vi.fn() });
+function startCancellableWorker(pid: number | undefined) {
+  const worker = Object.assign(new EventEmitter(), { pid, kill: vi.fn() });
   mocks.fork.mockReturnValue(worker);
   const controller = new AbortController();
-  const remove = vi.spyOn(controller.signal, "removeEventListener");
   const completion = runConversionWorker("input.jpg", "result.png", cases[0]!.request, controller.signal);
   const settled = vi.fn();
   void completion.then(settled, settled);
+  return { worker, controller, completion, settled };
+}
+
+it.each([0, 1])("waits for taskkill after worker exit %i and removes listeners", async (code) => {
+  let finishStop!: () => void;
+  mocks.killProcessTree.mockReturnValue(new Promise<void>((resolve) => { finishStop = resolve; }));
+  const { worker, controller, completion, settled } = startCancellableWorker(123);
+  const remove = vi.spyOn(controller.signal, "removeEventListener");
   controller.abort();
-  await Promise.resolve();
-  expect(worker.kill).toHaveBeenCalledOnce();
-  expect(settled).not.toHaveBeenCalled();
+  worker.emit("spawn");
+  expect(mocks.killProcessTree).toHaveBeenCalledExactlyOnceWith(123);
+  expect(worker.kill).not.toHaveBeenCalled();
   worker.emit("exit", code);
+  await Promise.resolve();
+  expect(settled).not.toHaveBeenCalled();
+  finishStop();
   await expect(completion).rejects.toBe(controller.signal.reason);
   expect(remove).toHaveBeenCalledExactlyOnceWith("abort", expect.any(Function));
+  expect(worker.listenerCount("spawn")).toBe(0);
 });
 
-it("does not kill a worker when the signal is aborted after success", async () => {
-  const worker = Object.assign(new EventEmitter(), { kill: vi.fn() });
-  mocks.fork.mockReturnValue(worker);
-  const controller = new AbortController();
-  const completion = runConversionWorker("input.jpg", "result.png", cases[0]!.request, controller.signal);
+it("waits for worker exit when taskkill completes first", async () => {
+  const { worker, controller, completion, settled } = startCancellableWorker(123);
+  controller.abort();
+  await Promise.resolve();
+  expect(settled).not.toHaveBeenCalled();
+  worker.emit("exit", 1);
+  await expect(completion).rejects.toBe(controller.signal.reason);
+});
+
+it("defers cancellation until spawn supplies a PID", async () => {
+  const { worker, controller, completion } = startCancellableWorker(undefined);
+  controller.abort();
+  expect(mocks.killProcessTree).not.toHaveBeenCalled();
+  worker.pid = 456;
+  worker.emit("spawn");
+  expect(mocks.killProcessTree).toHaveBeenCalledExactlyOnceWith(456);
+  worker.emit("exit", 1);
+  await expect(completion).rejects.toBe(controller.signal.reason);
+});
+
+it("reports taskkill failure only after worker exit instead of reporting cancellation", async () => {
+  const error = new Error("Access denied");
+  mocks.killProcessTree.mockRejectedValue(error);
+  const { worker, controller, completion, settled } = startCancellableWorker(123);
+  controller.abort();
+  await Promise.resolve();
+  expect(settled).not.toHaveBeenCalled();
+  worker.emit("exit", 1);
+  await expect(completion).rejects.toBe(error);
+});
+
+it("does not stop a worker when the signal is aborted after success", async () => {
+  const { worker, controller, completion } = startCancellableWorker(123);
   worker.emit("exit", 0);
   await completion;
   controller.abort();
-  expect(worker.kill).not.toHaveBeenCalled();
+  expect(mocks.killProcessTree).not.toHaveBeenCalled();
+  expect(worker.listenerCount("spawn")).toBe(0);
 });
