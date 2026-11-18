@@ -1,3 +1,4 @@
+import { rm } from "node:fs/promises";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("node:fs/promises", () => ({ rm: vi.fn().mockResolvedValue(undefined) }));
 
@@ -14,8 +15,8 @@ function registerTestSource(name = "photo.jpg"): string {
   return registerSource(`C:/working/${name}`, `C:/fixtures/${name}`, "C:/working");
 }
 
-afterEach(() => {
-  clearSource();
+afterEach(async () => {
+  await clearSource();
 });
 
 describe("sourceRegistry", () => {
@@ -57,4 +58,22 @@ describe("sourceRegistry", () => {
 
     expect(() => getSourcePath(sourceId)).toThrow("Unknown source.");
   });
+});
+
+
+it("awaits deletion without clearing a source registered during the wait", async () => {
+  registerTestSource();
+  let finish!: () => void;
+  vi.mocked(rm).mockReturnValueOnce(new Promise<void>((resolve) => { finish = resolve; }));
+  const settled = vi.fn();
+  const cleanup = clearSource().then(settled);
+  const next = registerSource("new/photo.jpg", "original.jpg", "new-job");
+  await Promise.resolve();
+  expect(settled).not.toHaveBeenCalled();
+  expect(getCurrentSourceDirectory()).toBe("new-job");
+  finish();
+  await cleanup;
+  expect(getSourcePath(next)).toBe("new/photo.jpg");
+  await clearSource();
+  expect(rm).toHaveBeenLastCalledWith("new-job", { recursive: true, force: true });
 });

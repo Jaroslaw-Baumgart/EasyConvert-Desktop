@@ -71,7 +71,7 @@ afterEach(() => {
 
 describe("selectSource", () => {
   it("preserves the previous registration and results when making the copy fails", async () => {
-    const resultId = registerResult("previous.png");
+    const resultId = registerResult("previous.png", "previous-job");
     const jobId = startJob();
     succeedJob(jobId, [resultId]);
     const state = getJobState();
@@ -113,7 +113,7 @@ describe("selectSource", () => {
   it.each(["program.exe", "photo.jpg.exe", "document"])(
     "rejects %s before reading metadata and preserves the previous result",
     async (name) => {
-      const resultId = registerResult("previous.png");
+      const resultId = registerResult("previous.png", "previous-job");
       const jobId = startJob();
       succeedJob(jobId, [resultId]);
       const previousState = getJobState();

@@ -15,9 +15,9 @@ async function loadModules() {
   const sources = await import("../main/sourceRegistry");
   const jobs = await import("../main/jobRegistry");
   const results = await import("../main/resultRegistry");
-  const { startConversion, cancelConversion } = await import("../main/startConversion");
+  const { startConversion, cancelConversion, stopActiveConversion } = await import("../main/startConversion");
 
-  return { sources, jobs, results, startConversion, cancelConversion };
+  return { sources, jobs, results, startConversion, cancelConversion, stopActiveConversion };
 }
 
 beforeEach(() => {
@@ -52,7 +52,7 @@ describe("startConversion", () => {
     async ({ inputPath, conversion }) => {
       const { sources, jobs, results, startConversion } = await loadModules();
       const sourceId = sources.registerSource(inputPath, inputPath, "unit-source-copy");
-      const resultId = results.registerResult("previous.png");
+      const resultId = results.registerResult("previous.png", "previous-job");
       const jobId = jobs.startJob();
       jobs.succeedJob(jobId, [resultId]);
       const previousState = jobs.getJobState();
@@ -76,7 +76,7 @@ describe("startConversion", () => {
 
       const inputPath = conversion === "jpg-to-png" ? "photo.jpg" : "photo.png";
       const sourceId = sources.registerSource(inputPath, inputPath, "unit-source-copy");
-      const previousResultId = results.registerResult("previous.png");
+      const previousResultId = results.registerResult("previous.png", "previous-job");
 
       const request: StartConversionRequest =
         conversion === "jpg-to-png"
@@ -145,7 +145,7 @@ describe("startConversion", () => {
       const { sources, jobs, results, startConversion } = await loadModules();
 
       const sourceId = sources.registerSource("photo.jpg", "photo.jpg", "unit-source-copy");
-      const resultId = results.registerResult("previous.png");
+      const resultId = results.registerResult("previous.png", "previous-job");
       const onStateChanged = vi.fn();
 
       if (scenario === "second start") {
@@ -219,4 +219,32 @@ it("does not clear a newer controller when an older job finishes late", async ()
   await firstWork;
   cancelConversion(second.jobId);
   expect(secondSignal.aborted).toBe(true);
+});
+
+
+it("stopping without an active conversion completes immediately", async () => {
+  const { stopActiveConversion } = await loadModules();
+  await expect(stopActiveConversion()).resolves.toBeUndefined();
+  expect(mocks.runConversionJob).not.toHaveBeenCalled();
+});
+
+it("repeated stop requests abort once and all wait for job completion", async () => {
+  const { sources, startConversion, stopActiveConversion } = await loadModules();
+  const sourceId = sources.registerSource("photo.jpg", "photo.jpg", "unit-source-copy");
+  let finish!: () => void;
+  mocks.runConversionJob.mockReturnValue(new Promise<void>((resolve) => { finish = resolve; }));
+  startConversion({ sourceId, conversion: "jpg-to-png" }, vi.fn());
+  const signal = mocks.runConversionJob.mock.calls[0][4] as AbortSignal;
+  const aborted = vi.fn();
+  signal.addEventListener("abort", aborted);
+  const settled = vi.fn();
+  const first = stopActiveConversion().then(settled);
+  const second = stopActiveConversion().then(settled);
+  await Promise.resolve();
+  expect(aborted).toHaveBeenCalledOnce();
+  expect(settled).not.toHaveBeenCalled();
+  finish();
+  await Promise.all([first, second]);
+  expect(settled).toHaveBeenCalledTimes(2);
+  await expect(stopActiveConversion()).resolves.toBeUndefined();
 });

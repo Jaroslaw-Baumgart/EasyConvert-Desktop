@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getPath: vi.fn(),
   mkdtemp: vi.fn(),
   stat: vi.fn(),
+  rm: vi.fn(),
   runWorker: vi.fn(),
   getPdfPagePaths: vi.fn(),
   onStateChanged: vi.fn(),
@@ -18,6 +19,7 @@ vi.mock("electron", () => ({
 vi.mock("node:fs/promises", () => ({
   mkdtemp: mocks.mkdtemp,
   stat: mocks.stat,
+  rm: mocks.rm,
 }));
 
 vi.mock("../main/runConversionWorker", () => ({
@@ -128,6 +130,7 @@ beforeEach(() => {
   mocks.getPath.mockReturnValue("C:/temp");
   mocks.mkdtemp.mockResolvedValue("C:/temp/easyconvert-job-test");
   mocks.runWorker.mockResolvedValue(undefined);
+  mocks.rm.mockResolvedValue(undefined);
   mocks.stat.mockResolvedValue({
     isFile: () => true,
     size: 123,
@@ -139,7 +142,7 @@ describe("runConversionJob", () => {
     "checks the output size boundary at %i bytes",
     async (size) => {
       const { jobs, results, runConversionJob } = await loadModules();
-      const previousId = results.registerResult("previous.png");
+      const previousId = results.registerResult("previous.png", "previous-job");
       const jobId = jobs.startJob();
       mocks.stat.mockResolvedValue({ isFile: () => true, size });
 
@@ -198,6 +201,9 @@ describe("runConversionJob", () => {
       expect(state.resultIds[0]).not.toBe(outputPath);
       expect(results.getResultPath(state.resultIds[0]!)).toBe(outputPath);
       expect(mocks.onStateChanged).toHaveBeenCalledTimes(1);
+      expect(mocks.rm).not.toHaveBeenCalled();
+      results.clearResult();
+      expect(mocks.rm).toHaveBeenCalledExactlyOnceWith("C:/temp/easyconvert-job-test", { recursive: true, force: true });
     },
   );
 
@@ -264,6 +270,8 @@ describe("runConversionJob", () => {
         message: error.message,
       });
       expect(mocks.onStateChanged).toHaveBeenCalledTimes(1);
+      if (stage === "mkdtemp") expect(mocks.rm).not.toHaveBeenCalled();
+      else expect(mocks.rm).toHaveBeenCalledExactlyOnceWith("C:/temp/easyconvert-job-test", { recursive: true, force: true });
     },
   );
 
@@ -292,7 +300,7 @@ describe("runConversionJob", () => {
     "ignores a late worker %s without publishing",
     async (outcome) => {
       const { jobs, results, runConversionJob } = await loadModules();
-      const previousResultId = results.registerResult("previous.png");
+      const previousResultId = results.registerResult("previous.png", "previous-job");
       const oldJobId = jobs.startJob();
       let newJobId = "";
 
@@ -318,6 +326,7 @@ describe("runConversionJob", () => {
       });
       expect(results.getResultPath(previousResultId)).toBe("previous.png");
       expect(mocks.onStateChanged).not.toHaveBeenCalled();
+      expect(mocks.rm).toHaveBeenCalledExactlyOnceWith("C:/temp/easyconvert-job-test", { recursive: true, force: true });
     },
   );
 });
@@ -369,7 +378,7 @@ describe("PDF conversion job", () => {
     { size: 104_857_601, message: "Output file exceeds the size limit." },
   ])("does not register a partial result when a later page has size $size", async ({ size, message }) => {
     const { jobs, results, runConversionJob, jobId, publish } = await setupPdfJob();
-    const previousId = results.registerResult("previous.png");
+    const previousId = results.registerResult("previous.png", "previous-job");
 
     mocks.stat
       .mockResolvedValueOnce({ isFile: () => true, size: 123 })
@@ -405,7 +414,7 @@ describe("PDF conversion job", () => {
 
   it("ignores late pages after another job has started", async () => {
     const { jobs, results, runConversionJob, jobId, publish } = await setupPdfJob();
-    const previousId = results.registerResult("previous.png");
+    const previousId = results.registerResult("previous.png", "previous-job");
     let nextJobId = "";
 
     mocks.runWorker.mockImplementation(async () => {
@@ -427,7 +436,7 @@ describe("PDF conversion job", () => {
 
 it.each(["before start", "worker", "output validation"])("publishes cancelled without registering results: %s", async (stage) => {
   const { jobs, results, runConversionJob } = await loadModules();
-  const previousId = results.registerResult("previous.png");
+  const previousId = results.registerResult("previous.png", "previous-job");
   const jobId = jobs.startJob();
   const controller = new AbortController();
   if (stage === "before start") controller.abort();
@@ -444,9 +453,11 @@ it.each(["before start", "worker", "output validation"])("publishes cancelled wi
   expect(results.getResultPath(previousId)).toBe("previous.png");
   expect(mocks.onStateChanged).toHaveBeenCalledOnce();
   if (stage === "before start") {
+    expect(mocks.rm).not.toHaveBeenCalled();
     expect(mocks.mkdtemp).not.toHaveBeenCalled();
     expect(mocks.runWorker).not.toHaveBeenCalled();
   } else {
+    expect(mocks.rm).toHaveBeenCalledExactlyOnceWith("C:/temp/easyconvert-job-test", { recursive: true, force: true });
     expect(mocks.runWorker).toHaveBeenCalledExactlyOnceWith(
       "input.jpg", path.join("C:/temp/easyconvert-job-test", "result.png"), jpgRequest, controller.signal,
     );
@@ -465,4 +476,21 @@ it("reports a stopping failure as failed even when cancellation was requested", 
   await runConversionJob(jobId, "input.jpg", mocks.onStateChanged, jpgRequest, controller.signal);
   expect(jobs.getJobState()).toEqual({ status: "failed", jobId, message: "Could not stop process tree" });
   expect(mocks.onStateChanged).toHaveBeenCalledOnce();
+});
+
+
+it("logs cleanup failure without replacing the conversion failure", async () => {
+  const { jobs, runConversionJob } = await loadModules();
+  const jobId = jobs.startJob();
+  const cleanupError = new Error("Directory locked");
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  mocks.runWorker.mockRejectedValue(new Error("Worker failed"));
+  mocks.rm.mockRejectedValue(cleanupError);
+  try {
+    await expect(runConversionJob(jobId, "input.jpg", mocks.onStateChanged, jpgRequest)).resolves.toBeUndefined();
+    expect(jobs.getJobState()).toEqual({ status: "failed", jobId, message: "Worker failed" });
+    expect(log).toHaveBeenCalledExactlyOnceWith("Could not remove the job directory.", cleanupError);
+  } finally {
+    log.mockRestore();
+  }
 });

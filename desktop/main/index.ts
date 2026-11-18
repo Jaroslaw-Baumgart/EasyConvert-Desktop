@@ -1,10 +1,13 @@
-import { app, BrowserWindow, Menu, protocol, shell } from "electron";
+import { app, BrowserWindow, Menu, protocol, shell, dialog } from "electron";
 import path from "node:path";
 import { registerSourceIpc } from "./sourceIpc";
 import { clearSource } from "./sourceRegistry";
 import { registerConversionIpc } from "./conversionIpc";
 import { registerAppProtocol } from "./registerAppProtocol";
 import { registerFileActionsIpc } from "./fileActionsIpc";
+import { clearResult } from "./resultRegistry";
+import { stopActiveConversion } from "./startConversion";
+import { getJobState } from "./jobRegistry";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -18,6 +21,25 @@ protocol.registerSchemesAsPrivileged([
     },
   },
 ]);
+
+async function waitForShutdown(operation: Promise<void>): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      operation,
+      new Promise<void>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("Closing timed out.")),
+          15000,
+        );
+      }),
+    ]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -34,8 +56,60 @@ function createWindow(): void {
 
   mainWindow = window;
 
+  let closing = false;
+  let readyToClose = false;
+
+  window.on("close", (event) => {
+    if (readyToClose) {
+      return;
+    }
+
+    event.preventDefault();
+    if (!closing) {
+      closing = true;
+
+      if (getJobState().status === "running") {
+        const choice = dialog.showMessageBoxSync(window, {
+          type: "question",
+          title: "EasyConvert",
+          message: "Trwa konwersja. Przerwać ją i zamknąć aplikację?",
+          buttons: ["Wróć", "Przerwij i zamknij"],
+          defaultId: 0,
+          cancelId: 0,
+          noLink: true,
+        });
+
+        if (choice === 0) {
+          closing = false;
+          return;
+        }
+      }
+
+      void waitForShutdown(stopActiveConversion())
+        .then(() =>
+          waitForShutdown(
+            Promise.all([clearSource(), clearResult()]).then(() => {}),
+          ),
+        )
+        .then(() => {
+          readyToClose = true;
+          window.close();
+        })
+        .catch((error: unknown) => {
+          console.error("Could not close EasyConvert safely.", error);
+          closing = false;
+
+          dialog.showMessageBoxSync(window, {
+            type: "error",
+            title: "EasyConvert",
+            message: "Nie udało się zakończyć zamykania aplikacji.",
+            detail: "Spróbuj ponownie za chwilę.",
+          });
+        });
+    }
+  });
+
   window.on("closed", () => {
-    clearSource();
     mainWindow = null;
   });
 

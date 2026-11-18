@@ -1,8 +1,13 @@
 import { randomUUID } from "node:crypto";
+import { rm } from "node:fs/promises";
 
 let currentResults = new Map<string, string>();
+let currentDirectory: string | null = null;
 
-export function registerResults(paths: readonly string[]): string[] {
+export function registerResults(
+  paths: readonly string[],
+  directory: string,
+): string[] {
   if (paths.length === 0 || paths.length > 100) {
     throw new Error("Invalid number of paths provided.");
   }
@@ -17,13 +22,15 @@ export function registerResults(paths: readonly string[]): string[] {
     resultIds.push(resultId);
   }
 
+  clearResult();
   currentResults = nextResults;
+  currentDirectory = directory;
 
   return resultIds;
 }
 
-export function registerResult(path: string): string {
-  return registerResults([path])[0]!;
+export function registerResult(path: string, directory: string): string {
+  return registerResults([path], directory)[0]!;
 }
 
 export function getResultPath(resultId: string): string {
@@ -36,6 +43,16 @@ export function getResultPath(resultId: string): string {
   return path;
 }
 
-export function clearResult(): void {
+export async function clearResult(): Promise<void> {
   currentResults.clear();
+  const directoryToRemove = currentDirectory;
+  currentDirectory = null;
+
+  if (directoryToRemove) {
+    try {
+      await rm(directoryToRemove, { recursive: true, force: true });
+    } catch (error: unknown) {
+      console.error("Could not remove the result directory.", error);
+    }
+  }
 }

@@ -1,5 +1,5 @@
 import { app } from "electron";
-import { mkdtemp, stat } from "node:fs/promises";
+import { mkdtemp, stat, rm } from "node:fs/promises";
 import path from "node:path";
 import type { StartConversionRequest } from "../../shared/desktopContract";
 import { getPdfPagePaths } from "../../conversion-core/pdf/convertPdfToJpg";
@@ -16,9 +16,12 @@ export async function runConversionJob(
   request: StartConversionRequest,
   signal?: AbortSignal,
 ): Promise<void> {
+  let directory: string | undefined;
+  let keepResults = false;
+
   try {
     signal?.throwIfAborted();
-    const directory = await mkdtemp(
+    directory = await mkdtemp(
       path.join(app.getPath("temp"), "easyconvert-job-"),
     );
 
@@ -54,9 +57,10 @@ export async function runConversionJob(
 
     signal?.throwIfAborted();
 
-    const resultIds = registerResults(outputPaths);
+    const resultIds = registerResults(outputPaths, directory);
 
     if (succeedJob(jobId, resultIds)) {
+      keepResults = true;
       onStateChanged();
     }
   } catch (error) {
@@ -72,6 +76,14 @@ export async function runConversionJob(
     }
     if (changed) {
       onStateChanged();
+    }
+  } finally {
+    if (directory && !keepResults) {
+      try {
+        await rm(directory, { recursive: true, force: true });
+      } catch (error) {
+        console.error("Could not remove the job directory.", error);
+      }
     }
   }
 }

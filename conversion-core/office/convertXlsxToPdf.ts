@@ -29,7 +29,9 @@ export async function convertXlsxToPdf(
 
   signal?.throwIfAborted();
 
-  const directory = await fs.mkdtemp(path.join(tmpdir(), "easyconvert-xlsx-"));
+  const directory = await fs.mkdtemp(
+    path.join(path.dirname(outputPath), "easyconvert-xlsx-"),
+  );
 
   try {
     const preparedPath = path.join(directory, "prepared.xlsx");

@@ -27,7 +27,7 @@ afterEach(async () => {
   const job = getJobState();
   if (job.status === "running") failJob(job.jobId, "test cleanup");
   resetJob();
-  clearSource();
+  await clearSource();
   await expect.poll(async () => (await readdir(directory)).some((name) => name.startsWith("easyconvert-source-")))
     .toBe(false);
   await rm(directory, { recursive: true, force: true });

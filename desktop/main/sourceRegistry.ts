@@ -37,16 +37,16 @@ export function getSourcePath(sourceId: string): string {
   return currentSource.path;
 }
 
-export function clearSource(): void {
+export async function clearSource(): Promise<void> {
   const directory = currentSource?.directory;
   currentSource = null;
 
   if (directory) {
-    void rm(directory, { recursive: true, force: true }).catch(
-      (error: unknown) => {
-        console.error("Could not remove the source copy.", error);
-      },
-    );
+    try {
+      await rm(directory, { recursive: true, force: true });
+    } catch (error: unknown) {
+      console.error("Could not remove the source copy.", error);
+    }
   }
 }
 

@@ -10,6 +10,7 @@ import { runConversionJob } from "./runConversionJob";
 let activeConversion: {
   jobId: string;
   controller: AbortController;
+  completion: Promise<void>;
 } | null = null;
 
 export function startConversion(
@@ -30,8 +31,7 @@ export function startConversion(
   clearResult();
   onStateChanged();
   const controller = new AbortController();
-  activeConversion = { jobId, controller };
-  void runConversionJob(
+  const completion = runConversionJob(
     jobId,
     sourcePath,
     onStateChanged,
@@ -42,6 +42,8 @@ export function startConversion(
       activeConversion = null;
     }
   });
+
+  activeConversion = { jobId, controller, completion };
   return { jobId };
 }
 
@@ -49,4 +51,15 @@ export function cancelConversion(jobId: string): void {
   if (activeConversion?.jobId === jobId) {
     activeConversion.controller.abort();
   }
+}
+
+export async function stopActiveConversion(): Promise<void> {
+  const conversion = activeConversion;
+
+  if (conversion === null) {
+    return;
+  }
+
+  conversion.controller.abort();
+  await conversion.completion;
 }

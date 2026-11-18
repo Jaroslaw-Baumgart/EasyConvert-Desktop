@@ -30,16 +30,19 @@ beforeEach(async () => {
   const copiedPath = path.join(sourceDirectory, path.basename(filePath));
   await copyFile(filePath, copiedPath);
   sourceId = registerSource(copiedPath, filePath, sourceDirectory);
-  resultId = registerResult(filePath);
+  const resultDirectory = await mkdtemp(path.join(directory, "result-job-"));
+  const resultPath = path.join(resultDirectory, "large.txt");
+  await copyFile(filePath, resultPath);
+  resultId = registerResult(resultPath, resultDirectory);
 });
 
 afterEach(async () => {
-  clearSource();
-  clearResult();
+  await clearSource();
+  await clearResult();
 
   if (directory) {
     const root = directory;
-    await expect.poll(async () => (await readdir(root)).some((name) => name.startsWith("source-copy-"))).toBe(false);
+    await expect.poll(async () => (await readdir(root)).some((name) => name.startsWith("source-copy-") || name.startsWith("result-job-"))).toBe(false);
     await rm(directory, { recursive: true, force: true });
     directory = undefined;
   }

@@ -18,8 +18,8 @@ beforeEach(async () => {
   sourceId = registerSource(copiedPath, input, sourceDirectory);
 });
 afterEach(async () => {
-  clearSource(); clearResult();
-  await expect.poll(async () => (await readdir(directory)).some((name) => name.startsWith("source-copy-"))).toBe(false);
+  await clearSource(); await clearResult();
+  await expect.poll(async () => (await readdir(directory)).some((name) => name.startsWith("source-copy-") || name.startsWith("result-job-"))).toBe(false);
   await rm(directory, { recursive: true, force: true });
 });
 function request(id = sourceId, options?: RequestInit) {
@@ -56,9 +56,10 @@ describe("registered preview resources", () => {
     expect((await previewResponse(request("foreign"))).status).toBe(404);
     clearSource();
     expect((await previewResponse(request())).status).toBe(404);
-    const resultFile = path.join(directory, "result.png");
+    const resultDirectory = await mkdtemp(path.join(directory, "result-job-"));
+    const resultFile = path.join(resultDirectory, "result.png");
     await writeFile(resultFile, "png");
-    const id = registerResult(resultFile);
+    const id = registerResult(resultFile, resultDirectory);
     const resultRequest = new Request(`app://easyconvert/preview/result/${id}`);
     expect(await (await previewResponse(resultRequest)).text()).toBe("png");
     clearResult();

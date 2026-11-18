@@ -33,6 +33,7 @@ describe("convertXlsxToPdf", () => {
       temporaryInput = preparedPath;
       expect(await fs.readFile(preparedPath)).toEqual(Buffer.from(prepared));
       expect(preparedPath).not.toBe(input);
+      expect(path.dirname(path.dirname(preparedPath))).toBe(path.dirname(output));
     });
     try {
       await fs.writeFile(input, original);

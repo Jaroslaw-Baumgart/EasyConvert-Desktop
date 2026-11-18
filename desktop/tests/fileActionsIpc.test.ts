@@ -1,4 +1,4 @@
-import { copyFile, mkdtemp, writeFile, readFile, readdir, rm } from "node:fs/promises";
+import { copyFile, mkdtemp, writeFile, readFile, readdir, rm, stat } from "node:fs/promises";
 import { unzipSync } from "fflate";
 import os from "node:os";
 import path from "node:path";
@@ -17,6 +17,7 @@ let sourceId: string;
 let resultId: string;
 let sourcePath: string;
 let resultPath: string;
+let resultDirectory: string;
 let copiedSourcePath: string;
 async function registerTestSource(original: string): Promise<string> {
   const ownedDirectory = await mkdtemp(path.join(directory, "source-copy-"));
@@ -39,11 +40,12 @@ beforeEach(async () => {
   directory = await mkdtemp(path.join(os.tmpdir(), "easyconvert-actions-test-"));
   mocks.getPath.mockReturnValue(directory);
   sourcePath = path.join(directory, "source.jpg");
-  resultPath = path.join(directory, "result.png");
+  resultDirectory = await mkdtemp(path.join(directory, "result-job-"));
+  resultPath = path.join(resultDirectory, "result.png");
   await writeFile(sourcePath, "source bytes");
   await writeFile(resultPath, "PNG result");
   sourceId = await registerTestSource(sourcePath);
-  resultId = registerResult(resultPath);
+  resultId = registerResult(resultPath, resultDirectory);
   succeedJob(startJob(), [resultId]);
   registerFileActionsIpc({} as BrowserWindow, "app://easyconvert/");
 });
@@ -52,9 +54,9 @@ afterEach(async () => {
   const job = getJobState();
   if (job.status === "running") failJob(job.jobId, "test cleanup");
   resetJob();
-  clearSource();
-  clearResult();
-  await expect.poll(async () => (await readdir(directory)).some((name) => name.startsWith("source-copy-"))).toBe(false);
+  await clearSource();
+  await clearResult();
+  await expect.poll(async () => (await readdir(directory)).some((name) => name.startsWith("source-copy-") || name.startsWith("result-job-"))).toBe(false);
   await rm(directory, { recursive: true, force: true });
 });
 describe("native file actions", () => {
@@ -145,10 +147,11 @@ describe("native file actions", () => {
     sourcePath = path.join(directory, "Raport Łódź.pdf");
     await writeFile(sourcePath, "source PDF");
     await registerTestSource(sourcePath);
-    const pages = [path.join(directory, "page-09.jpg"), path.join(directory, "page-01.jpg")];
+    const pageDirectory = await mkdtemp(path.join(directory, "result-job-"));
+    const pages = [path.join(pageDirectory, "page-09.jpg"), path.join(pageDirectory, "page-01.jpg")];
     await writeFile(pages[0]!, "first page");
     await writeFile(pages[1]!, "second page");
-    const ids = registerResults(pages);
+    const ids = registerResults(pages, pageDirectory);
     succeedJob(startJob(), ids);
 
     for (const name of ["Raport Łódź.zip", "Raport Łódź (1).zip"]) {
@@ -165,7 +168,7 @@ describe("native file actions", () => {
 
   it.each(["missing", "not an array", "foreign", "partial", "reversed", "sparse", "running", "invalid mode"])(
     "rejects an archive request with %s results before file operations", async (scenario) => {
-      const ids = registerResults([resultPath, path.join(directory, "another.jpg")]);
+      const ids = registerResults([resultPath, path.join(directory, "another.jpg")], await mkdtemp(path.join(directory, "result-job-")));
       succeedJob(startJob(), ids);
       if (scenario === "running") startJob();
       const requests: Record<string, unknown[]> = {
@@ -206,13 +209,14 @@ describe("native file actions", () => {
     sourcePath = path.join(directory, `${originalName}.pdf`);
     await writeFile(sourcePath, "original PDF");
     sourceId = await registerTestSource(sourcePath);
+    const pageDirectory = await mkdtemp(path.join(directory, "result-job-"));
     const pages = Array.from({ length: pageCount }, (_, index) =>
-      path.join(directory, `page-${index + 10}.jpg`),
+      path.join(pageDirectory, `page-${index + 10}.jpg`),
     );
     for (const [index, page] of pages.entries()) {
       await writeFile(page, `page ${index + 1}`);
     }
-    const resultIds = registerResults(pages);
+    const resultIds = registerResults(pages, pageDirectory);
     succeedJob(startJob(), resultIds);
 
     for (const [index, id] of resultIds.entries()) {
@@ -246,13 +250,22 @@ describe("native file actions", () => {
     },
   );
 
-  it("resets identifiers and removes only the private source copy", async () => {
+  it("resets identifiers and removes temporary copies while preserving the original and export", async () => {
+    await handler("easyconvert:save-result")(event, resultId);
     handler("easyconvert:reset-source")(event);
     expect(() => getSourcePath(sourceId)).toThrow();
     expect(() => getResultPath(resultId)).toThrow();
     expect(getJobState()).toEqual({ status: "idle" });
     expect(await readFile(sourcePath, "utf8")).toBe("source bytes");
-    expect(await readFile(resultPath, "utf8")).toBe("PNG result");
+    await expect.poll(() => stat(resultDirectory).then(() => false, (error) => {
+      if (error.code !== "ENOENT") throw error;
+      return true;
+    })).toBe(true);
+    await expect.poll(() => stat(path.dirname(copiedSourcePath)).then(() => false, (error) => {
+      if (error.code !== "ENOENT") throw error;
+      return true;
+    })).toBe(true);
+    expect(await readFile(path.join(directory, "EasyConvert Output", "source.png"), "utf8")).toBe("PNG result");
   });
   it("does not reset a running conversion", () => {
     startJob();

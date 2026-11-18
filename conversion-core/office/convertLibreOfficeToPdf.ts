@@ -1,7 +1,6 @@
 import { execFile } from "child_process";
 import fs from "node:fs/promises";
 import path from "path";
-import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
 
 export interface LibreOfficeOptions {
@@ -27,7 +26,9 @@ export async function convertLibreOfficeToPdf(
     if (signal?.aborted) {
       throw new Error("Conversion was cancelled.");
     }
-    profile = await fs.mkdtemp(path.join(tmpdir(), "converter-libreoffice-"));
+    profile = await fs.mkdtemp(
+      path.join(path.dirname(outputPath), "converter-libreoffice-"),
+    );
     const profileUrl = pathToFileURL(profile).href;
     await new Promise<void>((resolve, reject) => {
       execFile(
