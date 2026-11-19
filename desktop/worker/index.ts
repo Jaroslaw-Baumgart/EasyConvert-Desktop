@@ -65,7 +65,7 @@ async function run(): Promise<void> {
       await convertPdfToTxt(request.inputPath, request.outputPath, {
         binDirectory: request.binDirectory,
         timeoutMs: 120_000,
-        maxPages: 100,
+        maxPages: 500,
       });
       break;
 
@@ -73,7 +73,7 @@ async function run(): Promise<void> {
       await convertPdfToJpg(request.inputPath, request.outputPath, {
         binDirectory: request.binDirectory,
         timeoutMs: 120_000,
-        maxPages: 100,
+        maxPages: 500,
       });
       break;
 

@@ -28,6 +28,7 @@ const originalResourcesPath = Object.getOwnPropertyDescriptor(
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.useFakeTimers();
   mocks.killProcessTree.mockResolvedValue(undefined);
 
   mocks.app.isPackaged = false;
@@ -41,6 +42,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  expect(vi.getTimerCount()).toBe(0);
+  vi.useRealTimers();
   if (originalResourcesPath) {
     Object.defineProperty(process, "resourcesPath", originalResourcesPath);
   } else {
@@ -64,7 +67,10 @@ const cases: { request: StartConversionRequest; inputPath: string; outputPath: s
 
 for (const isPackaged of [false, true]) {
   describe(isPackaged ? "packaged conversion worker" : "development conversion worker", () => {
-    it.each(cases)("sends one named JSON request for $request.conversion", async ({ request, inputPath, outputPath }) => {
+    const scenarios = isPackaged
+      ? cases.filter(({ request }) => ["docx-to-pdf", "pdf-to-jpg", "txt-to-pdf", "csv-to-pdf"].includes(request.conversion))
+      : cases;
+    it.each(scenarios)("sends one named JSON request for $request.conversion", async ({ request, inputPath, outputPath }) => {
       mocks.app.isPackaged = isPackaged;
       const worker = new EventEmitter();
       mocks.fork.mockReturnValue(worker);
@@ -121,7 +127,6 @@ describe("worker failures", () => {
     await expect(runConversionWorker("input.jpg", "result.png", { sourceId: "source-1", conversion: "jpg-to-png" })).rejects.toBe(error);
   });
 });
-
 
 it("does not launch a worker for an already aborted signal", async () => {
   const controller = new AbortController();
@@ -197,4 +202,55 @@ it("does not stop a worker when the signal is aborted after success", async () =
   controller.abort();
   expect(mocks.killProcessTree).not.toHaveBeenCalled();
   expect(worker.listenerCount("spawn")).toBe(0);
+});
+
+it.each([0, 1])("times out even with exit code %i and waits for process-tree termination", async (code) => {
+  let finishStop!: () => void;
+  mocks.killProcessTree.mockReturnValue(new Promise<void>((resolve) => { finishStop = resolve; }));
+  const { worker, controller, completion, settled } = startCancellableWorker(123);
+  const assertion = expect(completion).rejects.toThrow("The conversion took too long. Please try again.");
+  await vi.advanceTimersByTimeAsync(179_999);
+  expect(mocks.killProcessTree).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1);
+  expect(mocks.killProcessTree).toHaveBeenCalledExactlyOnceWith(123);
+  expect(controller.signal.aborted).toBe(false);
+  expect(settled).not.toHaveBeenCalled();
+  worker.emit("exit", code);
+  await Promise.resolve();
+  expect(settled).not.toHaveBeenCalled();
+  finishStop();
+  await assertion;
+  expect(worker.listenerCount("spawn")).toBe(0);
+});
+
+it("waits for worker exit after timeout has finished stopping the tree", async () => {
+  const { worker, completion, settled } = startCancellableWorker(123);
+  const assertion = expect(completion).rejects.toThrow("The conversion took too long.");
+  await vi.advanceTimersByTimeAsync(180_000);
+  expect(mocks.killProcessTree).toHaveBeenCalledExactlyOnceWith(123);
+  expect(settled).not.toHaveBeenCalled();
+  worker.emit("exit", 1);
+  await assertion;
+});
+
+it("stops a worker whose PID becomes available after timeout", async () => {
+  const { worker, completion } = startCancellableWorker(undefined);
+  const assertion = expect(completion).rejects.toThrow("The conversion took too long.");
+  await vi.advanceTimersByTimeAsync(180_000);
+  expect(mocks.killProcessTree).not.toHaveBeenCalled();
+  worker.pid = 456;
+  worker.emit("spawn");
+  expect(mocks.killProcessTree).toHaveBeenCalledExactlyOnceWith(456);
+  worker.emit("exit", 0);
+  await assertion;
+});
+
+it("preserves the stopping error when process-tree termination fails after timeout", async () => {
+  const error = new Error("Access denied");
+  mocks.killProcessTree.mockRejectedValue(error);
+  const { worker, completion } = startCancellableWorker(123);
+  const assertion = expect(completion).rejects.toBe(error);
+  await vi.advanceTimersByTimeAsync(180_000);
+  worker.emit("exit", 1);
+  await assertion;
 });

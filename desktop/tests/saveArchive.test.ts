@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { unzipSync } from "fflate";
@@ -14,6 +14,7 @@ let inputPath: string;
 beforeEach(async () => {
   directory = await mkdtemp(path.join(tmpdir(), "easyconvert-archive-test-"));
   mocks.getPath.mockReturnValue(directory);
+  await mkdir(path.join(directory, "EasyConvert"));
   inputPath = path.join(directory, "page.jpg");
   await writeFile(inputPath, "page bytes");
 });
@@ -23,7 +24,7 @@ afterEach(async () => {
 });
 
 async function expectTemporaryArchiveRemoved() {
-  expect((await readdir(directory)).filter((name) => name.startsWith("easyconvert-archive-")))
+  expect((await readdir(path.join(directory, "EasyConvert"))).filter((name) => name.startsWith("easyconvert-archive-")))
     .toEqual([]);
 }
 

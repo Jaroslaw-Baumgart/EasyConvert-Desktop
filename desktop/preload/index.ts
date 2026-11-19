@@ -114,7 +114,7 @@ function parseConversionJobState(value: unknown): ConversionJobState {
     if (
       !Array.isArray(value.resultIds) ||
       value.resultIds.length === 0 ||
-      value.resultIds.length > 100
+      value.resultIds.length > 500
     ) {
       throw new Error("Invalid conversion job state.");
     }
@@ -286,8 +286,8 @@ const api: EasyConvertApi = {
       throw new Error("Expected an array of result identifiers.");
     }
 
-    if (resultIds.length === 0 || resultIds.length > 100) {
-      throw new Error("Expected between 1 and 100 result identifiers.");
+    if (resultIds.length === 0 || resultIds.length > 500) {
+      throw new Error("Expected between 1 and 500 result identifiers.");
     }
 
     if (typeof saveAs !== "boolean") {

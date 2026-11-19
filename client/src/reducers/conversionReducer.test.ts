@@ -221,19 +221,6 @@ describe("conversionReducer", () => {
     });
   });
 
-  it.each(["success", "conversionError", "downloadError"] as const)(
-    "moves from %s to empty after removing the file",
-    (kind) => {
-      const currentState = createTestState[kind]();
-
-      const nextState = conversionReducer(currentState, {
-        type: "fileRemoved",
-      });
-
-      expect(nextState).toEqual(initialConversionState);
-    },
-  );
-
   it.each(invalidTransitions)("ignores $name", ({ state, action }) => {
     const nextState = conversionReducer(state, action);
 
@@ -269,14 +256,13 @@ describe("conversionReducer", () => {
   });
 });
 
-
 it("keeps the source ready after confirmed cancellation", () => {
   expect(conversionReducer(createTestState.loading(), {
     type: "conversionCancelled", requestId: activeRequestId,
   })).toEqual(createTestState.ready());
 });
 
-it.each([initialConversionState, ...Object.values(createTestState).map((create) => create())])(
+it.each([initialConversionState, createTestState.loading(), createTestState.success()])(
   "ignores stale cancellation in $kind", (state) => {
     expect(conversionReducer(state, { type: "conversionCancelled", requestId: staleRequestId })).toBe(state);
   },

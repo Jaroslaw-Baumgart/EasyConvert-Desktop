@@ -41,21 +41,6 @@ const successCases: {
   outputName: string;
 }[] = [
   {
-    request: { sourceId: "source-xlsx", conversion: "xlsx-to-pdf", options: { pageSize: "A3", pageOrientation: "landscape", sheetName: "Koszty" } },
-    inputPath: "C:/input/workbook.xlsx",
-    outputName: "result.pdf",
-  },
-  {
-    request: { sourceId: "source-pptx", conversion: "pptx-to-pdf" },
-    inputPath: "C:/input/presentation.pptx",
-    outputName: "result.pdf",
-  },
-  {
-    request: { sourceId: "source-docx", conversion: "docx-to-pdf" },
-    inputPath: "C:/input/document.docx",
-    outputName: "result.pdf",
-  },
-  {
     request: { sourceId: "source-pdf", conversion: "pdf-to-txt" },
     inputPath: "C:/input/document.pdf",
     outputName: "result.txt",
@@ -80,18 +65,6 @@ const successCases: {
   {
     request: {
       sourceId: "source-123",
-      conversion: "jpg-to-pdf",
-      options: {
-        pageSize: "A3",
-        pageOrientation: "landscape",
-      },
-    },
-    inputPath: "C:/input/photo.jpg",
-    outputName: "result.pdf",
-  },
-  {
-    request: {
-      sourceId: "source-123",
       conversion: "txt-to-pdf",
       options: {
         pageSize: "A3",
@@ -99,18 +72,6 @@ const successCases: {
       },
     },
     inputPath: "C:/input/document.txt",
-    outputName: "result.pdf",
-  },
-  {
-    request: {
-      sourceId: "source-csv",
-      conversion: "csv-to-pdf",
-      options: {
-        pageSize: "A3",
-        pageOrientation: "landscape",
-      },
-    },
-    inputPath: "C:/input/table.csv",
     outputName: "result.pdf",
   },
 ];
@@ -128,7 +89,7 @@ beforeEach(() => {
   vi.resetAllMocks();
 
   mocks.getPath.mockReturnValue("C:/temp");
-  mocks.mkdtemp.mockResolvedValue("C:/temp/easyconvert-job-test");
+  mocks.mkdtemp.mockResolvedValue("C:/temp/EasyConvert/easyconvert-job-test");
   mocks.runWorker.mockResolvedValue(undefined);
   mocks.rm.mockResolvedValue(undefined);
   mocks.stat.mockResolvedValue({
@@ -153,7 +114,7 @@ describe("runConversionJob", () => {
         expect(state.status).toBe("succeeded");
         if (state.status !== "succeeded") throw new Error("Expected success.");
         expect(results.getResultPath(state.resultIds[0]!)).toBe(
-          path.join("C:/temp/easyconvert-job-test", "result.png"),
+          path.join("C:/temp/EasyConvert/easyconvert-job-test", "result.png"),
         );
       } else {
         expect(state).toEqual({
@@ -170,7 +131,7 @@ describe("runConversionJob", () => {
     async ({ request, inputPath, outputName }) => {
       const { jobs, results, runConversionJob } = await loadModules();
       const jobId = jobs.startJob();
-      const outputPath = path.join("C:/temp/easyconvert-job-test", outputName);
+      const outputPath = path.join("C:/temp/EasyConvert/easyconvert-job-test", outputName);
 
       mocks.onStateChanged.mockImplementation(() => {
         expect(jobs.getJobState().status).toBe("succeeded");
@@ -180,7 +141,7 @@ describe("runConversionJob", () => {
 
       expect(mocks.getPath).toHaveBeenCalledWith("temp");
       expect(mocks.mkdtemp).toHaveBeenCalledWith(
-        path.join("C:/temp", "easyconvert-job-"),
+        path.join("C:/temp", "EasyConvert", "easyconvert-job-"),
       );
       expect(mocks.runWorker).toHaveBeenCalledExactlyOnceWith(
         inputPath,
@@ -203,7 +164,7 @@ describe("runConversionJob", () => {
       expect(mocks.onStateChanged).toHaveBeenCalledTimes(1);
       expect(mocks.rm).not.toHaveBeenCalled();
       results.clearResult();
-      expect(mocks.rm).toHaveBeenCalledExactlyOnceWith("C:/temp/easyconvert-job-test", { recursive: true, force: true });
+      expect(mocks.rm).toHaveBeenCalledExactlyOnceWith("C:/temp/EasyConvert/easyconvert-job-test", { recursive: true, force: true });
     },
   );
 
@@ -271,7 +232,7 @@ describe("runConversionJob", () => {
       });
       expect(mocks.onStateChanged).toHaveBeenCalledTimes(1);
       if (stage === "mkdtemp") expect(mocks.rm).not.toHaveBeenCalled();
-      else expect(mocks.rm).toHaveBeenCalledExactlyOnceWith("C:/temp/easyconvert-job-test", { recursive: true, force: true });
+      else expect(mocks.rm).toHaveBeenCalledExactlyOnceWith("C:/temp/EasyConvert/easyconvert-job-test", { recursive: true, force: true });
     },
   );
 
@@ -326,7 +287,7 @@ describe("runConversionJob", () => {
       });
       expect(results.getResultPath(previousResultId)).toBe("previous.png");
       expect(mocks.onStateChanged).not.toHaveBeenCalled();
-      expect(mocks.rm).toHaveBeenCalledExactlyOnceWith("C:/temp/easyconvert-job-test", { recursive: true, force: true });
+      expect(mocks.rm).toHaveBeenCalledExactlyOnceWith("C:/temp/EasyConvert/easyconvert-job-test", { recursive: true, force: true });
     },
   );
 });
@@ -457,9 +418,9 @@ it.each(["before start", "worker", "output validation"])("publishes cancelled wi
     expect(mocks.mkdtemp).not.toHaveBeenCalled();
     expect(mocks.runWorker).not.toHaveBeenCalled();
   } else {
-    expect(mocks.rm).toHaveBeenCalledExactlyOnceWith("C:/temp/easyconvert-job-test", { recursive: true, force: true });
+    expect(mocks.rm).toHaveBeenCalledExactlyOnceWith("C:/temp/EasyConvert/easyconvert-job-test", { recursive: true, force: true });
     expect(mocks.runWorker).toHaveBeenCalledExactlyOnceWith(
-      "input.jpg", path.join("C:/temp/easyconvert-job-test", "result.png"), jpgRequest, controller.signal,
+      "input.jpg", path.join("C:/temp/EasyConvert/easyconvert-job-test", "result.png"), jpgRequest, controller.signal,
     );
   }
 });

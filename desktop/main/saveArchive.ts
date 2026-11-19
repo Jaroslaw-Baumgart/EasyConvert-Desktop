@@ -1,17 +1,17 @@
-import { app } from "electron";
 import { mkdtemp, rm } from "node:fs/promises";
 import path from "node:path";
 import { writeZip } from "../../conversion-core/archive/writeZip";
 import type { ArchiveEntry } from "../../conversion-core/archive/createZipChunks";
 import { saveResultFile } from "./saveResultFile";
 import { replaceResultFile } from "./replaceResultFile";
+import { getTemporaryDirectory } from "./temporaryDirectory";
 
 async function withTemporaryArchive(
   entries: readonly ArchiveEntry[],
   exportFile: (archivePath: string) => Promise<string>,
 ): Promise<string> {
   const directory = await mkdtemp(
-    path.join(app.getPath("temp"), "easyconvert-archive-"),
+    path.join(getTemporaryDirectory(), "easyconvert-archive-"),
   );
   const archivePath = path.join(directory, "archive.zip");
 

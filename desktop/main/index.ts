@@ -8,6 +8,8 @@ import { registerFileActionsIpc } from "./fileActionsIpc";
 import { clearResult } from "./resultRegistry";
 import { stopActiveConversion } from "./startConversion";
 import { getJobState } from "./jobRegistry";
+import { mkdir, rm } from "node:fs/promises";
+import { getTemporaryDirectory } from "./temporaryDirectory";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -22,7 +24,7 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
-async function waitForShutdown(operation: Promise<void>): Promise<void> {
+async function waitForShutdown(operation: Promise<unknown>): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     await Promise.race([
@@ -30,14 +32,12 @@ async function waitForShutdown(operation: Promise<void>): Promise<void> {
       new Promise<void>((_, reject) => {
         timer = setTimeout(
           () => reject(new Error("Closing timed out.")),
-          15000,
+          15_000,
         );
       }),
     ]);
   } finally {
-    if (timer) {
-      clearTimeout(timer);
-    }
+    clearTimeout(timer);
   }
 }
 
@@ -59,54 +59,61 @@ function createWindow(): void {
   let closing = false;
   let readyToClose = false;
 
+  async function finishClosing(): Promise<void> {
+    try {
+      await waitForShutdown(stopActiveConversion());
+      await waitForShutdown(Promise.all([clearSource(), clearResult()]));
+      readyToClose = true;
+      window.close();
+    } catch (error: unknown) {
+      console.error("Could not close EasyConvert safely.", error);
+      closing = false;
+      dialog.showMessageBoxSync(window, {
+        type: "error",
+        title: "EasyConvert",
+        message: "Nie uda?o si? zako?czy? zamykania aplikacji.",
+        detail: "Spr?buj ponownie za chwil?.",
+      });
+    }
+  }
+
   window.on("close", (event) => {
-    if (readyToClose) {
-      return;
-    }
-
+    if (readyToClose) return;
     event.preventDefault();
-    if (!closing) {
-      closing = true;
+    if (closing) return;
+    closing = true;
 
-      if (getJobState().status === "running") {
-        const choice = dialog.showMessageBoxSync(window, {
-          type: "question",
-          title: "EasyConvert",
-          message: "Trwa konwersja. Przerwać ją i zamknąć aplikację?",
-          buttons: ["Wróć", "Przerwij i zamknij"],
-          defaultId: 0,
-          cancelId: 0,
-          noLink: true,
-        });
-
-        if (choice === 0) {
-          closing = false;
-          return;
-        }
+    if (getJobState().status === "running") {
+      const choice = dialog.showMessageBoxSync(window, {
+        type: "question",
+        title: "EasyConvert",
+        message: "Trwa konwersja. Przerwa? j? i zamkn?? aplikacj??",
+        buttons: ["Wr??", "Przerwij i zamknij"],
+        defaultId: 0,
+        cancelId: 0,
+        noLink: true,
+      });
+      if (choice === 0) {
+        closing = false;
+        return;
       }
-
-      void waitForShutdown(stopActiveConversion())
-        .then(() =>
-          waitForShutdown(
-            Promise.all([clearSource(), clearResult()]).then(() => {}),
-          ),
-        )
-        .then(() => {
-          readyToClose = true;
-          window.close();
-        })
-        .catch((error: unknown) => {
-          console.error("Could not close EasyConvert safely.", error);
-          closing = false;
-
-          dialog.showMessageBoxSync(window, {
-            type: "error",
-            title: "EasyConvert",
-            message: "Nie udało się zakończyć zamykania aplikacji.",
-            detail: "Spróbuj ponownie za chwilę.",
-          });
-        });
     }
+
+    void finishClosing();
+  });
+
+  window.webContents.on("render-process-gone", (_event, details) => {
+    if (closing || readyToClose || window.isDestroyed()) return;
+
+    closing = true;
+    console.error("Renderer process exited.", details.reason);
+
+    dialog.showErrorBox(
+      "EasyConvert",
+      "The application interface stopped unexpectedly. EasyConvert will close.",
+    );
+
+    void finishClosing();
   });
 
   window.on("closed", () => {
@@ -178,11 +185,24 @@ if (!hasSingleInstanceLock) {
     mainWindow.focus();
   });
 
-  app.whenReady().then(() => {
-    Menu.setApplicationMenu(null);
-    registerAppProtocol();
-    createWindow();
-  });
+  app
+    .whenReady()
+    .then(async () => {
+      const tempDirectory = getTemporaryDirectory();
+      await rm(tempDirectory, { recursive: true, force: true });
+      await mkdir(tempDirectory, { recursive: true });
+      Menu.setApplicationMenu(null);
+      registerAppProtocol();
+      createWindow();
+    })
+    .catch((error: unknown) => {
+      console.error("Could not initialize EasyConvert.", error);
+      dialog.showErrorBox(
+        "EasyConvert",
+        "Could not prepare temporary files. Please restart the application.",
+      );
+      app.quit();
+    });
 }
 
 app.on("window-all-closed", () => {

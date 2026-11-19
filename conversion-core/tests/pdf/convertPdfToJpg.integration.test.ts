@@ -31,7 +31,7 @@ describe("PDF to JPG real conversion", () => {
     const outputs = await convertPdfToJpg(inputPath, directory, {
       binDirectory: process.env.POPPLER_BIN ?? "",
       timeoutMs: 120_000,
-      maxPages: 100,
+      maxPages: 500,
     });
 
     expect(outputs).toHaveLength(2);

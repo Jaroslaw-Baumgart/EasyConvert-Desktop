@@ -34,6 +34,7 @@ function setup() {
   const windowStub = {
     isDestroyed: vi.fn(() => false),
     webContents: {
+      isCrashed: vi.fn(() => false),
       isDestroyed: vi.fn(() => false),
       getURL: vi.fn(() => "app://easyconvert/"),
       send: vi.fn(),
@@ -213,6 +214,7 @@ describe("conversion IPC", () => {
   it.each([
     "destroyed window",
     "destroyed webContents",
+    "crashed renderer",
     "empty URL",
     "external URL",
     "unexpected query",
@@ -225,6 +227,8 @@ describe("conversion IPC", () => {
       windowStub.isDestroyed.mockReturnValue(true);
     } else if (scenario === "destroyed webContents") {
       windowStub.webContents.isDestroyed.mockReturnValue(true);
+    } else if (scenario === "crashed renderer") {
+      windowStub.webContents.isCrashed.mockReturnValue(true);
     } else {
       const urls: Record<string, string> = {
         "empty URL": "",

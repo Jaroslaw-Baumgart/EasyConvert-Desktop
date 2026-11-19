@@ -22,8 +22,9 @@ export function runConversionWorker(
 
     let stopping: Promise<void> | undefined;
     let stopError: unknown;
+    let timedOut = false;
 
-    const onAbort = () => {
+    const stopWorker = () => {
       if (worker.pid === undefined || stopping) {
         return;
       }
@@ -32,23 +33,31 @@ export function runConversionWorker(
       });
     };
 
+    const timer = setTimeout(() => {
+      timedOut = true;
+      stopWorker();
+    }, 180_000);
+
     const onSpawn = () => {
-      if (signal?.aborted) {
-        onAbort();
+      if (signal?.aborted || timedOut) {
+        stopWorker();
       }
     };
 
     worker.once("spawn", onSpawn);
 
-    signal?.addEventListener("abort", onAbort, { once: true });
+    signal?.addEventListener("abort", stopWorker, { once: true });
 
     worker.once("exit", async (code) => {
-      signal?.removeEventListener("abort", onAbort);
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", stopWorker);
       worker.removeListener("spawn", onSpawn);
       await stopping;
 
       if (stopError !== undefined) {
         reject(stopError);
+      } else if (timedOut) {
+        reject(new Error("The conversion took too long. Please try again."));
       } else if (signal?.aborted) {
         reject(signal.reason);
       } else if (code === 0) {

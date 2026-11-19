@@ -8,7 +8,11 @@ export function registerConversionIpc(
   rendererUrl: string,
 ): void {
   function publishJobState(): void {
-    if (owner.isDestroyed() || owner.webContents.isDestroyed()) {
+    if (
+      owner.isDestroyed() ||
+      owner.webContents.isDestroyed() ||
+      owner.webContents.isCrashed()
+    ) {
       return;
     }
 

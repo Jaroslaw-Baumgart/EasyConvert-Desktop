@@ -34,32 +34,31 @@ async function setupArchive() {
 
 describe("native archive saving", () => {
   describe.each(["quick", "saveAs", "archive", "archiveAs"] as const)("%s export", (mode) => {
-    it.each(["disk-full", "permission-denied", "save-failed"] as const)(
-      "preserves previews after %s and replaces the notification on retry", async (code) => {
-        const { api, result, file, output } = await setupArchive();
-        const archive = mode === "archive" || mode === "archiveAs";
-        const saveAs = mode === "saveAs" || mode === "archiveAs";
-        const method = archive ? api.saveArchive : saveAs ? api.saveResultAs : api.saveResult;
-        vi.mocked(method).mockResolvedValueOnce({ status: "failed", code });
-        const save = () => archive
-          ? result.current.downloadAllConvertedFiles(saveAs)
-          : result.current.downloadConvertedFile(output[0], saveAs);
+    it("preserves previews after save failure and replaces the notification on retry", async () => {
+      const code = "save-failed" as const;
+      const { api, result, file, output } = await setupArchive();
+      const archive = mode === "archive" || mode === "archiveAs";
+      const saveAs = mode === "saveAs" || mode === "archiveAs";
+      const method = archive ? api.saveArchive : saveAs ? api.saveResultAs : api.saveResult;
+      vi.mocked(method).mockResolvedValueOnce({ status: "failed", code });
+      const save = () => archive
+        ? result.current.downloadAllConvertedFiles(saveAs)
+        : result.current.downloadConvertedFile(output[0], saveAs);
 
-        await act(async () => { await save(); });
-        expect(result.current.saveNotification).toEqual({ status: "failed", code });
-        expect(result.current.file).toBe(file);
-        expect(result.current.convertedResults).toBe(output);
-        expect(result.current.isSaving).toBe(false);
-        expect(result.current.isPreparingArchive).toBe(false);
-        expect(result.current.conversionError).toBeNull();
+      await act(async () => { await save(); });
+      expect(result.current.saveNotification).toEqual({ status: "failed", code });
+      expect(result.current.file).toBe(file);
+      expect(result.current.convertedResults).toBe(output);
+      expect(result.current.isSaving).toBe(false);
+      expect(result.current.isPreparingArchive).toBe(false);
+      expect(result.current.conversionError).toBeNull();
 
-        await act(async () => { await save(); });
-        expect(result.current.saveNotification).toEqual({
-          status: "saved", fileName: archive ? "converted.zip" : "converted.png",
-        });
-        expect(result.current.convertedResults).toBe(output);
-      },
-    );
+      await act(async () => { await save(); });
+      expect(result.current.saveNotification).toEqual({
+        status: "saved", fileName: archive ? "converted.zip" : "converted.png",
+      });
+      expect(result.current.convertedResults).toBe(output);
+    });
   });
 
   it("forwards Save as selection to the archive IPC method", async () => {

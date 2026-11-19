@@ -1,15 +1,15 @@
-import { app } from "electron";
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import { MAX_SOURCE_BYTES } from "../../shared/conversionLimits";
+import { getTemporaryDirectory } from "./temporaryDirectory";
 
 export async function copySourceFile(
   sourcePath: string,
 ): Promise<{ path: string; directory: string; sizeBytes: number }> {
   const directory = await mkdtemp(
-    path.join(app.getPath("temp"), "easyconvert-source-"),
+    path.join(getTemporaryDirectory(), "easyconvert-source-"),
   );
   const copiedPath = path.join(directory, path.basename(sourcePath));
 

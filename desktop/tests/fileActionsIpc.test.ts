@@ -1,4 +1,4 @@
-import { copyFile, mkdtemp, writeFile, readFile, readdir, rm, stat } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, writeFile, readFile, readdir, rm, stat } from "node:fs/promises";
 import { unzipSync } from "fflate";
 import os from "node:os";
 import path from "node:path";
@@ -39,6 +39,7 @@ beforeEach(async () => {
   clearResult();
   directory = await mkdtemp(path.join(os.tmpdir(), "easyconvert-actions-test-"));
   mocks.getPath.mockReturnValue(directory);
+  await mkdir(path.join(directory, "EasyConvert"));
   sourcePath = path.join(directory, "source.jpg");
   resultDirectory = await mkdtemp(path.join(directory, "result-job-"));
   resultPath = path.join(resultDirectory, "result.png");
@@ -109,7 +110,7 @@ describe("native file actions", () => {
     const files = unzipSync(await readFile(destination));
     expect(Object.keys(files)).toEqual(["source.png"]);
     expect(Buffer.from(files["source.png"]!).toString()).toBe("PNG result");
-    expect((await readdir(directory)).filter((name) => name.startsWith("easyconvert-archive-"))).toEqual([]);
+    expect(await readdir(path.join(directory, "EasyConvert"))).toEqual([]);
     expect(getResultPath(resultId)).toBe(resultPath);
   });
 
@@ -117,7 +118,8 @@ describe("native file actions", () => {
     mocks.showSaveDialog.mockResolvedValue({ canceled: true });
     await expect(handler("easyconvert:save-archive")(event, [resultId], true))
       .resolves.toEqual({ status: "cancelled" });
-    expect((await readdir(directory)).filter((name) => name.endsWith(".zip") || name.startsWith("easyconvert-archive-")))
+    expect(await readdir(path.join(directory, "EasyConvert"))).toEqual([]);
+    expect((await readdir(directory)).filter((name) => name.endsWith(".zip")))
       .toEqual([]);
     expect(getResultPath(resultId)).toBe(resultPath);
   });
@@ -161,7 +163,7 @@ describe("native file actions", () => {
       expect(Buffer.from(files["Raport Łódź-page-1.jpg"]!).toString()).toBe("first page");
       expect(Buffer.from(files["Raport Łódź-page-2.jpg"]!).toString()).toBe("second page");
     }
-    expect((await readdir(directory)).filter((name) => name.startsWith("easyconvert-archive-"))).toEqual([]);
+    expect(await readdir(path.join(directory, "EasyConvert"))).toEqual([]);
     expect(mocks.showSaveDialog).not.toHaveBeenCalled();
     expect(ids.map(getResultPath)).toEqual(pages);
   });

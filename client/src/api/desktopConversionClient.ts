@@ -23,7 +23,7 @@ export async function convertDesktopFile(
 
   signal?.throwIfAborted();
 
-  if (resultIds.length === 0 || resultIds.length > 100) {
+  if (resultIds.length === 0 || resultIds.length > 500) {
     throw new Error("Invalid number of conversion results.");
   }
 

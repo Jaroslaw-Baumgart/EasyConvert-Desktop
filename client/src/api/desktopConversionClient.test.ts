@@ -118,7 +118,7 @@ describe("convertDesktopFile", () => {
     expect(await readFile(results[1]!.file)).toBe("two");
   });
 
-  it.each([0, 101])("rejects %i results before fetching", async (count) => {
+  it.each([0, 501])("rejects %i results before fetching", async (count) => {
     const { api, fetchMock } = setup();
     vi.mocked(waitForDesktopJob).mockResolvedValue(
       Array.from({ length: count }, (_, index) => `result-${index}`),

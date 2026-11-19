@@ -8,7 +8,7 @@ export function registerResults(
   paths: readonly string[],
   directory: string,
 ): string[] {
-  if (paths.length === 0 || paths.length > 100) {
+  if (paths.length === 0 || paths.length > 500) {
     throw new Error("Invalid number of paths provided.");
   }
 

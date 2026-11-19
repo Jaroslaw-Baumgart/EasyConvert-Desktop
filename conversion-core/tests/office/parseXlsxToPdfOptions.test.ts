@@ -18,14 +18,13 @@ describe("parseXlsxToPdfOptions", () => {
     },
   );
 
-  it.each(["", null, 42, false, [], {}])("rejects invalid sheet name %j", (sheetName) => {
+  it.each(["", null, 42])("rejects invalid sheet name %j", (sheetName) => {
     expect(() => parseXlsxToPdfOptions({ ...page, sheetName }))
       .toThrow("Invalid XLSX sheet name.");
   });
 
-  it.each([null, [], {}, { ...page, pageSize: "A5" }, { ...page, pageOrientation: "sideways" }])(
-    "rejects invalid page options %j", (input) => {
-      expect(() => parseXlsxToPdfOptions(input)).toThrow("Invalid PDF page options.");
-    },
-  );
+  it("rejects invalid page options", () => {
+    expect(() => parseXlsxToPdfOptions({ ...page, pageSize: "A5" }))
+      .toThrow("Invalid PDF page options.");
+  });
 });

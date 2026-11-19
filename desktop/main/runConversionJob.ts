@@ -1,4 +1,3 @@
-import { app } from "electron";
 import { mkdtemp, stat, rm } from "node:fs/promises";
 import path from "node:path";
 import type { StartConversionRequest } from "../../shared/desktopContract";
@@ -8,6 +7,7 @@ import { registerResults } from "./resultRegistry";
 import { runConversionWorker } from "./runConversionWorker";
 import { getConversionDefinition } from "../../shared/conversions";
 import { MAX_RESULT_BYTES } from "../../shared/conversionLimits";
+import { getTemporaryDirectory } from "./temporaryDirectory";
 
 export async function runConversionJob(
   jobId: string,
@@ -22,7 +22,7 @@ export async function runConversionJob(
   try {
     signal?.throwIfAborted();
     directory = await mkdtemp(
-      path.join(app.getPath("temp"), "easyconvert-job-"),
+      path.join(getTemporaryDirectory(), "easyconvert-job-"),
     );
 
     let outputPaths: string[];

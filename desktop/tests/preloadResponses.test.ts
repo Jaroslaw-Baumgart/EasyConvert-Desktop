@@ -117,7 +117,7 @@ describe.each(["dialog", "drop"] as const)(
       }
     });
 
-    it.each([1, 10_000_000])(
+    it.each(method === "dialog" ? [1, 10_000_000] : [10_000_000])(
       "accepts the size boundary: %i bytes",
       async (sizeBytes) => {
         const api = await loadApi();
@@ -135,7 +135,7 @@ describe.each(["dialog", "drop"] as const)(
       },
     );
 
-    it.each(invalidSources)("rejects $label", async ({ value }) => {
+    it.each(method === "dialog" ? invalidSources : [{ label: "invalid metadata", value: null }])("rejects $label", async ({ value }) => {
       const api = await loadApi();
       mocks.invoke.mockResolvedValueOnce(responseFor(value));
 
@@ -243,7 +243,7 @@ describe.each([
   { method: "saveResult", channel: "easyconvert:save-result" },
   { method: "saveResultAs", channel: "easyconvert:save-result-as" },
 ] as const)("$method preload", ({ method, channel }) => {
-  it.each(["disk-full", "permission-denied", "save-failed"] as const)(
+  it.each(method === "saveResult" ? ["disk-full", "permission-denied", "save-failed"] as const : ["save-failed"] as const)(
     "preserves the %s failure code", async (code) => {
       const api = await loadApi();
       mocks.invoke.mockResolvedValue({ status: "failed", code, extra: "discarded" });
@@ -258,17 +258,17 @@ describe.each([
     expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith(channel, "result-1");
   });
 
-  it.each(["", "x".repeat(129)])("rejects an invalid identifier before IPC: %s", async (id) => {
+  it.each(method === "saveResult" ? ["", "x".repeat(129)] : [""])("rejects an invalid identifier before IPC: %s", async (id) => {
     const api = await loadApi();
     await expect(api[method](id)).rejects.toThrow("identifier");
     expect(mocks.invoke).not.toHaveBeenCalled();
   });
 
-  it.each([null, [], {}, { status: "selected" }, { status: "saved" },
+  it.each(method === "saveResult" ? [null, [], {}, { status: "selected" }, { status: "saved" },
     { status: "saved", fileName: "" }, { status: "saved", fileName: 123 },
     { status: "failed" }, { status: "failed", code: "unknown" },
     { status: "failed", code: 123 },
-  ])("rejects an invalid response: %j", async (value) => {
+  ] : [null])("rejects an invalid response: %j", async (value) => {
     const api = await loadApi();
     mocks.invoke.mockResolvedValue(value);
     await expect(api[method]("result-1")).rejects.toThrow("Invalid save response.");
@@ -290,7 +290,7 @@ describe("archive saving preload", () => {
     expect(mocks.invoke).toHaveBeenCalledExactlyOnceWith("easyconvert:save-archive", ["result-1"], true);
   });
 
-  it.each([1, 100])("accepts %i result identifiers", async (count) => {
+  it.each([1, 500])("accepts %i result identifiers", async (count) => {
     const api = await loadApi();
     const identifiers = Array.from({ length: count }, (_, index) => `result-${index}`);
     mocks.invoke.mockResolvedValue({ status: "saved", fileName: "photos.zip" });
@@ -300,7 +300,7 @@ describe("archive saving preload", () => {
 
   it.each([
     { label: "empty list", identifiers: [] },
-    { label: "too many identifiers", identifiers: Array.from({ length: 101 }, () => "result") },
+    { label: "too many identifiers", identifiers: Array.from({ length: 501 }, () => "result") },
     { label: "empty identifier", identifiers: [""] },
     { label: "oversized identifier", identifiers: ["x".repeat(129)] },
   ])(

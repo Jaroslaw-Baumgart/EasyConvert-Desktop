@@ -15,7 +15,7 @@ import { convertPdfToTxt } from "../../pdf/convertPdfToTxt";
 const options = {
   binDirectory: "tools/poppler/bin",
   timeoutMs: 120_000,
-  maxPages: 100,
+  maxPages: 500,
 };
 
 beforeEach(() => {

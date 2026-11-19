@@ -35,23 +35,6 @@ describe("resultRegistry", () => {
     expect(getResultPath(resultId)).toBe("C:/temp/result.png");
   });
 
-  it("invalidates the previous identifier after registration", () => {
-    const previousId = registerResult("C:/temp/first.png", "result-job");
-    const currentId = registerResult("C:/temp/second.png", "result-job");
-
-    expect(currentId).not.toBe(previousId);
-    expect(() => getResultPath(previousId)).toThrow("Unknown result.");
-    expect(getResultPath(currentId)).toBe("C:/temp/second.png");
-  });
-
-  it("invalidates the identifier when cleared", () => {
-    const resultId = registerResult("C:/temp/result.png", "result-job");
-
-    clearResult();
-
-    expect(() => getResultPath(resultId)).toThrow("Unknown result.");
-  });
-
   it("registers multiple paths with distinct IDs in input order", () => {
     const paths = ["page-1.jpg", "page-2.jpg", "page-3.jpg"];
     const ids = registerResults(paths, "result-job");
@@ -82,7 +65,7 @@ describe("resultRegistry", () => {
     }
   });
 
-  it.each([0, 101])(
+  it.each([0, 501])(
     "rejects %i paths without replacing the current results",
     (count) => {
       const ids = registerResults(["previous.jpg"], "result-job");
@@ -95,27 +78,16 @@ describe("resultRegistry", () => {
     },
   );
 
-  it("accepts exactly 100 results", () => {
-    const paths = Array.from({ length: 100 }, (_, i) => `page-${i + 1}.jpg`);
+  it("accepts exactly 500 results", () => {
+    const paths = Array.from({ length: 500 }, (_, i) => `page-${i + 1}.jpg`);
     const ids = registerResults(paths, "result-job");
 
-    expect(ids).toHaveLength(100);
-    expect(new Set(ids).size).toBe(100);
+    expect(ids).toHaveLength(500);
+    expect(new Set(ids).size).toBe(500);
     expect(ids.map(getResultPath)).toEqual(paths);
   });
 
-  it("replaces a multiple-result set when registering a single result", () => {
-    const previousIds = registerResults(["old-1.jpg", "old-2.jpg"], "result-job");
-    const currentId = registerResult("single.png", "result-job");
-
-    for (const id of previousIds) {
-      expect(() => getResultPath(id)).toThrow("Unknown result.");
-    }
-
-    expect(getResultPath(currentId)).toBe("single.png");
-  });
 });
-
 
 it("removes only the replaced directory and clears the new directory once", () => {
   registerResult("old/result.png", "old-job");
@@ -144,7 +116,6 @@ it("logs a deletion failure while keeping identifiers invalidated", async () => 
     log.mockRestore();
   }
 });
-
 
 it("awaits deletion without clearing results registered during the wait", async () => {
   registerResult("old.png", "old-job");

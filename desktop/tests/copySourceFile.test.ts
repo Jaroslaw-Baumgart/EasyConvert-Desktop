@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -15,10 +15,13 @@ import { previewResponse } from "../main/previewResponse";
 import { startConversion } from "../main/startConversion";
 
 let directory: string;
+let temporaryDirectory: string;
 
 beforeEach(async () => {
   directory = await mkdtemp(path.join(tmpdir(), "easyconvert-copy-test-"));
   mocks.getPath.mockReturnValue(directory);
+  temporaryDirectory = path.join(directory, "EasyConvert");
+  await mkdir(temporaryDirectory);
   mocks.runConversionJob.mockReset().mockResolvedValue(undefined);
   resetJob();
 });
@@ -28,7 +31,7 @@ afterEach(async () => {
   if (job.status === "running") failJob(job.jobId, "test cleanup");
   resetJob();
   await clearSource();
-  await expect.poll(async () => (await readdir(directory)).some((name) => name.startsWith("easyconvert-source-")))
+  await expect.poll(async () => (await readdir(temporaryDirectory)).some((name) => name.startsWith("easyconvert-source-")))
     .toBe(false);
   await rm(directory, { recursive: true, force: true });
 });
@@ -40,7 +43,7 @@ it.each([1, MAX_SOURCE_BYTES])("copies exactly %i bytes into a separate owned di
   const copy = await copySourceFile(original);
 
   expect(copy.path).not.toBe(original);
-  expect(path.dirname(copy.directory)).toBe(directory);
+  expect(path.dirname(copy.directory)).toBe(temporaryDirectory);
   expect(path.basename(copy.path)).toBe(path.basename(original));
   expect(copy.sizeBytes).toBe(size);
   expect((await readFile(copy.path)).equals(bytes)).toBe(true);
@@ -52,13 +55,13 @@ it.each([0, MAX_SOURCE_BYTES + 1])("rejects %i bytes and removes the rejected co
   const original = path.join(directory, "invalid.txt");
   await writeFile(original, Buffer.alloc(size));
   await expect(copySourceFile(original)).rejects.toThrow(/empty|too large/);
-  expect(await readdir(directory)).toEqual(["invalid.txt"]);
+  expect(await readdir(temporaryDirectory)).toEqual([]);
   expect((await stat(original)).size).toBe(size);
 });
 
 it("removes the allocated directory when the original cannot be read", async () => {
   await expect(copySourceFile(path.join(directory, "missing.txt"))).rejects.toMatchObject({ code: "ENOENT" });
-  expect(await readdir(directory)).toEqual([]);
+  expect(await readdir(temporaryDirectory)).toEqual([]);
 });
 
 it.each(["changed", "deleted"])("previews and starts conversion from the copy after the original is %s", async (change) => {
@@ -86,7 +89,7 @@ it.each(["changed", "deleted"])("previews and starts conversion from the copy af
   failJob(jobId, "test finished");
   clearSource();
   expect(() => getSourcePath(source.sourceId)).toThrow("Unknown source.");
-  await expect.poll(async () => (await readdir(directory)).includes(path.basename(ownedDirectory))).toBe(false);
+  await expect.poll(async () => (await readdir(temporaryDirectory)).includes(path.basename(ownedDirectory))).toBe(false);
   if (change === "changed") expect(await readFile(original, "utf8")).toBe("new contents");
 });
 
@@ -100,7 +103,7 @@ it("cleans the old copy when a new source replaces it and leaves both originals 
   const second = await prepareSource(secondPath);
 
   expect(() => getSourcePath(first.sourceId)).toThrow("Unknown source.");
-  await expect.poll(async () => (await readdir(directory)).includes(path.basename(previousDirectory))).toBe(false);
+  await expect.poll(async () => (await readdir(temporaryDirectory)).includes(path.basename(previousDirectory))).toBe(false);
   expect(await readFile(firstPath, "utf8")).toBe("first");
   expect(await readFile(secondPath, "utf8")).toBe("second");
   expect(await readFile(getSourcePath(second.sourceId), "utf8")).toBe("second");

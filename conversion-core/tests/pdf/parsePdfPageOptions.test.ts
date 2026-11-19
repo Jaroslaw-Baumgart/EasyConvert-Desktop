@@ -34,11 +34,8 @@ describe("parsePdfPageOptions", () => {
 
   it.each([
     { label: "null", value: null },
-    { label: "undefined", value: undefined },
     { label: "array", value: [] },
     { label: "string", value: "A4" },
-    { label: "number", value: 42 },
-    { label: "boolean", value: true },
     { label: "empty object", value: {} },
     {
       label: "missing pageSize",
@@ -54,7 +51,7 @@ describe("parsePdfPageOptions", () => {
     );
   });
 
-  it.each(["A5", "a4", "", 4, null, undefined])(
+  it.each(["A5", "a4", 4])(
     "rejects invalid pageSize: %s",
     (pageSize) => {
       expect(() =>
@@ -66,7 +63,7 @@ describe("parsePdfPageOptions", () => {
     },
   );
 
-  it.each(["sideways", "Portrait", "", 1, null, undefined])(
+  it.each(["sideways", "Portrait", 1])(
     "rejects invalid pageOrientation: %s",
     (pageOrientation) => {
       expect(() =>

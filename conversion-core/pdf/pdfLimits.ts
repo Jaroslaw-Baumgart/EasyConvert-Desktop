@@ -1,4 +1,4 @@
-export const MAX_PDF_PAGES = 100;
+export const MAX_PDF_PAGES = 500;
 
 export function limitPdfPages(document: PDFKit.PDFDocument) {
   let pages = 1;
