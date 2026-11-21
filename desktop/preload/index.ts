@@ -7,6 +7,7 @@ import type {
   SourceSelection,
   StartConversionResponse,
   SaveResponse,
+  AppSettings,
 } from "../../shared/desktopContract";
 
 function parseIdentifier(value: unknown): string {
@@ -210,8 +211,87 @@ async function invokeSave(
   return parseSaveResponse(value);
 }
 
+function parseSettingsResponse(value: unknown): AppSettings {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error("Invalid settings");
+  }
+
+  if (
+    !("language" in value) ||
+    !(value.language === "pl" || value.language === "en")
+  ) {
+    throw new Error("Invalid language settings");
+  }
+
+  if (
+    !("theme" in value) ||
+    !(value.theme === "light" || value.theme === "dark")
+  ) {
+    throw new Error("Invalid theme settings");
+  }
+  if (
+    !("outputDirectory" in value) ||
+    typeof value.outputDirectory !== "string" ||
+    value.outputDirectory.length === 0
+  ) {
+    throw new Error("Invalid output directory settings");
+  }
+
+  if (!("accentColor" in value)) {
+    throw new Error("Missing accent color settings");
+  }
+
+  const accentColor = value.accentColor;
+
+  if (
+    !(
+      accentColor === "blue" ||
+      accentColor === "purple" ||
+      accentColor === "pink" ||
+      accentColor === "red" ||
+      accentColor === "orange" ||
+      accentColor === "green" ||
+      accentColor === "teal" ||
+      accentColor === "gray" ||
+      accentColor === "black" ||
+      accentColor === "white"
+    )
+  ) {
+    throw new Error("Invalid accent color settings");
+  }
+
+  return {
+    language: value.language,
+    theme: value.theme,
+    outputDirectory: value.outputDirectory,
+    accentColor,
+  };
+}
+
 const api: EasyConvertApi = {
   platform: "desktop",
+  onCloseRequested: (listener) => {
+    const handler = (): void => listener();
+    ipcRenderer.on("easyconvert:close-requested", handler);
+    return () =>
+      ipcRenderer.removeListener("easyconvert:close-requested", handler);
+  },
+  respondToCloseRequest: async (confirmed) => {
+    if (typeof confirmed !== "boolean") {
+      throw new Error("Expected a close confirmation.");
+    }
+    await ipcRenderer.invoke("easyconvert:respond-to-close-request", confirmed);
+  },
+
+  minimizeWindow: async () => {
+    await ipcRenderer.invoke("easyconvert:minimize-window");
+  },
+  toggleMaximizeWindow: async () => {
+    await ipcRenderer.invoke("easyconvert:toggle-maximize-window");
+  },
+  closeWindow: async () => {
+    await ipcRenderer.invoke("easyconvert:close-window");
+  },
 
   selectSource: async () => {
     const value: unknown = await ipcRenderer.invoke(
@@ -309,6 +389,34 @@ const api: EasyConvertApi = {
 
   showLastSavedFile: async () => {
     await ipcRenderer.invoke("easyconvert:show-last-saved-file");
+  },
+
+  saveSettings: async (settings) => {
+    await ipcRenderer.invoke("easyconvert:save-settings", settings);
+  },
+
+  selectOutputDirectory: async () => {
+    const value: unknown = await ipcRenderer.invoke(
+      "easyconvert:select-output-directory",
+    );
+
+    if (value === null) return null;
+
+    if (typeof value !== "string" || value.length === 0) {
+      throw new Error("Invalid output directory response.");
+    }
+
+    return value;
+  },
+
+  getSettings: async () => {
+    const value: unknown = await ipcRenderer.invoke("easyconvert:get-settings");
+
+    return parseSettingsResponse(value);
+  },
+  getDefaultSettings: async () => {
+    const value: unknown = await ipcRenderer.invoke("easyconvert:get-default-settings");
+    return parseSettingsResponse(value);
   },
 };
 

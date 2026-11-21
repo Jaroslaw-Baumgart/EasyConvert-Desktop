@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import styles from "./SaveNotification.module.css";
-import primaryActionStyles from "./PrimaryAction.module.css";
+import { FolderOpen, X } from "lucide-react";
 import type { SaveResponse } from "../../../shared/desktopContract";
 
 type SaveNotificationProps = {
@@ -68,7 +68,8 @@ export default function SaveNotification({
     >
       <p
         role={notification.status === "failed" ? "alert" : "status"}
-        className={styles.message}
+        className={`${styles.message} ${notification.status === "saved" ? styles.saved : ""}`}
+        title={notification.status === "saved" ? notification.fileName : undefined}
       >
         {notification.status === "saved"
           ? t("download.saved", { fileName: notification.fileName })
@@ -77,9 +78,10 @@ export default function SaveNotification({
       {notification.status === "saved" && (
         <button
           type="button"
-          className={`${primaryActionStyles.button} ${styles.show}`}
+          className={styles.show}
           onClick={showInFolder}
         >
+          <FolderOpen size={15} aria-hidden="true" />
           {t("download.showInFolder")}
         </button>
       )}
@@ -94,7 +96,7 @@ export default function SaveNotification({
         onClick={onClose}
         aria-label={t("download.closeNotification")}
       >
-        ×
+        <X size={16} aria-hidden="true" />
       </button>
     </div>
   );

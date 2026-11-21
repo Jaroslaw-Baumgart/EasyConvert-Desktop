@@ -204,14 +204,6 @@ describe("FileConverter", () => {
   it("clears the previous conversion result when a new file is selected", async () => {
     const initialFile = createTestFile.jpg();
     const newFile = createTestFile.pdf();
-    vi.spyOn(HTMLElement.prototype, "scrollIntoView").mockImplementation(
-      function (this: HTMLElement) {
-        this.dataset.scrolledIntoView = "true";
-      },
-    );
-
-
-
     const { user, input } = setupFileConverter();
 
     await selectNativeFile(user, input, initialFile);
@@ -219,20 +211,17 @@ describe("FileConverter", () => {
     await user.click(getConvertButton("JPG→PNG"));
 
     expect(
-      await screen.findByRole("heading", {
-        name: "Converted file",
-      }),
+      await screen.findByText("Conversion complete"),
     ).toBeInTheDocument();
 
     expect(
       screen.getByRole("button", { name: "Save" }),
     ).toHaveFocus();
-    await waitFor(() => {
-      expect(screen.getByTestId("converted-file-preview")).toHaveAttribute(
-        "data-scrolled-into-view",
-        "true",
-      );
-    });
+    expect(screen.getByRole("button", { name: "Result" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Source" }));
+    expect(screen.getByRole("button", { name: "Source" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Result" }));
+    expect(screen.getByTestId("converted-file-preview")).toBeVisible();
 
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(getConvertButton("JPG→PNG")).toBeEnabled();
@@ -243,9 +232,7 @@ describe("FileConverter", () => {
     await selectNativeFile(user, replacementInput, newFile);
 
     expect(
-      screen.queryByRole("heading", {
-        name: "Converted file",
-      }),
+      screen.queryByText("Conversion complete"),
     ).not.toBeInTheDocument();
 
     expect(screen.getByText("document.pdf")).toBeInTheDocument();
@@ -367,9 +354,7 @@ describe("FileConverter", () => {
     expect(getConvertButton("JPG→PNG")).toBeEnabled();
 
     expect(
-      screen.queryByRole("heading", {
-        name: "Converted file",
-      }),
+      screen.queryByText("Conversion complete"),
     ).not.toBeInTheDocument();
   });
 
@@ -388,9 +373,7 @@ describe("FileConverter", () => {
     ).toBeInTheDocument();
 
     expect(
-      screen.queryByRole("heading", {
-        name: "Converted file",
-      }),
+      screen.queryByText("Conversion complete"),
     ).not.toBeInTheDocument();
   });
 
@@ -419,9 +402,7 @@ describe("FileConverter", () => {
     await user.click(getConvertButton("JPG→PNG"));
 
     expect(
-      await screen.findByRole("heading", {
-        name: "Converted file",
-      }),
+      await screen.findByText("Conversion complete"),
     ).toBeInTheDocument();
 
     expect(
@@ -551,9 +532,7 @@ describe("FileConverter", () => {
     );
 
     expect(
-      await screen.findByRole("heading", {
-        name: "Converted file",
-      }),
+      await screen.findByText("Conversion complete"),
     ).toBeInTheDocument();
     expect(vi.mocked(convertDesktopFile).mock.calls[0][1]).toEqual({
       sourceId: "source-1", conversion: "png-to-jpg",
@@ -574,9 +553,7 @@ describe("FileConverter", () => {
     await user.click(getConvertButton("PDF→JPG"));
 
     expect(
-      await screen.findByRole("heading", {
-        name: "Converted file",
-      }),
+      await screen.findByText("Conversion complete"),
     ).toBeInTheDocument();
 
     expect(convertDesktopFile).toHaveBeenCalledOnce();
@@ -653,11 +630,12 @@ describe("FileConverter", () => {
     await user.click(screen.getByRole("radio", { name: "A3" }));
     await user.click(screen.getByRole("radio", { name: "Landscape" }));
     await user.click(screen.getByRole("button", { name: "Convert" }));
-    await screen.findByRole("heading", { name: "Converted file" });
+    await screen.findByText("Conversion complete");
     expect(vi.mocked(convertDesktopFile).mock.calls[0][1]).toEqual({
       sourceId: "source-1", conversion: "xlsx-to-pdf",
       options: { sheetName: "Warehouse", pageSize: "A3", pageOrientation: "landscape" },
     });
+    await user.click(screen.getByRole("button", { name: "Source" }));
     await user.click(screen.getByRole("button", { name: "All sheets" }));
     await user.click(screen.getByRole("button", { name: "Convert" }));
     await waitFor(() => expect(convertDesktopFile).toHaveBeenCalledTimes(2));

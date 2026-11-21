@@ -1,13 +1,24 @@
+@import "./accents.css";
+
 :root {
+  color-scheme: light;
+
+  --title-bar-height: 30px;
   --color-page: #f8fafc;
   --color-surface: #ffffff;
+  --color-control: #f8fafc;
+  --color-elevated: #ffffff;
   --color-text: #0f172a;
-  --color-text-muted: #64748b;
-  --color-border: #dbe3ee;
+  --color-text-muted: #475569;
+  --color-border: #cbd5e1;
 
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
-  --color-primary-soft: #eff6ff;
+  --color-primary: #ffffff;
+  --color-on-primary: #111827;
+  --color-primary-hover: #e5e7eb;
+  --color-primary-soft: #f1f5f9;
+  --color-accent-text: #334155;
+  --color-accent-border: #64748b;
+  --color-title-hover: rgb(15 23 42 / 0.1);
 
   --color-danger: #b91c1c;
   --color-danger-soft: #fef2f2;
@@ -15,7 +26,7 @@
   --color-success: #15803d;
   --color-success-soft: #f0fdf4;
 
-  --color-focus: #1d4ed8;
+  --color-focus: #475569;
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -31,17 +42,59 @@
   --transition-fast: 150ms ease;
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-page: #18181b;
+  --color-surface: #242426;
+  --color-control: #303034;
+  --color-elevated: #303034;
+  --color-text: #f2f2f7;
+  --color-text-muted: #b0b0b8;
+  --color-border: #414146;
+
+  --color-primary-soft: #343438;
+  --color-accent-text: #f4f4f5;
+  --color-accent-border: #d4d4d8;
+  --color-focus: #e4e4e7;
+
+  --color-danger: #ffb4ab;
+  --color-danger-soft: #3b2426;
+
+  --color-success: #a0dfb2;
+  --color-success-soft: #20362a;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.16);
+}
+
+@media (max-width: 1280px), (max-height: 800px) {
+  :root {
+    font-size: 16px;
+    --space-5: 1.25rem;
+    --space-6: 1.5rem;
+  }
+}
+
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  font-weight: 400;
+  line-height: 1.45;
   background-color: var(--color-page);
   color: var(--color-text);
 }
 
 * {
   box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+input[type="radio"],
+input[type="checkbox"] {
+  accent-color: var(--color-accent-text);
 }

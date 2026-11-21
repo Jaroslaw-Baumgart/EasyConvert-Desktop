@@ -55,7 +55,7 @@ describe("FilePreview", () => {
 
     expect(screen.getByTitle("PDF Preview")).toHaveAttribute(
       "src",
-      "https://example.com/converted.pdf",
+      "https://example.com/converted.pdf#view=FitH",
     );
   });
 

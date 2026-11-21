@@ -1,5 +1,6 @@
 import type { RouteObject } from "react-router";
-import { lazy } from "react"
+import { lazy } from "react";
+import SettingsPage from "../pages/SettingsPage";
 
 import ConverterPage from "../pages/ConverterPage";
 import AppLayout from "../layouts/AppLayout";
@@ -19,6 +20,10 @@ export const appRoutes = [
       {
         path: "about",
         Component: AboutPage,
+      },
+      {
+        path: "settings",
+        Component: SettingsPage,
       },
       {
         path: "privacy",

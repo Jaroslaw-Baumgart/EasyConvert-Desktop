@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import styles from "./PreviewLightbox.module.css";
 import { useTranslation } from "react-i18next";
+import { Expand } from "lucide-react";
 
 type PreviewLightboxProps = {
   children: ReactNode;
@@ -80,9 +81,11 @@ export default function PreviewLightbox({
         className={styles["preview-expand-btn"]}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
+        aria-label={t("preview.expand")}
+        title={t("preview.expand")}
         onClick={() => setIsOpen(true)}
       >
-        {t("preview.expand")}
+        <Expand size={18} aria-hidden="true" />
       </button>
 
       {isOpen ? (

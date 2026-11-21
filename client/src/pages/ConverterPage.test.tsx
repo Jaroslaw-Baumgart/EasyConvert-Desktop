@@ -121,7 +121,7 @@ describe("ConverterPage", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "Converted file",
+        name: "converted.png",
       }),
     ).toBeInTheDocument();
 
@@ -129,7 +129,7 @@ describe("ConverterPage", () => {
 
     expect(
       screen.queryByRole("heading", {
-        name: "Converted file",
+        name: "converted.png",
       }),
     ).not.toBeInTheDocument();
   });

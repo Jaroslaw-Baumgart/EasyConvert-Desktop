@@ -163,12 +163,12 @@ export function XlsxPreview({
             {t("preview.allSheets")}
           </button>
         </div>
-      </div>
       {!isAllSheetsSelected && (
         <p className={styles["xlsx-dependency-notice"]} role="note">
           {t("preview.dependency")}
         </p>
       )}
+      </div>
       {previewSheets.map((sheet) => (
         <XlsxSheetPreview
           key={sheet.name}

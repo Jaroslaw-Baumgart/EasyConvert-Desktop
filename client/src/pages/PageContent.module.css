@@ -17,13 +17,13 @@
   display: grid;
   gap: var(--space-3);
   padding: var(--space-7) var(--space-6);
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--color-accent-border);
   border-radius: var(--radius-md);
   background: linear-gradient(135deg, var(--color-primary-soft), var(--color-surface));
 }
 
 .eyebrow {
-  color: var(--color-primary-hover);
+  color: var(--color-accent-text);
   font-size: 0.875rem;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -76,7 +76,7 @@
 }
 
 .steps li::marker {
-  color: var(--color-primary);
+  color: var(--color-accent-text);
   font-weight: 800;
 }
 
@@ -93,10 +93,10 @@
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
-  border: 1px solid #bfdbfe;
+  border: 1px solid var(--color-accent-border);
   border-radius: 999px;
   background: var(--color-primary-soft);
-  color: var(--color-primary-hover);
+  color: var(--color-accent-text);
   font-size: 0.8125rem;
   font-weight: 700;
   line-height: 1.4;
@@ -128,7 +128,7 @@
 
 .primary-link {
   background: var(--color-primary);
-  color: white;
+  color: var(--color-on-primary);
 }
 
 .primary-link:hover {
@@ -142,9 +142,9 @@
 }
 
 .secondary-link:hover:not(:disabled) {
-  border-color: var(--color-primary);
+  border-color: var(--color-accent-border);
   background: var(--color-primary-soft);
-  color: var(--color-primary-hover);
+  color: var(--color-accent-text);
 }
 
 .secondary-link:disabled {

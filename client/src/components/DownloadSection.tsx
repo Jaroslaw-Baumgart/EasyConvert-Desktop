@@ -8,7 +8,7 @@ import { createPreviewData } from "../utils/previewMapper";
 import styles from "./DownloadSection.module.css";
 import panelStyles from "./ConverterPanel.module.css";
 import primaryActionStyles from "./PrimaryAction.module.css";
-import { CheckIcon, DownloadIcon, FileIcon } from "./UiIcons";
+import { Check as CheckIcon, Save as DownloadIcon, File as FileIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useObjectUrl } from "../hooks/useObjectUrl";
 
@@ -20,6 +20,7 @@ interface DownloadSectionProps {
   previewRef?: Ref<HTMLDivElement>;
   onPreviewReady?: () => void;
   isSaving: boolean;
+  embedded?: boolean;
 }
 
 export default function DownloadSection({
@@ -30,6 +31,7 @@ export default function DownloadSection({
   previewRef,
   onPreviewReady,
   isSaving,
+  embedded = false,
 }: DownloadSectionProps) {
   const { t } = useTranslation();
   const downloadButtonRef = useRef<HTMLButtonElement>(null);
@@ -64,14 +66,16 @@ export default function DownloadSection({
   }, [onPreviewReady, previewUrl]);
 
   return (
-    <div className={`${panelStyles.panel} ${styles["download-section"]}`}>
+    <div className={`${embedded ? styles.embedded : panelStyles.panel} ${styles["download-section"]}`}>
       <div className={styles["download-header"]}>
         <div className={styles["download-title"]}>
           <span className={styles["success-icon"]}>
             <CheckIcon />
           </span>
-          <div>
-            <h2 className={panelStyles.heading}>{t("download.title")}</h2>
+          <div className={styles["result-summary"]}>
+            <h2 className={embedded ? styles["result-file-name"] : panelStyles.heading} title={embedded ? activeResult.file.name : undefined}>
+              {embedded ? activeResult.file.name : t("download.title")}
+            </h2>
             <p className={styles["success-message"]}>
               {t("download.complete")}
             </p>
@@ -134,15 +138,15 @@ export default function DownloadSection({
           )}
         </div>
       </div>
-      <div className={styles["result-details"]}>
+      {!embedded && <div className={styles["result-details"]}>
         <FileIcon className={styles["result-file-icon"]} />
-        <span className={styles["result-file-name"]}>
+        <span className={styles["result-file-name"]} title={activeResult.file.name}>
           {activeResult.file.name}
         </span>
         {targetFormat ? (
           <span className={styles["format-badge"]}>{targetFormat}</span>
         ) : null}
-      </div>
+      </div>}
       {convertedResults.length > 1 && (
         <div
           className={styles["result-picker"]}

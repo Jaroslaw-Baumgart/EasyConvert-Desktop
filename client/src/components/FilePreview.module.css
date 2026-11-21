@@ -25,7 +25,7 @@
   place-items: center;
   border-radius: var(--radius-sm);
   background: var(--color-primary-soft);
-  color: var(--color-primary);
+  color: var(--color-accent-text);
 }
 
 .unsupported-icon svg {

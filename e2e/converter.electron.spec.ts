@@ -208,7 +208,7 @@ test("converts PDF pages, saves their ZIP through main and resets all previews",
   await page.keyboard.press("Escape");
   await expect(archiveMenu).not.toBeVisible();
   await archiveButton.click();
-  await page.getByRole("heading", { name: "Converted file" }).click();
+  await page.getByRole("heading", { name: "two-pages-page-2.jpg", exact: true }).click();
   await expect(archiveMenu).not.toBeVisible();
   await archiveButton.click();
   await page.screenshot({ path: testInfo.outputPath("archive-menu.png") });
@@ -285,11 +285,17 @@ test("converts JPG through IPC and downloads a real PNG without an HTTP server",
   await expect(download).toBeFocused();
   await expect(page.getByText("Conversion complete", { exact: true })).toBeVisible();
   const previews = page.getByRole("img", { name: "Preview", exact: true });
-  await expect(previews).toHaveCount(2);
-  await expect.poll(() => previews.evaluateAll((images) => images.map((element) => {
-    const image = element as HTMLImageElement;
-    return image.complete && image.naturalWidth > 0 && image.naturalHeight > 0;
-  }))).toEqual([true, true]);
+  await expect(page.getByRole("button", { name: "Result", exact: true })).toHaveAttribute("aria-pressed", "true");
+  for (const tab of ["Result", "Source"]) {
+    await page.getByRole("button", { name: tab, exact: true }).click();
+    await expect(previews).toHaveCount(1);
+    await expect(previews).toBeVisible();
+    await expect.poll(() => previews.evaluate((element) => {
+      const image = element as HTMLImageElement;
+      return image.complete && image.naturalWidth > 0 && image.naturalHeight > 0;
+    })).toBe(true);
+  }
+  await page.getByRole("button", { name: "Result", exact: true }).click();
   await expect(page.getByText("sample.png", { exact: true })).toBeVisible();
   const output = testInfo.outputPath("sample.png");
   await saveResultAs(electronApp, page.getByRole("button", { name: "Save as…", exact: true }), output);
@@ -387,7 +393,7 @@ test("keeps hash navigation and the converter usable on a narrow window", async 
   await page.getByRole("link", { name: "Converter", exact: true }).click();
   await chooseFile(electronApp, fixture("sample.jpg"));
   await page.getByRole("button", { name: "Choose File" }).click();
-  await expect(page.getByRole("heading", { name: "1. File preview" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Source", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "2. Convert this file" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

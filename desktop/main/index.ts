@@ -10,6 +10,9 @@ import { stopActiveConversion } from "./startConversion";
 import { getJobState } from "./jobRegistry";
 import { mkdir, rm } from "node:fs/promises";
 import { getTemporaryDirectory } from "./temporaryDirectory";
+import { registerWindowIpc } from "./windowIpc";
+import { registerSettingsIpc } from "./settingsIpc";
+import { loadWindowState, saveWindowState } from "./windowState";
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -41,11 +44,15 @@ async function waitForShutdown(operation: Promise<unknown>): Promise<void> {
   }
 }
 
-function createWindow(): void {
+async function createWindow(): Promise<void> {
+  const state = await loadWindowState();
   const window = new BrowserWindow({
-    width: 1200,
-    height: 800,
+    ...state.bounds,
+    minWidth: Math.min(900, state.bounds.width),
+    minHeight: Math.min(600, state.bounds.height),
+    show: false,
     title: "EasyConvert",
+    frame: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -55,50 +62,56 @@ function createWindow(): void {
   });
 
   mainWindow = window;
+  let wasMaximized = state.maximized;
+  window.on("maximize", () => { wasMaximized = true; });
+  window.on("unmaximize", () => { wasMaximized = false; });
+  window.once("ready-to-show", () => {
+    if (state.maximized) window.maximize();
+    window.show();
+  });
 
   let closing = false;
   let readyToClose = false;
+  let closeConfirmationPending = false;
 
-  async function finishClosing(): Promise<void> {
+  async function finishClosing(): Promise<boolean> {
     try {
       await waitForShutdown(stopActiveConversion());
-      await waitForShutdown(Promise.all([clearSource(), clearResult()]));
+      await waitForShutdown(Promise.all([
+        clearSource(),
+        clearResult(),
+        saveWindowState(window.getNormalBounds(), wasMaximized).catch((error: unknown) => {
+          console.error("Could not save the window state.", error);
+        }),
+      ]));
       readyToClose = true;
       window.close();
+      return true;
     } catch (error: unknown) {
       console.error("Could not close EasyConvert safely.", error);
       closing = false;
       dialog.showMessageBoxSync(window, {
         type: "error",
         title: "EasyConvert",
-        message: "Nie uda?o si? zako?czy? zamykania aplikacji.",
-        detail: "Spr?buj ponownie za chwil?.",
+        message: "Could not finish closing the application.",
+        detail: "Please try again shortly.",
       });
+      return false;
     }
   }
 
   window.on("close", (event) => {
     if (readyToClose) return;
     event.preventDefault();
-    if (closing) return;
-    closing = true;
+    if (closing || closeConfirmationPending) return;
 
     if (getJobState().status === "running") {
-      const choice = dialog.showMessageBoxSync(window, {
-        type: "question",
-        title: "EasyConvert",
-        message: "Trwa konwersja. Przerwa? j? i zamkn?? aplikacj??",
-        buttons: ["Wr??", "Przerwij i zamknij"],
-        defaultId: 0,
-        cancelId: 0,
-        noLink: true,
-      });
-      if (choice === 0) {
-        closing = false;
-        return;
-      }
+      closeConfirmationPending = true;
+      window.webContents.send("easyconvert:close-requested");
+      return;
     }
 
+    closing = true;
     void finishClosing();
   });
 
@@ -141,6 +154,19 @@ function createWindow(): void {
   registerSourceIpc(window, rendererUrl);
   registerConversionIpc(window, rendererUrl);
   registerFileActionsIpc(window, rendererUrl);
+  registerSettingsIpc(window, rendererUrl);
+  registerWindowIpc(window, rendererUrl, async (confirmed) => {
+    if (!closeConfirmationPending) return;
+    if (!confirmed) {
+      closeConfirmationPending = false;
+      return;
+    }
+    if (closing) return;
+    closing = true;
+    if (!(await finishClosing())) {
+      throw new Error("Could not close the application.");
+    }
+  });
   void window.loadURL(rendererUrl);
 
   if (!app.isPackaged) {
@@ -193,7 +219,7 @@ if (!hasSingleInstanceLock) {
       await mkdir(tempDirectory, { recursive: true });
       Menu.setApplicationMenu(null);
       registerAppProtocol();
-      createWindow();
+      await createWindow();
     })
     .catch((error: unknown) => {
       console.error("Could not initialize EasyConvert.", error);

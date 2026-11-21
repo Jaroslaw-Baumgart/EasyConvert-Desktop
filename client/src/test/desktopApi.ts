@@ -5,6 +5,25 @@ import type { ConvertedResults } from "../types/conversionResult";
 export function createDesktopApi(): EasyConvertApi {
   return {
     platform: "desktop",
+    onCloseRequested: vi.fn().mockReturnValue(() => {}),
+    respondToCloseRequest: vi.fn().mockResolvedValue(undefined),
+    minimizeWindow: vi.fn().mockResolvedValue(undefined),
+    toggleMaximizeWindow: vi.fn().mockResolvedValue(undefined),
+    closeWindow: vi.fn().mockResolvedValue(undefined),
+    getSettings: vi.fn().mockResolvedValue({
+      language: "en",
+      theme: "light",
+      accentColor: "white",
+      outputDirectory: "C:\\EasyConvert Output",
+    }),
+    saveSettings: vi.fn().mockResolvedValue(undefined),
+    getDefaultSettings: vi.fn().mockResolvedValue({
+      language: "en",
+      theme: "light",
+      accentColor: "white",
+      outputDirectory: "C:\\EasyConvert Output",
+    }),
+    selectOutputDirectory: vi.fn().mockResolvedValue(null),
     selectSource: vi.fn(),
     selectDroppedSource: vi.fn(),
     startConversion: vi.fn(),

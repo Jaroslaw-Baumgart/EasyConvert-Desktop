@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./FileConverter.module.css";
 import stateStyles from "./PreviewState.module.css";
 import panelStyles from "./ConverterPanel.module.css";
@@ -15,6 +15,7 @@ import type { ConversionSettings } from "../schemas/conversionSettings";
 import type { ConvertedResult } from "../types/conversionResult";
 import { useTranslation } from "react-i18next";
 import SaveNotification from "./SaveNotification";
+import { FileInput, FileOutput, FileUp, ShieldCheck, Trash2 } from "lucide-react";
 
 function getAvailableOptions(
   file: File | null,
@@ -70,16 +71,10 @@ export default function FileConverter({
     string | undefined | null
   >(null);
 
-  const convertedPreviewRef = useRef<HTMLDivElement>(null);
+  const [sourceForResults, setSourceForResults] = useState<typeof convertedResults>(null);
+  const showResults = Boolean(convertedResults && sourceForResults !== convertedResults);
   const errorRef = useRef<HTMLDivElement>(null);
   const previousErrorRef = useRef<string | null>(null);
-
-  const scrollToConvertedPreview = useCallback(() => {
-    convertedPreviewRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }, []);
 
   useEffect(() => {
     const isNewError = error !== null && previousErrorRef.current === null;
@@ -92,6 +87,7 @@ export default function FileConverter({
   }, [error]);
 
   const handleFileSelect = (selectedFile: File, sourceId?: string) => {
+    setSourceForResults(null);
     setHasFormError(false);
     selectFile(selectedFile, sourceId);
     setSelectedXlsxSheetName(null);
@@ -131,13 +127,13 @@ export default function FileConverter({
             className={`${panelStyles.panel} ${styles["source-preview-section"]}`}
             aria-labelledby="source-preview-heading"
           >
-            <h2 id="source-preview-heading" className={panelStyles.heading}>
-              {t("converter.preview")}
-            </h2>
-
-            <div className={styles["preview-file-actions"]}>
-              <span className={styles["preview-file-name"]}>{file.name}</span>
-
+            <div className={styles["preview-switcher"]} role="group" aria-label={t("workspace.previewLabel")}>
+              <button type="button" aria-pressed={!showResults} onClick={() => setSourceForResults(convertedResults)}>
+                <FileInput size={16} aria-hidden="true" />{t("workspace.source")}
+              </button>
+              <button type="button" aria-pressed={showResults} disabled={!convertedResults} onClick={() => setSourceForResults(null)}>
+                <FileOutput size={16} aria-hidden="true" />{t("workspace.result")}
+              </button>
               <button
                 type="button"
                 className={styles["remove-file-btn"]}
@@ -148,8 +144,19 @@ export default function FileConverter({
                   (window.easyConvert?.platform === "desktop" && isConverting)
                 }
               >
-                {t("converter.remove")}
+                <Trash2 size={15} aria-hidden="true" />{t("converter.remove")}
               </button>
+            </div>
+            <h2 id="source-preview-heading" className={styles["visually-hidden"]}>{t("workspace.previewLabel")}</h2>
+            <div className={styles["source-body"]} hidden={showResults}>
+
+            <div className={styles["preview-file-actions"]}>
+              <div className={styles["file-details"]}>
+                <span className={styles["preview-file-name"]} title={file.name}>{file.name}</span>
+                <span className={styles.metadata}>{file.name.split(".").pop()?.toUpperCase()}{" \u00b7 "}{new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(file.size / 1_000_000)} MB</span>
+              </div>
+
+
             </div>
 
             <div className={styles["file-preview"]}>
@@ -158,6 +165,17 @@ export default function FileConverter({
                 onXlsxSheetChange={setSelectedXlsxSheetName}
               />
             </div>
+            </div>
+            {showResults && convertedResults && (
+              <DownloadSection
+                convertedResults={convertedResults}
+                onDownload={handleDownloadBlob}
+                isPreparingArchive={isPreparingArchive}
+                onDownloadAll={downloadAllConvertedFiles}
+                isSaving={isSaving}
+                embedded
+              />
+            )}
           </section>
           <aside
             className={styles["conversion-sidebar"]}
@@ -186,7 +204,12 @@ export default function FileConverter({
           {t("converter.preparing")}
         </p>
       ) : (
-        <FileUpload onFileSelect={handleFileSelect} />
+        <div className={styles["start-screen"]}>
+          <FileUp size={38} strokeWidth={1.5} className={styles["start-icon"]} aria-hidden="true" />
+          <h1>{t("workspace.chooseFile")}</h1>
+          <FileUpload onFileSelect={handleFileSelect} />
+          <p className={styles["local-note"]}><ShieldCheck size={16} aria-hidden="true" />{t("workspace.local")}</p>
+        </div>
       )}
 
       {error && (
@@ -200,17 +223,6 @@ export default function FileConverter({
         </div>
       )}
 
-      {convertedResults && (
-        <DownloadSection
-          convertedResults={convertedResults}
-          onDownload={handleDownloadBlob}
-          isPreparingArchive={isPreparingArchive}
-          onDownloadAll={downloadAllConvertedFiles}
-          previewRef={convertedPreviewRef}
-          onPreviewReady={scrollToConvertedPreview}
-          isSaving={isSaving}
-        />
-      )}
       {saveNotification && (
         <SaveNotification
           notification={saveNotification}

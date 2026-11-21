@@ -20,7 +20,7 @@ type FilePreviewProps = {
 
 function PDFPreview({ url }: { url: string }) {
   const { t } = useTranslation();
-  return <iframe src={url} title={t("preview.pdf")} className={styles["pdf-preview"]} data-preview-kind="pdf" />;
+  return <iframe src={`${url}#view=FitH`} title={t("preview.pdf")} className={styles["pdf-preview"]} data-preview-kind="pdf" />;
 }
 
 function UnsupportedPreview({ fileType }: { fileType: string }) {

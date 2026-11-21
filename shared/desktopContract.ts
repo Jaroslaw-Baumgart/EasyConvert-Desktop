@@ -4,6 +4,18 @@ import type {
   XlsxToPdfOptions,
 } from "./conversionOptions";
 
+export type AccentColor =
+  | "blue"
+  | "purple"
+  | "pink"
+  | "red"
+  | "orange"
+  | "green"
+  | "teal"
+  | "gray"
+  | "black"
+  | "white";
+
 export type SelectedSource = {
   sourceId: string;
   name: string;
@@ -13,6 +25,13 @@ export type SelectedSource = {
 export type SourceSelection =
   | { status: "cancelled" }
   | { status: "selected"; source: SelectedSource };
+
+export type AppSettings = {
+  language: "en" | "pl";
+  theme: "light" | "dark";
+  outputDirectory: string;
+  accentColor: AccentColor;
+};
 
 export interface EasyConvertApi {
   platform: "desktop";
@@ -29,6 +48,15 @@ export interface EasyConvertApi {
   saveArchive(resultIds: string[], saveAs?: boolean): Promise<SaveResponse>;
   showLastSavedFile(): Promise<void>;
   cancelConversion(jobId: string): Promise<void>;
+  minimizeWindow(): Promise<void>;
+  toggleMaximizeWindow(): Promise<void>;
+  closeWindow(): Promise<void>;
+  onCloseRequested(listener: () => void): () => void;
+  respondToCloseRequest(confirmed: boolean): Promise<void>;
+  getSettings(): Promise<AppSettings>;
+  getDefaultSettings(): Promise<AppSettings>;
+  saveSettings(settings: AppSettings): Promise<void>;
+  selectOutputDirectory(): Promise<string | null>;
 }
 
 export type StartConversionRequest =

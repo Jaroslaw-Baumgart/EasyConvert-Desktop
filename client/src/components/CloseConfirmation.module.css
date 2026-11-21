@@ -1,0 +1,47 @@
+.dialog {
+  width: min(440px, calc(100vw - 40px));
+  max-height: calc(100dvh - var(--title-bar-height) - 40px);
+  padding: 28px;
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  background: var(--color-elevated);
+  color: var(--color-text);
+  box-shadow: 0 20px 64px rgb(15 23 42 / 0.24);
+}
+
+.dialog::backdrop {
+  top: var(--title-bar-height);
+  background: rgb(15 23 42 / 0.35);
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 20px;
+  border-radius: 14px;
+  background: var(--color-primary-soft);
+  color: var(--color-accent-text);
+}
+
+.dialog h2 { margin: 0 0 12px; font-size: 1.25rem; font-weight: 600; }
+.dialog p { margin: 0; color: var(--color-text-muted); line-height: 1.6; }
+.actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+.actions button {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-elevated);
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.actions button:hover:not(:disabled) { background: var(--color-page); }
+.actions .confirm { background: var(--color-primary); border-color: var(--color-accent-border); color: var(--color-on-primary); }
+.actions .confirm:hover:not(:disabled) { background: var(--color-primary-hover); }
+.actions button:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 3px; }
+.actions button:disabled { opacity: 0.6; cursor: wait; }
+.dialog .error { margin-top: 16px; color: var(--color-danger); }

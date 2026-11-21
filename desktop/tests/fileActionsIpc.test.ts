@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({ handle: vi.fn(), showSaveDialog: vi.fn(), trus
 vi.mock("electron", () => ({ shell: { showItemInFolder: mocks.showItemInFolder }, app: { getPath: mocks.getPath }, ipcMain: { handle: mocks.handle }, dialog: { showSaveDialog: mocks.showSaveDialog } }));
 vi.mock("../main/assertTrustedSender", () => ({ assertTrustedSender: mocks.trusted }));
 import { registerFileActionsIpc } from "../main/fileActionsIpc";
+import { saveSettings, getDefaultSettings } from "../main/settingsStore";
 import * as resultFiles from "../main/saveResultFile";
 import { registerSource, clearSource, getSourcePath } from "../main/sourceRegistry";
 import { registerResult, registerResults, clearResult, getResultPath } from "../main/resultRegistry";
@@ -61,6 +62,20 @@ afterEach(async () => {
   await rm(directory, { recursive: true, force: true });
 });
 describe("native file actions", () => {
+  it("uses the saved output directory for files and archives", async () => {
+    const outputDirectory = path.join(directory, "selected-output");
+    await saveSettings({ ...getDefaultSettings(), outputDirectory });
+    await expect(handler("easyconvert:save-result")(event, resultId))
+      .resolves.toEqual({ status: "saved", fileName: "source.png" });
+    await expect(handler("easyconvert:save-archive")(event, [resultId]))
+      .resolves.toEqual({ status: "saved", fileName: "source.zip" });
+    expect(await readFile(path.join(outputDirectory, "source.png"), "utf8"))
+      .toBe("PNG result");
+    const archive = unzipSync(await readFile(path.join(outputDirectory, "source.zip")));
+    expect(Buffer.from(archive["source.png"]!).toString()).toBe("PNG result");
+    expect(await readdir(directory)).not.toContain("EasyConvert Output");
+  });
+
   it.each([false, true])("exports after the original has been deleted (archive=%s)", async (archive) => {
     await rm(sourcePath);
     const destination = path.join(directory, archive ? "chosen.zip" : "chosen.png");

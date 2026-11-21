@@ -3,6 +3,8 @@ import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  windowIpc: vi.fn(),
+  loadWindowState: vi.fn(), saveWindowState: vi.fn(),
   getPath: vi.fn(), lock: vi.fn(), rm: vi.fn(), mkdir: vi.fn(), startupError: vi.fn(),
   BrowserWindow: vi.fn(), appOn: vi.fn(), quit: vi.fn(), dialog: vi.fn(),
   stop: vi.fn(), clearSource: vi.fn(), clearResult: vi.fn(), state: vi.fn(),
@@ -17,6 +19,9 @@ vi.mock("electron", () => ({
   dialog: { showMessageBoxSync: mocks.dialog, showErrorBox: mocks.startupError },
 }));
 vi.mock("node:fs/promises", () => ({ rm: mocks.rm, mkdir: mocks.mkdir }));
+vi.mock("../main/windowIpc", () => ({ registerWindowIpc: mocks.windowIpc }));
+vi.mock("../main/settingsIpc", () => ({ registerSettingsIpc: vi.fn() }));
+vi.mock("../main/windowState", () => ({ loadWindowState: mocks.loadWindowState, saveWindowState: mocks.saveWindowState }));
 vi.mock("../main/sourceIpc", () => ({ registerSourceIpc: vi.fn() }));
 vi.mock("../main/conversionIpc", () => ({ registerConversionIpc: vi.fn() }));
 vi.mock("../main/fileActionsIpc", () => ({ registerFileActionsIpc: vi.fn() }));
@@ -29,7 +34,10 @@ vi.mock("../main/jobRegistry", () => ({ getJobState: mocks.state }));
 let window: EventEmitter & {
   close: ReturnType<typeof vi.fn>;
   isDestroyed: ReturnType<typeof vi.fn>;
-  webContents: EventEmitter;
+  webContents: EventEmitter & { send: ReturnType<typeof vi.fn> };
+  getNormalBounds: ReturnType<typeof vi.fn>;
+  maximize: ReturnType<typeof vi.fn>;
+  show: ReturnType<typeof vi.fn>;
 };
 function requestClose() {
   const event = { preventDefault: vi.fn() };
@@ -46,15 +54,20 @@ beforeEach(async () => {
   mocks.lock.mockReturnValue(true);
   mocks.rm.mockResolvedValue(undefined);
   mocks.mkdir.mockResolvedValue(undefined);
+  mocks.loadWindowState.mockResolvedValue({ bounds: { x: 40, y: 50, width: 1100, height: 750 }, maximized: true });
+  mocks.saveWindowState.mockResolvedValue(undefined);
   mocks.stop.mockResolvedValue(undefined);
   mocks.clearSource.mockResolvedValue(undefined);
   mocks.clearResult.mockResolvedValue(undefined);
   mocks.state.mockReturnValue({ status: "idle" });
   mocks.dialog.mockReturnValue(0);
   window = Object.assign(new EventEmitter(), {
-    webContents: Object.assign(new EventEmitter(), { setWindowOpenHandler: vi.fn() }),
+    webContents: Object.assign(new EventEmitter(), { setWindowOpenHandler: vi.fn(), send: vi.fn() }),
     loadURL: vi.fn().mockResolvedValue(undefined),
     isDestroyed: vi.fn().mockReturnValue(false),
+    getNormalBounds: vi.fn().mockReturnValue({ x: 40, y: 50, width: 1100, height: 750 }),
+    maximize: vi.fn(),
+    show: vi.fn(),
     close: vi.fn(() => {
       const event = requestClose();
       expect(event.preventDefault).not.toHaveBeenCalled();
@@ -68,6 +81,29 @@ beforeEach(async () => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+});
+
+it("restores bounds and maximization before showing, then saves the normal state on close", async () => {
+  expect(mocks.BrowserWindow).toHaveBeenCalledWith(expect.objectContaining({
+    x: 40, y: 50, width: 1100, height: 750, show: false,
+  }));
+  expect(window.show).not.toHaveBeenCalled();
+  window.emit("ready-to-show");
+  expect(window.maximize).toHaveBeenCalledOnce();
+  expect(window.maximize.mock.invocationCallOrder[0]).toBeLessThan(window.show.mock.invocationCallOrder[0]!);
+  window.emit("unmaximize");
+  requestClose();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(mocks.saveWindowState).toHaveBeenCalledExactlyOnceWith({ x: 40, y: 50, width: 1100, height: 750 }, false);
+});
+
+it("still closes if saving window preferences fails", async () => {
+  const error = new Error("Write denied");
+  mocks.saveWindowState.mockRejectedValueOnce(error);
+  requestClose();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(console.error).toHaveBeenCalledWith("Could not save the window state.", error);
+  expect(window.close).toHaveBeenCalledOnce();
 });
 
 it("waits for stopping and both cleanups, ignores repeated close and permits the final close", async () => {
@@ -97,16 +133,17 @@ it("waits for stopping and both cleanups, ignores repeated close and permits the
 
 it("leaves conversion untouched on Return and asks again on another close", async () => {
   mocks.state.mockReturnValue({ status: "running", jobId: "job" });
-  mocks.dialog.mockReturnValueOnce(0).mockReturnValueOnce(1);
+  const respond = mocks.windowIpc.mock.calls[0]![2] as (confirmed: boolean) => Promise<void>;
   requestClose();
-  expect(mocks.dialog).toHaveBeenCalledWith(window, expect.objectContaining({
-    type: "question", defaultId: 0, cancelId: 0,
-  }));
+  requestClose();
+  expect(window.webContents.send).toHaveBeenCalledExactlyOnceWith("easyconvert:close-requested");
   expect(mocks.stop).not.toHaveBeenCalled();
   expect(mocks.clearSource).not.toHaveBeenCalled();
+  await respond(false);
+  expect(mocks.stop).not.toHaveBeenCalled();
   requestClose();
-  await vi.advanceTimersByTimeAsync(0);
-  expect(mocks.dialog).toHaveBeenCalledTimes(2);
+  expect(window.webContents.send).toHaveBeenCalledTimes(2);
+  await respond(true);
   expect(mocks.stop).toHaveBeenCalledOnce();
   expect(window.close).toHaveBeenCalledOnce();
 });

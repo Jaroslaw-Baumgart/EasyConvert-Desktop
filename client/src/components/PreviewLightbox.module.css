@@ -1,6 +1,10 @@
 .preview-lightbox {
   position: relative;
   min-width: 0;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .preview-expand-btn,
@@ -9,7 +13,7 @@
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
+  background: var(--color-elevated);
   color: var(--color-text);
   cursor: pointer;
   font: inherit;
@@ -20,19 +24,29 @@
 }
 
 .preview-expand-btn {
-  display: block;
-  margin: 0 0 var(--space-3);
+  position: absolute;
+  right: 14px;
+  top: 10px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.18);
 }
 
 .preview-expand-btn:hover,
 .preview-close-btn:hover {
-  border-color: var(--color-primary);
+  border-color: var(--color-accent-border);
   background: var(--color-primary-soft);
 }
 
 .preview-lightbox.is-open {
   position: fixed;
-  inset: 0;
+  inset: var(--title-bar-height) 0 0;
   z-index: 1000;
   display: grid;
   place-items: center;
@@ -51,6 +65,10 @@
 
 .preview-lightbox-panel {
   min-width: 0;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .preview-lightbox.is-open .preview-lightbox-panel {
@@ -64,7 +82,7 @@
   overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  background: var(--color-elevated);
   box-shadow: 0 1.5rem 4rem rgb(15 23 42 / 0.35);
 }
 
@@ -75,6 +93,37 @@
 
 .preview-lightbox-content {
   min-width: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.preview-lightbox:not(.is-open) :global([data-preview-kind]) {
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  scrollbar-width: thin;
+}
+
+.preview-lightbox:not(.is-open) :global([data-preview-kind="image"]) {
+  object-fit: contain;
+}
+
+.preview-lightbox:not(.is-open) :global([data-preview-kind="text"]) {
+  resize: none;
+}
+
+.preview-lightbox:not(.is-open) :global([data-preview-kind="xlsx"]) {
+  height: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+.preview-lightbox :global([data-preview-kind="pptx"]) img {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
 }
 
 .preview-lightbox.is-open .preview-lightbox-content {
@@ -89,7 +138,7 @@
 
 .is-open :global([data-preview-kind="pdf"]) {
   height: 100%;
-  min-height: 32rem;
+  min-height: 0;
 }
 
 .is-open :global([data-preview-kind="text"]) {

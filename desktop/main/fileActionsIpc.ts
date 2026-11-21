@@ -9,7 +9,8 @@ import {
 } from "./sourceRegistry";
 import { clearResult, getResultPath } from "./resultRegistry";
 import { getJobState, resetJob } from "./jobRegistry";
-import { getDefaultOutputDirectory, saveResultFile } from "./saveResultFile";
+import { saveResultFile } from "./saveResultFile";
+import { loadSettings } from "./settingsStore";
 import { saveArchive, saveArchiveAs } from "./saveArchive";
 import { replaceResultFile } from "./replaceResultFile";
 import type { SaveErrorCode } from "../../shared/desktopContract";
@@ -183,9 +184,9 @@ export function registerFileActionsIpc(
         parseResultIdentifier(args),
       );
 
-      const outputDirectory = getDefaultOutputDirectory();
 
       try {
+        const { outputDirectory } = await loadSettings();
         const savedPath = await saveResultFile(
           resultPath,
           outputDirectory,
@@ -237,7 +238,6 @@ export function registerFileActionsIpc(
       }
 
       const entries = resolveArchiveEntries();
-      const outputDirectory = getDefaultOutputDirectory();
       const sourcePath = getOriginalSourcePath();
 
       if (!sourcePath) {
@@ -298,6 +298,7 @@ export function registerFileActionsIpc(
             },
           );
         } else {
+          const { outputDirectory } = await loadSettings();
           savedPath = await saveArchive(entries, outputDirectory, fileName);
         }
 

@@ -8,7 +8,7 @@
 }
 
 .upload-section.dragging {
-  border-color: var(--color-primary);
+  border-color: var(--color-accent-border);
   background: var(--color-primary-soft);
 }
 
@@ -55,7 +55,7 @@
 
 .supported-conversions[open] summary {
   margin-bottom: var(--space-2);
-  color: var(--color-primary-hover);
+  color: var(--color-accent-text);
 }
 
 .supported-conversions ul {
