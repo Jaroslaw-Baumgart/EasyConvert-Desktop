@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import ErrorBoundary from "./ErrorBoundary";
 import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import AppLayout from "../layouts/AppLayout";
+import AppLayout from "../app/layouts/AppLayout";
 
 function BrokenComponent(): never {
   throw new Error("Test render failure");

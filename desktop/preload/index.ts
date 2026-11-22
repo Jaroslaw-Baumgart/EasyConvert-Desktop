@@ -8,7 +8,7 @@ import type {
   StartConversionResponse,
   SaveResponse,
   AppSettings,
-} from "../../shared/desktopContract";
+} from "../../shared/contracts/desktopContract";
 
 function parseIdentifier(value: unknown): string {
   if (typeof value !== "string" || value.length === 0 || value.length > 128) {
@@ -409,6 +409,13 @@ const api: EasyConvertApi = {
     return value;
   },
 
+  getAppVersion: async () => {
+    const value: unknown = await ipcRenderer.invoke("easyconvert:get-app-version");
+    if (typeof value !== "string" || value.length === 0) {
+      throw new Error("Invalid application version response.");
+    }
+    return value;
+  },
   getSettings: async () => {
     const value: unknown = await ipcRenderer.invoke("easyconvert:get-settings");
 

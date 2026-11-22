@@ -1,18 +1,18 @@
 import { app, BrowserWindow, Menu, protocol, shell, dialog } from "electron";
 import path from "node:path";
-import { registerSourceIpc } from "./sourceIpc";
-import { clearSource } from "./sourceRegistry";
-import { registerConversionIpc } from "./conversionIpc";
-import { registerAppProtocol } from "./registerAppProtocol";
-import { registerFileActionsIpc } from "./fileActionsIpc";
-import { clearResult } from "./resultRegistry";
-import { stopActiveConversion } from "./startConversion";
-import { getJobState } from "./jobRegistry";
+import { registerSourceIpc } from "./sources/sourceIpc";
+import { clearSource } from "./sources/sourceRegistry";
+import { registerConversionIpc } from "./conversions/conversionIpc";
+import { registerAppProtocol } from "./protocol/registerAppProtocol";
+import { registerFileActionsIpc } from "./exports/fileActionsIpc";
+import { clearResult } from "./results/resultRegistry";
+import { stopActiveConversion } from "./conversions/startConversion";
+import { getJobState } from "./conversions/jobRegistry";
 import { mkdir, rm } from "node:fs/promises";
-import { getTemporaryDirectory } from "./temporaryDirectory";
-import { registerWindowIpc } from "./windowIpc";
-import { registerSettingsIpc } from "./settingsIpc";
-import { loadWindowState, saveWindowState } from "./windowState";
+import { getTemporaryDirectory } from "./temporary/temporaryDirectory";
+import { registerWindowIpc } from "./window/windowIpc";
+import { registerSettingsIpc } from "./settings/settingsIpc";
+import { loadWindowState, saveWindowState } from "./window/windowState";
 
 let mainWindow: BrowserWindow | null = null;
 

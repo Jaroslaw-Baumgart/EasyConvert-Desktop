@@ -28,6 +28,11 @@ export default function PrivacyPage() {
         </ul>
       </section>
 
+      <section className={styles.card} aria-labelledby="privacy-preferences">
+        <h2 id="privacy-preferences">{t("privacy.preferencesTitle")}</h2>
+        <p>{t("privacy.preferencesText")}</p>
+      </section>
+
       <section
         className={`${styles.card} ${styles.notice}`}
         aria-labelledby="privacy-sensitive-files"

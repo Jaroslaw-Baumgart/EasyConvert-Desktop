@@ -1,0 +1,147 @@
+import { selectDesktopSource } from "./api/desktopSource";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { convertDesktopFile } from "./api/desktopConversionClient";
+import { createDesktopApi, convertedResult } from "../../test/desktopApi";
+
+vi.mock("./api/desktopConversionClient", () => ({ convertDesktopFile: vi.fn() }));
+beforeEach(() => {
+  vi.mocked(convertDesktopFile).mockReset();
+  vi.mocked(convertDesktopFile).mockResolvedValue(convertedResult());
+  vi.stubGlobal("easyConvert", createDesktopApi());
+});
+import ConverterPage from "./ConverterPage";
+
+const getEnabledConvertButton = (): HTMLElement => {
+  const button = screen
+    .getAllByRole("button", { name: "Convert" })
+    .find((candidate) => !candidate.hasAttribute("disabled"));
+
+  if (!button) {
+    throw new Error("No enabled conversion button was found");
+  }
+
+  return button;
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.restoreAllMocks();
+});
+describe("ConverterPage", () => {
+  it("returns to the initial state after removing the selected file", async () => {
+    const user = userEvent.setup();
+
+    render(<ConverterPage />);
+
+    const input = screen.getByRole("button", { name: "Choose File" });
+    const file = new File(["content"], "image.png", {
+      type: "image/png",
+    });
+
+    await selectNativeFile(user, input, file);
+
+    expect(screen.getByText("image.png")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Preview" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Remove file" }));
+
+    expect(
+      screen.getByRole("region", { name: "Upload File" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Remove file" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: "Preview" }),
+    ).not.toBeInTheDocument();
+
+    expect(
+      screen.queryByRole("button", { name: "Convert" }),
+    ).not.toBeInTheDocument();
+
+    const replacementInput = screen.getByRole("button", { name: "Choose File" });
+    await selectNativeFile(user, replacementInput, file);
+
+    expect(screen.getByText("image.png")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Remove file" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows and clears a conversion error", async () => {
+    const user = userEvent.setup();
+
+    vi.mocked(convertDesktopFile).mockRejectedValueOnce(new Error("Conversion failed"));
+
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    render(<ConverterPage />);
+
+    const input = screen.getByRole("button", { name: "Choose File" });
+    const file = new File(["content"], "image.jpg", {
+      type: "image/jpeg",
+    });
+
+    await selectNativeFile(user, input, file);
+
+    const enabledConvertButton = getEnabledConvertButton();
+
+    await user.click(enabledConvertButton);
+
+    const errorAlert = await screen.findByRole("alert");
+
+    expect(errorAlert).toHaveTextContent(
+      "The file could not be converted. Please try again.",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Remove file" }));
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("clears the conversion result after removing the selected file", async () => {
+    const user = userEvent.setup();
+
+
+
+    render(<ConverterPage />);
+
+    const input = screen.getByRole("button", { name: "Choose File" });
+    const file = new File(["content"], "image.jpg", {
+      type: "image/jpeg",
+    });
+
+    await selectNativeFile(user, input, file);
+
+    const enabledConvertButton = getEnabledConvertButton();
+
+    await user.click(enabledConvertButton);
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "converted.png",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Remove file" }));
+
+    expect(
+      screen.queryByRole("heading", {
+        name: "converted.png",
+      }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+vi.mock("./api/desktopSource", () => ({ selectDesktopSource: vi.fn() }));
+async function selectNativeFile(
+ user: ReturnType<typeof userEvent.setup>, button: HTMLElement, file: File,
+) {
+ vi.mocked(selectDesktopSource).mockResolvedValueOnce({
+  source: { sourceId: "source-1", name: file.name, sizeBytes: file.size }, file,
+ });
+ await user.click(button);
+ await screen.findByText(file.name);
+}

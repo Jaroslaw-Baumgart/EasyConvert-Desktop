@@ -1,4 +1,4 @@
-import type { WorkerConversionRequest } from "../../shared/workerContract";
+import type { WorkerConversionRequest } from "../../shared/contracts/workerContract";
 import { parsePngToJpgOptions } from "../../conversion-core/image/parsePngToJpgOptions";
 import { parsePdfPageOptions } from "../../conversion-core/pdf/parsePdfPageOptions";
 import { parseXlsxToPdfOptions } from "../../conversion-core/office/parseXlsxToPdfOptions";

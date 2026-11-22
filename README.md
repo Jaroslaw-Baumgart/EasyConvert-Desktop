@@ -37,8 +37,10 @@ produce up to 500 result files. Conversions have an overall three-minute timeout
 
 ## Saving and temporary files
 
-Save writes results to `EasyConvert Output` on your Desktop, adding a number when
-a name is already taken. Save as opens a native dialog to choose the destination.
+Save uses the output folder selected in Settings. The default is
+`EasyConvert Output` on your Desktop. A number is added when a name is already
+taken. Save as opens a native dialog for one export without changing the default
+folder.
 Failed writes preserve existing exports. A notification confirms the saved file
 and lets you show it in its folder.
 
@@ -49,6 +51,20 @@ conversion is running. Original files and saved exports are preserved.
 
 Temporary working files live under `%TEMP%\EasyConvert`. The app clears this
 directory at startup to remove leftovers from interrupted sessions.
+
+## Settings and window
+
+Settings include the interface language, light or dark mode, ten accent colors
+and the output folder. White is the default accent. Save changes applies and
+stores your choices; Cancel discards unsaved edits. Factory defaults fills the
+form with the default values, which still need to be saved.
+
+Preferences are stored in `settings.json` in Electron's `userData` directory.
+Window size, position and maximized state are stored separately in
+`window-state.json`. Missing or invalid files fall back to defaults. The app
+restores normal or maximized windows, not minimized ones.
+
+About shows the application version and a link to the developer's GitHub profile.
 
 ## Run from source
 
@@ -85,7 +101,9 @@ npm.cmd run test:e2e
 
 `check` runs lint, type checks, client tests, engine tests, desktop tests and the
 client build. E2E tests launch real Electron on Windows and cover all ten conversion
-pairs, XLSX sheet selection, saving, ZIP export and reset.
+pairs, XLSX sheet selection, saving, ZIP export and reset. They also check
+preferences and window state after restart, recovery from corrupt settings,
+the displayed app version and keyboard focus.
 File contents are checked automatically. Visual layout still needs manual review.
 See [e2e/README.md](e2e/README.md) for test setup and artifacts.
 
@@ -94,19 +112,23 @@ Electron E2E tests also require the local LibreOffice installation described abo
 
 ## Project structure
 
-- `client/` — React interface, previews, settings and desktop API adapters.
-- `desktop/` — Electron main process, preload, IPC and conversion worker.
-- `conversion-core/` — conversion functions and their tests.
-- `shared/` — desktop contract and conversion option types.
-- `assets/fonts/` — bundled fonts and their license.
-- `e2e/` — Electron workflow tests and generated Office fixture helpers.
-- `fixtures/` — shared test inputs. Additional manual samples are ignored by Git.
-- `tools/` — manually installed LibreOffice binaries, excluded from Git.
+- `client/src/app/` - startup, routing and layout.
+- `client/src/features/` - converter, previews, settings and window controls.
+- `client/src/components/` - shared UI. Feature CSS and tests stay beside their components.
+- `client/src/pages/` - About, Privacy and Not Found.
+- `client/src/styles/` - global styles and accent palettes.
+- `desktop/main/` - startup, window, settings, sources, conversions, results, exports, protocol, security, resources and temporary files.
+- `desktop/preload/` and `desktop/worker/` - renderer bridge and conversion worker.
+- `desktop/tests/` - grouped like main, with separate preload and worker tests.
+- `conversion-core/` - conversion functions and tests, grouped by format.
+- `shared/contracts/` - desktop and worker contracts. Conversion definitions, options and limits remain in `shared/`.
+- `assets/fonts/` - bundled fonts and their license.
+- `e2e/` - Electron workflow tests and generated Office fixture helpers.
+- `fixtures/` - shared test inputs. Additional manual samples are ignored by Git.
+- `tools/` - manually installed LibreOffice binaries, excluded from Git.
 
 ## Before the first release
 
-- A saved output-folder preference and UI polish, including a custom title bar
-  and close-confirmation dialog.
 - Packaging, application branding and third-party license notices.
 - Installer testing on Windows 10 and Windows 11 x64.
 

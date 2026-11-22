@@ -181,13 +181,14 @@ export const pl = {
     slideAlt: "Slajd PowerPoint {{index}}",
   },
   about: {
+    version: "Wersja {{version}}",
+    versionUnavailable: "Wersja niedostępna",
     authorTitle: "Poznaj autora",
     authorText: "Nazywam się Jarosław Baumgart i tworzę EasyConvert. Moje projekty znajdziesz na GitHubie. Dziękuję za korzystanie z aplikacji i dzielenie się uwagami!",
     authorGithub: "Mój GitHub",
-    authorSupport: "Postaw mi kawę — wkrótce",
     eyebrow: "EasyConvert",
     title: "O aplikacji",
-    lead: "Konwertuj popularne obrazy, dokumenty, arkusze, prezentacje i pliki tekstowe w kilku prostych, przejrzystych krokach.",
+    lead: "Konwertuj obrazy, dokumenty, arkusze, prezentacje i pliki tekstowe na swoim komputerze.",
     open: "Otwórz konwerter",
     howTitle: "Jak to działa",
     step1: "Wybierz jeden plik o rozmiarze do 10 MB.",
@@ -199,7 +200,7 @@ export const pl = {
       "Dostępne opcje zależą od wybranego pliku. Aplikacja sprawdza plik lokalnie przed rozpoczęciem konwersji.",
     previewsTitle: "Podglądy",
     previewsText:
-      "Przed konwersją można wyświetlić podgląd obrazów, plików PDF i tekstowych, CSV, dokumentów DOCX, skoroszytów XLSX oraz prezentacji PPTX. Dla XLSX można wyświetlić jeden arkusz albo wszystkie arkusze.",
+      "Przed konwersją możesz obejrzeć źródło, a po niej przełączyć się na wynik. Podgląd arkuszy pokazuje dane bez wykresów. Podgląd dokumentu może różnić się od wynikowego PDF-a.",
     settingsTitle: "Ustawienia konwersji",
     setting1: "PNG do JPG: jakość obrazu i kolor tła.",
     setting2:
@@ -208,7 +209,7 @@ export const pl = {
       "XLSX do PDF: jeden arkusz albo wszystkie arkusze, rozmiar strony, orientacja i dopasowanie do strony.",
     filesTitle: "Pliki i wyniki",
     filesText:
-      "Pliki są przetwarzane lokalnie na Twoim komputerze. Zapisz umieszcza wyniki w folderze EasyConvert Output na Pulpicie. Zapisz jako pozwala wybrać folder i nazwę pliku. Wiele wyników można zapisać jako archiwum ZIP. Informacje o plikach tymczasowych znajdziesz na <privacyLink>stronie prywatności</privacyLink>.",
+      "Zapisz korzysta z folderu wybranego w Ustawieniach. Domyślnie jest to EasyConvert Output na Pulpicie. Zapisz jako pozwala wybrać miejsce dla jednego eksportu. Wiele wyników możesz zapisać jako ZIP. Więcej o plikach tymczasowych na <privacyLink>stronie prywatności</privacyLink>.",
   },
   privacy: {
     eyebrow: "Prywatność",
@@ -216,16 +217,18 @@ export const pl = {
     lead: "Pliki są używane wyłącznie do żądanej konwersji. Aplikacja nie wymaga konta ani nie przechowuje osobistej historii konwersji.",
     processingTitle: "Co jest przetwarzane",
     processingText:
-      "Aplikacja odczytuje wybrany plik i ustawienia konwersji lokalnie. Pliki nie są wysyłane na serwer konwersji. Konwersja DOCX, XLSX i PPTX korzysta z LibreOffice na Twoim komputerze.",
+      "Konwersja i podglądy działają na Twoim komputerze. Pliki nie są wysyłane na serwer konwersji. Konwersja plików Office korzysta z LibreOffice dołączonego do aplikacji. Linki zewnętrzne otwierają się w przeglądarce.",
     storageTitle: "Jak długo przechowywane są pliki",
     storage1:
-      "Aplikacja tworzy tymczasową kopię wybranego pliku na potrzeby podglądu i konwersji. Oryginał pozostaje bez zmian. Przy wyczyszczeniu lub zmianie wyboru oraz zamknięciu okna aplikacja próbuje usunąć tę kopię.",
+      "Aplikacja kopiuje wybrany plik do swojego folderu EasyConvert w systemowym katalogu tymczasowym. Oryginał pozostaje bez zmian.",
     storage2:
-      "Konwersja XLSX może utworzyć tymczasowy skoroszyt. Jest on usuwany po zakończeniu przetwarzania.",
+      "Konwersje tworzą też tymczasowe wyniki i pliki robocze Office. Aplikacja próbuje je usuwać, gdy nie są już potrzebne, przy usunięciu lub zmianie pliku oraz przy zamykaniu.",
     storage3:
-      "Wyniki są zapisywane w systemowym folderze tymczasowym. Zapisz potrzebne wyniki przed wyczyszczeniem wyboru lub zamknięciem aplikacji.",
+      "Zapisz potrzebne wyniki przed usunięciem pliku lub zamknięciem aplikacji. Zapisane eksporty pozostają na dysku, dopóki sam ich nie usuniesz.",
     storage4:
-      "Wyczyszczenie wyboru usuwa podglądy i dostęp do bieżących wyników, ale nie usuwa zapisanych eksportów. Tymczasowe wyniki konwersji nie są jeszcze usuwane automatycznie. Część plików tymczasowych może też pozostać po błędzie lub nieoczekiwanym zamknięciu aplikacji.",
+      "Po awarii lub wymuszonym zamknięciu mogą pozostać pliki tymczasowe. Aplikacja czyści swój folder tymczasowy przy kolejnym uruchomieniu.",
+    preferencesTitle: "Zapisane ustawienia",
+    preferencesText: "Język, wygląd, folder zapisu oraz rozmiar i pozycja okna są zapisywane lokalnie w katalogu danych aplikacji. Pozostają po jej zamknięciu. Aplikacja nie zapisuje historii konwersji.",
     sensitiveTitle: "Pliki wrażliwe",
     sensitiveText:
       "Przetwarzaj tylko pliki, do których masz uprawnienia. Zapisane wyniki i pozostałe pliki tymczasowe pozostają na Twoim komputerze. Pamiętaj o tym przy pracy z poufnymi dokumentami.",

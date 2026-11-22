@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { conversions } from "../../../shared/conversions";
 import styles from "./PageContent.module.css";
@@ -5,11 +6,26 @@ import { Trans, useTranslation } from "react-i18next";
 
 export default function AboutPage() {
   const { t } = useTranslation();
+  const [version, setVersion] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    async function loadVersion() {
+      try {
+        const value = await window.easyConvert.getAppVersion();
+        if (active) setVersion(value);
+      } catch {
+        if (active) setVersion(null);
+      }
+    }
+    void loadVersion();
+    return () => { active = false; };
+  }, []);
   return (
     <article className={styles["page-content"]}>
       <header className={styles.hero}>
         <p className={styles.eyebrow}>{t("about.eyebrow")}</p>
         <h1>{t("about.title")}</h1>
+        <p className={styles.eyebrow}>{version ? t("about.version", { version }) : t("about.versionUnavailable")}</p>
         <p className={styles.lead}>{t("about.lead")}</p>
         <Link to="/" className={styles["primary-link"]}>
           {t("about.open")}
@@ -76,9 +92,6 @@ export default function AboutPage() {
           >
             {t("about.authorGithub")}
           </a>
-          <button type="button" className={styles["secondary-link"]} disabled>
-            {t("about.authorSupport")}
-          </button>
         </div>
       </section>
     </article>

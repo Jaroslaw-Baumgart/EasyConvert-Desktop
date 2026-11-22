@@ -177,13 +177,14 @@ export const en = {
     slideAlt: "PowerPoint slide {{index}}",
   },
   about: {
+    version: "Version {{version}}",
+    versionUnavailable: "Version unavailable",
     authorTitle: "Meet the developer",
     authorText: "I'm Jarosław Baumgart, the developer of EasyConvert. Explore my projects on GitHub. Thanks for using the app and sharing your feedback!",
     authorGithub: "My GitHub",
-    authorSupport: "Buy me a coffee — coming soon",
     eyebrow: "EasyConvert",
     title: "About the application",
-    lead: "Convert common images, documents, spreadsheets, presentations, and text files in a few clear, uncluttered steps.",
+    lead: "Convert images, documents, spreadsheets, presentations, and text files on your computer.",
     open: "Open converter",
     howTitle: "How it works",
     step1: "Select one file, up to 10 MB.",
@@ -195,7 +196,7 @@ export const en = {
       "The available options depend on the selected file. The application checks the file locally before conversion starts.",
     previewsTitle: "Previews",
     previewsText:
-      "Images, PDFs, text files, CSV files, DOCX documents, XLSX workbooks, and PPTX presentations can be previewed before conversion. For XLSX, you can preview one sheet or all sheets.",
+      "Preview the source file before conversion and switch to Result afterwards. Spreadsheet previews show data without charts. Document previews may differ from the converted PDF.",
     settingsTitle: "Conversion settings",
     setting1: "PNG to JPG: image quality and background color.",
     setting2: "JPG, TXT, and CSV to PDF: A4 or A3, portrait or landscape.",
@@ -203,7 +204,7 @@ export const en = {
       "XLSX to PDF: one sheet or all sheets, page size, orientation, and fit-to-page output.",
     filesTitle: "Files and results",
     filesText:
-      "Files are processed locally on your computer. Save writes results to the EasyConvert Output folder on your Desktop. Save as lets you choose a folder and file name. Multiple results can be saved as a ZIP archive. See the <privacyLink>privacy page</privacyLink> for details about temporary files.",
+      "Save uses the output folder selected in Settings. The default is EasyConvert Output on your Desktop. Save as lets you choose a location for one export. Multiple results can be saved as a ZIP. Read more about temporary files on the <privacyLink>privacy page</privacyLink>.",
   },
   privacy: {
     eyebrow: "Privacy",
@@ -211,16 +212,18 @@ export const en = {
     lead: "Files are used only for the conversion you request. The app does not require an account or keep a personal conversion history.",
     processingTitle: "What is processed",
     processingText:
-      "The application reads the selected file and conversion settings locally. Files are not uploaded to a conversion server. DOCX, XLSX, and PPTX conversion uses LibreOffice on your computer.",
+      "Conversion and previews run on your computer. Files are not uploaded to a conversion server. Office conversion uses the LibreOffice included with the app. External links open in your browser.",
     storageTitle: "How long files are kept",
     storage1:
-      "The application creates a temporary copy of the selected file for previews and conversion. Your original file stays unchanged. The application attempts to delete the copy when you clear or replace the selection, or close the window.",
+      "The app copies the selected file into its EasyConvert folder in the system temporary directory. Your original file stays unchanged.",
     storage2:
-      "XLSX conversion can create a temporary workbook. It is deleted when processing ends.",
+      "Conversions also create temporary results and, for Office files, working files. The app attempts to remove them when they are no longer needed, when you clear or replace the file, or when you close the app.",
     storage3:
-      "Generated files are stored in the system temporary folder. Save results you want to keep before clearing the selection or closing the application.",
+      "Save any results you want to keep before clearing the file or closing the app. Saved exports are kept until you delete them.",
     storage4:
-      "Clearing the selection removes previews and access to the current results, but does not delete saved exports. Temporary conversion results are not automatically deleted yet. Some temporary files may also remain after an error or an unexpected application exit.",
+      "A crash or forced shutdown may leave temporary files behind. The app clears its temporary folder the next time it starts.",
+    preferencesTitle: "Saved settings",
+    preferencesText: "Language, appearance, output folder, and window size and position are stored locally in the app data folder. They remain after closing the app. No conversion history is stored.",
     sensitiveTitle: "Sensitive files",
     sensitiveText:
       "Only process files you are allowed to use. Saved exports and any remaining temporary files stay on your computer. Keep this in mind when working with sensitive documents.",

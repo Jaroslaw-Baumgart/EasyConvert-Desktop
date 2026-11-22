@@ -1,4 +1,4 @@
-import type { EasyConvertApi } from "../../shared/desktopContract";
+import type { EasyConvertApi } from "../../shared/contracts/desktopContract";
 
 declare global {
   interface Window {

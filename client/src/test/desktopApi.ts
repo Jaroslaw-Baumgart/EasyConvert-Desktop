@@ -1,6 +1,6 @@
 import { vi } from "vitest";
-import type { EasyConvertApi } from "../../../shared/desktopContract";
-import type { ConvertedResults } from "../types/conversionResult";
+import type { EasyConvertApi } from "../../../shared/contracts/desktopContract";
+import type { ConvertedResults } from "../features/converter/types/conversionResult";
 
 export function createDesktopApi(): EasyConvertApi {
   return {
@@ -10,6 +10,7 @@ export function createDesktopApi(): EasyConvertApi {
     minimizeWindow: vi.fn().mockResolvedValue(undefined),
     toggleMaximizeWindow: vi.fn().mockResolvedValue(undefined),
     closeWindow: vi.fn().mockResolvedValue(undefined),
+    getAppVersion: vi.fn().mockResolvedValue("1.0.0"),
     getSettings: vi.fn().mockResolvedValue({
       language: "en",
       theme: "light",

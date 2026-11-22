@@ -22,7 +22,8 @@ Office fixtures are generated in each test's output directory, independent of
 ignored manual fixtures. XLSX tests export each of two sheets separately and all
 sheets together, check PDF text for unwanted sheet data and check A3 landscape
 page dimensions. PDF-to-JPG tests decode both JPEGs from the saved ZIP and
-check that reset removes the results. These checks do not compare visual layout
+check that reset removes the results. Preferences tests cover restart persistence,
+corrupt settings, application version and keyboard focus. These checks do not compare visual layout
 pixel by pixel or test a packaged installation.
 
 Local runs require Poppler from the root `npm ci` and LibreOffice at
