@@ -6,7 +6,7 @@ Files stay on your computer.
 
 Adapted from [OnlineConverter-app](https://github.com/Jaroslaw-Baumgart/OnlineConverter-app).
 The HTTP backend has been replaced with a conversion engine running in an Electron
-utility process. The app is still in development. There is no public installer yet.
+utility process. The app is still in development.
 
 ## Conversions
 
@@ -88,6 +88,26 @@ into the application when packaging.
 
 In development builds, F12 or Ctrl+Shift+I toggles Developer Tools.
 
+## Windows installer
+
+Build the Windows x64 installer with the source dependencies described above:
+
+```powershell
+npm.cmd run desktop:dist
+```
+
+The installer is written to `release/EasyConvert-Setup-<version>.exe`. It installs
+for the current user by default, allows choosing a destination and creates desktop
+and Start menu shortcuts. The default location is
+`%LOCALAPPDATA%\Programs\EasyConvert`.
+
+LibreOffice, Poppler and fonts are bundled with the application. They do not need
+to be installed separately, and conversions work offline. Uninstalling retains
+saved preferences and exported files. Builds are currently unsigned.
+
+For an unpacked application, run `npm.cmd run desktop:pack`. Its executable is
+`release/win-unpacked/EasyConvert.exe`; keep the entire directory together.
+
 ## Checks
 
 Run from the repository root:
@@ -123,14 +143,15 @@ Electron E2E tests also require the local LibreOffice installation described abo
 - `conversion-core/` - conversion functions and tests, grouped by format.
 - `shared/contracts/` - desktop and worker contracts. Conversion definitions, options and limits remain in `shared/`.
 - `assets/fonts/` - bundled fonts and their license.
+- `assets/icons/` - application icon sources and Windows ICO files.
 - `e2e/` - Electron workflow tests and generated Office fixture helpers.
 - `fixtures/` - shared test inputs. Additional manual samples are ignored by Git.
 - `tools/` - manually installed LibreOffice binaries, excluded from Git.
 
 ## Before the first release
 
-- Packaging, application branding and third-party license notices.
-- Installer testing on Windows 10 and Windows 11 x64.
+- Third-party license notices and distribution requirements.
+- Clean-machine installation, upgrade and conversion testing on Windows 10 and Windows 11 x64.
 
 ## License
 

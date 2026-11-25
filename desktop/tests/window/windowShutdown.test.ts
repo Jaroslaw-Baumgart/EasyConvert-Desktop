@@ -2,6 +2,8 @@ import path from "node:path";
 import { EventEmitter } from "node:events";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
+const originalResourcesPath = Object.getOwnPropertyDescriptor(process, "resourcesPath");
+
 const mocks = vi.hoisted(() => ({
   windowIpc: vi.fn(),
   loadWindowState: vi.fn(), saveWindowState: vi.fn(),
@@ -46,6 +48,10 @@ function requestClose() {
 }
 
 beforeEach(async () => {
+  Object.defineProperty(process, "resourcesPath", {
+    configurable: true,
+    value: "C:/EasyConvert/resources",
+  });
   vi.resetModules();
   vi.resetAllMocks();
   vi.useFakeTimers();
@@ -79,6 +85,11 @@ beforeEach(async () => {
   await vi.advanceTimersByTimeAsync(0);
 });
 afterEach(() => {
+  if (originalResourcesPath) {
+    Object.defineProperty(process, "resourcesPath", originalResourcesPath);
+  } else {
+    Reflect.deleteProperty(process, "resourcesPath");
+  }
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -86,6 +97,7 @@ afterEach(() => {
 it("restores bounds and maximization before showing, then saves the normal state on close", async () => {
   expect(mocks.BrowserWindow).toHaveBeenCalledWith(expect.objectContaining({
     x: 40, y: 50, width: 1100, height: 750, show: false,
+    icon: path.join("C:/EasyConvert/resources", "icons/easyconvert-black.ico"),
   }));
   expect(window.show).not.toHaveBeenCalled();
   window.emit("ready-to-show");

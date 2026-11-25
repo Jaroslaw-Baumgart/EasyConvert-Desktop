@@ -52,6 +52,9 @@ async function createWindow(): Promise<void> {
     minHeight: Math.min(600, state.bounds.height),
     show: false,
     title: "EasyConvert",
+    icon: app.isPackaged
+      ? path.join(process.resourcesPath, "icons/easyconvert-black.ico")
+      : path.resolve(__dirname, "../../../assets/icons/easyconvert-black.ico"),
     frame: false,
     webPreferences: {
       nodeIntegration: false,

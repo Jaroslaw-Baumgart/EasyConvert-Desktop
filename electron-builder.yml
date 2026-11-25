@@ -7,10 +7,14 @@ directories:
 files:
   - dist/desktop/**/*
   - dist/conversion-core/**/*
+  - dist/shared/**/*
   - client/dist/**/*
   - package.json
 
 extraResources:
+  - from: assets/icons/easyconvert-black.ico
+    to: icons/easyconvert-black.ico
+
   - from: tools/libreoffice
     to: libreoffice
     filter:
@@ -33,4 +37,20 @@ asarUnpack:
   - node_modules/@img/**/*
 
 win:
+  icon: assets/icons/easyconvert-black.ico
   executableName: EasyConvert
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: EasyConvert
+  deleteAppDataOnUninstall: false
+  artifactName: EasyConvert-Setup-${version}.${ext}

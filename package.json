@@ -19,7 +19,8 @@
     "desktop:dev": "npm run desktop:build && electron dist/desktop/main/index.js --dev",
     "typecheck:core": "tsc -p conversion-core/tsconfig.json",
     "test:core": "vitest run conversion-core",
-    "desktop:pack": "npm run build --prefix client && npm run desktop:build && electron-builder --win --x64 --dir"
+    "desktop:pack": "npm run build --prefix client && npm run desktop:build && electron-builder --win --x64 --dir",
+    "desktop:dist": "npm run build --prefix client && npm run desktop:build && electron-builder --win nsis --x64"
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",
