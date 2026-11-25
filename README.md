@@ -73,13 +73,16 @@ Use Windows x64 with Node.js and npm installed. From the repository root:
 ```powershell
 npm.cmd ci
 npm.cmd ci --prefix client
+npm.cmd run tools:poppler
 npm.cmd run dev
 ```
 
 `dev` builds the client, compiles Electron and opens the application.
 To reopen an already built client, use `npm.cmd run desktop:start`.
-PDF → JPG and PDF → TXT use Poppler. Its Windows binaries are installed by the
-root `npm.cmd ci`.
+PDF → JPG and PDF → TXT use Poppler 26.09.0. `tools:poppler` downloads pinned
+Windows x64 packages from conda-forge, verifies their SHA256 hashes and prepares
+`tools/poppler/`, including dependency licenses and build recipes. Micromamba is
+used only to prepare these files; it is not included in the application.
 
 DOCX, PPTX and XLSX → PDF require LibreOffice at `tools/libreoffice/program/soffice.com`
 in development. Install the LibreOffice distribution in `tools/libreoffice/`,
@@ -105,6 +108,22 @@ LibreOffice, Poppler and fonts are bundled with the application. They do not nee
 to be installed separately, and conversions work offline. Uninstalling retains
 saved preferences and exported files. Builds are currently unsigned.
 
+`npm.cmd run tools:poppler:sources` creates `release/Poppler-sources-26.09.0.zip`
+with upstream source archives, patches and build recipes for the bundled Poppler
+packages. Distribute it alongside the installer. Bundled-tool licenses and source
+locations are listed in `resources/THIRD_PARTY_NOTICES.txt` after installation.
+
+`npm.cmd run licenses:sharp:sources` verifies and collects the native image
+libraries' sources, build recipes and license texts into
+`release/Sharp-libvips-sources-8.18.7.zip`. Distribute this archive alongside the
+installer too. Source versions and checksums are pinned in
+`scripts/sharp-sources.lock.json`; documented mirror and notice-only entries
+are identified there. The archive also includes librsvg's Rust dependencies.
+
+Packaging generates Node.js dependency notices automatically. The client build
+generates browser dependency notices from its bundled modules. Installed notices
+are available under `resources/licenses/`.
+
 For an unpacked application, run `npm.cmd run desktop:pack`. Its executable is
 `release/win-unpacked/EasyConvert.exe`; keep the entire directory together.
 
@@ -113,7 +132,7 @@ For an unpacked application, run `npm.cmd run desktop:pack`. Its executable is
 Run from the repository root:
 
 ```powershell
-$env:POPPLER_BIN = "$PWD\node_modules\pdf-poppler\lib\win\poppler-0.51\bin"
+$env:POPPLER_BIN = "$PWD\tools\poppler\bin"
 
 npm.cmd run check
 npm.cmd run test:e2e
@@ -146,11 +165,12 @@ Electron E2E tests also require the local LibreOffice installation described abo
 - `assets/icons/` - application icon sources and Windows ICO files.
 - `e2e/` - Electron workflow tests and generated Office fixture helpers.
 - `fixtures/` - shared test inputs. Additional manual samples are ignored by Git.
-- `tools/` - manually installed LibreOffice binaries, excluded from Git.
+- `scripts/` - native tool setup, source manifests and third-party license collection.
+- `tools/` - local LibreOffice and Poppler binaries, excluded from Git.
 
 ## Before the first release
 
-- Third-party license notices and distribution requirements.
+- Publish the installer together with the Poppler and Sharp/libvips source archives.
 - Clean-machine installation, upgrade and conversion testing on Windows 10 and Windows 11 x64.
 
 ## License

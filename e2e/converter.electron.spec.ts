@@ -9,7 +9,7 @@ import { docxFixture, pptxFixture, xlsxFixture } from "./officeFixtures";
 
 const execFileAsync = promisify(execFile);
 const poppler = (name: string) => path.resolve(
-  "node_modules/pdf-poppler/lib/win/poppler-0.51/bin", `${name}.exe`,
+  "tools/poppler/bin", `${name}.exe`,
 );
 
 async function pdfText(filePath: string) {

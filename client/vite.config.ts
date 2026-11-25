@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react";
+import { licenseNotices } from "./licenseNotices";
 
 const devCsp = [
   "default-src 'none'",
@@ -15,9 +16,14 @@ const devCsp = [
   "form-action 'none'",
 ].join("; ");
 
+const licensedPackages = new Set<string>();
+
 export default defineConfig({
   base: "./",
-  plugins: [react()],
+  plugins: [react(), licenseNotices(licensedPackages)],
+  worker: {
+    plugins: () => [licenseNotices(licensedPackages, true)],
+  },
 
   test: {
     environment: "jsdom",

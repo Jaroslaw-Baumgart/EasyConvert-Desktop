@@ -12,6 +12,21 @@ files:
   - package.json
 
 extraResources:
+  - from: client/dist/THIRD-PARTY-LICENSES.txt
+    to: licenses/CLIENT-LICENSES.txt
+
+  - from: tools/licenses/NPM-LICENSES.txt
+    to: licenses/NPM-LICENSES.txt
+
+  - from: assets/licenses/sharp
+    to: licenses/sharp
+
+  - from: assets/licenses/THIRD_PARTY_NOTICES.txt
+    to: THIRD_PARTY_NOTICES.txt
+
+  - from: LICENSE
+    to: LICENSE.txt
+
   - from: assets/icons/easyconvert-black.ico
     to: icons/easyconvert-black.ico
 
@@ -20,7 +35,7 @@ extraResources:
     filter:
       - "**/*"
 
-  - from: node_modules/pdf-poppler/lib/win/poppler-0.51
+  - from: tools/poppler
     to: poppler
     filter:
       - "**/*"

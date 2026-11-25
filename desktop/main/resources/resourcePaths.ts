@@ -10,7 +10,7 @@ export function getResourcePaths() {
     ? path.join(process.resourcesPath, "poppler/bin")
     : path.resolve(
         __dirname,
-        "../../../../node_modules/pdf-poppler/lib/win/poppler-0.51/bin",
+        "../../../../tools/poppler/bin",
       );
 
   const fontsDirectory = app.isPackaged

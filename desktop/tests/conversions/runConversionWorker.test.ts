@@ -95,7 +95,7 @@ for (const isPackaged of [false, true]) {
       if (request.conversion === "pdf-to-jpg" || request.conversion === "pdf-to-txt") {
         expected.binDirectory = isPackaged
           ? path.join("C:/installed/EasyConvert/resources", "poppler/bin")
-          : path.resolve(__dirname, "../../../../node_modules/pdf-poppler/lib/win/poppler-0.51/bin");
+          : path.resolve(__dirname, "../../../../tools/poppler/bin");
       }
       if (request.conversion === "docx-to-pdf" || request.conversion === "pptx-to-pdf" || request.conversion === "xlsx-to-pdf") {
         expected.executablePath = isPackaged

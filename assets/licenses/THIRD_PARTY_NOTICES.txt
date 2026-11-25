@@ -1,0 +1,60 @@
+EasyConvert includes separately licensed conversion tools and fonts.
+The application's MIT license does not replace their licenses.
+
+JavaScript libraries
+--------------------
+Copyright notices and license texts for browser libraries are preserved in
+resources/licenses/CLIENT-LICENSES.txt. Node.js runtime dependency notices are
+in resources/licenses/NPM-LICENSES.txt. JSZip is used under its MIT option.
+
+Sharp and libvips
+----------------
+Image conversion uses Sharp 0.35.5 (Apache-2.0) and libvips 8.18.7 with native
+dependencies under LGPL and other licenses. See resources/licenses/sharp/ for
+their full notices, exact source manifest and replacement/build instructions.
+Corresponding source archives and build recipes are distributed alongside
+the installer as Sharp-libvips-sources-8.18.7.zip at:
+https://github.com/Jaroslaw-Baumgart/EasyConvert-Desktop/releases
+
+Poppler 26.09.0 and dependencies
+------------------------------
+Poppler is licensed under GPL-2.0-or-later. It is invoked as a separate
+command-line program. Its DLLs, fonts and other dependencies have their own
+licenses, preserved under resources/poppler/third-party/.
+
+Package URLs, versions, SHA256 hashes, source URLs and source hashes are in
+resources/poppler/manifest.json. Build recipes and patches accompany each
+package under resources/poppler/third-party/<package>/recipe/.
+
+Corresponding source archives and recipes are provided as
+Poppler-sources-26.09.0.zip alongside the EasyConvert installer at:
+https://github.com/Jaroslaw-Baumgart/EasyConvert-Desktop/releases
+
+Upstream: https://poppler.freedesktop.org/
+Windows packages: https://conda-forge.org/
+Build recipes: https://github.com/conda-forge/poppler-feedstock
+
+LibreOffice 26.8.0.3
+-------------------
+LibreOffice is distributed under MPL 2.0 and includes third-party components
+under additional licenses. Their copyright and license information is preserved
+in resources/libreoffice/license.txt, LICENSE.html and NOTICE.
+
+Source code for this version is available at:
+https://downloadarchive.documentfoundation.org/libreoffice/old/26.8.0.3/src/
+https://download.documentfoundation.org/libreoffice/src/26.8.0/
+
+External component sources and build information:
+https://dev-www.libreoffice.org/src/
+https://wiki.documentfoundation.org/Development/BuildingOnWindows
+License information: https://www.libreoffice.org/licenses/
+
+Noto Sans
+---------
+Copyright 2018 The Noto Project Authors. Licensed under SIL OFL 1.1.
+The full copyright and license text accompanies the fonts in
+resources/fonts/OFL.txt.
+
+Electron and Chromium
+---------------------
+See LICENSE.electron.txt and LICENSES.chromium.html in the installation folder.

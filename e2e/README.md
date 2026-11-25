@@ -26,6 +26,6 @@ check that reset removes the results. Preferences tests cover restart persistenc
 corrupt settings, application version and keyboard focus. These checks do not compare visual layout
 pixel by pixel or test a packaged installation.
 
-Local runs require Poppler from the root `npm ci` and LibreOffice at
+Local runs require Poppler prepared by `npm run tools:poppler` and LibreOffice at
 `tools/libreoffice/program/soffice.com`. The Windows CI job installs these tools.
 Missing tools fail the tests rather than silently skipping conversions.
