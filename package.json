@@ -1,6 +1,6 @@
 {
   "name": "onlineconverter-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "MIT",
   "main": "dist/desktop/main/index.js",
   "scripts": {

@@ -6,7 +6,31 @@ Files stay on your computer.
 
 Adapted from [OnlineConverter-app](https://github.com/Jaroslaw-Baumgart/OnlineConverter-app).
 The HTTP backend has been replaced with a conversion engine running in an Electron
-utility process. The app is still in development.
+utility process.
+
+## Download
+
+Download the Windows x64 installer from [Releases](https://github.com/Jaroslaw-Baumgart/EasyConvert-Desktop/releases).
+Choose `EasyConvert-Setup-<version>.exe`; the source archives are for third-party
+libraries and are not needed to run the app.
+
+Current releases are pre-releases. The installer is unsigned, so Windows may show
+a Microsoft Defender SmartScreen warning with an unknown publisher. Download only
+from this repository's Releases page.
+
+Installation may take a few minutes. If the progress bar appears to pause, wait
+for the installer to finish. Version 1.0.1 uses direct ZIP extraction to reduce
+installation time.
+
+## Screenshots
+
+CSV preview and PDF conversion settings in light mode:
+
+![CSV source preview with PDF conversion settings](assets/screenshots/converter.png)
+
+Appearance, language and output folder settings in dark mode:
+
+![Settings in dark mode with the white accent selected](assets/screenshots/settings-dark.png)
 
 ## Conversions
 
@@ -104,6 +128,9 @@ for the current user by default, allows choosing a destination and creates deskt
 and Start menu shortcuts. The default location is
 `%LOCALAPPDATA%\Programs\EasyConvert`.
 
+The installer uses a ZIP payload extracted directly into the installation folder.
+Differential update packages are disabled for this configuration.
+
 LibreOffice, Poppler and fonts are bundled with the application. They do not need
 to be installed separately, and conversions work offline. Uninstalling retains
 saved preferences and exported files. Builds are currently unsigned.
@@ -168,10 +195,13 @@ Electron E2E tests also require the local LibreOffice installation described abo
 - `scripts/` - native tool setup, source manifests and third-party license collection.
 - `tools/` - local LibreOffice and Poppler binaries, excluded from Git.
 
-## Before the first release
+## Testing status
 
-- Publish the installer together with the Poppler and Sharp/libvips source archives.
-- Clean-machine installation, upgrade and conversion testing on Windows 10 and Windows 11 x64.
+Installation, startup, settings persistence, XLSX → PDF, PDF → TXT and
+uninstallation have been checked on the development computer.
+
+Testing on clean Windows 10/11 machines and upgrading an existing installation
+remain pending. See each release's notes for version-specific limitations.
 
 ## License
 

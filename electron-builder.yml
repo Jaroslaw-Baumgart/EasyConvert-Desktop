@@ -60,6 +60,8 @@ win:
         - x64
 
 nsis:
+  useZip: true
+  differentialPackage: false
   oneClick: false
   perMachine: false
   allowElevation: false
