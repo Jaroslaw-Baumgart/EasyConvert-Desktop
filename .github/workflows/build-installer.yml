@@ -1,0 +1,90 @@
+name: Build installer
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    name: Windows x64 installer
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      - run: npm ci
+      - run: npm ci --prefix client
+
+      - name: Prepare Poppler
+        run: npm run tools:poppler
+
+      - name: Prepare LibreOffice
+        run: |
+          choco install libreoffice-fresh --yes --no-progress
+          if ($LASTEXITCODE -ne 0) { throw "LibreOffice installation failed." }
+          New-Item -ItemType Directory -Path tools/libreoffice -Force | Out-Null
+          Copy-Item -Path 'C:/Program Files/LibreOffice/*' -Destination tools/libreoffice -Recurse
+          if (!(Test-Path tools/libreoffice/program/soffice.com)) { throw "LibreOffice executable is missing." }
+          & tools/libreoffice/program/soffice.com --version
+          if ($LASTEXITCODE -ne 0) { throw "LibreOffice verification failed." }
+
+      - name: Check application
+        run: npm run check
+        env:
+          POPPLER_BIN: ${{ github.workspace }}/tools/poppler/bin
+          LIBRE_OFFICE_PATH: ${{ github.workspace }}/tools/libreoffice/program/soffice.com
+
+      - name: Build unsigned installer
+        run: npm run desktop:dist -- --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Collect third-party sources
+        run: |
+          npm run tools:poppler:sources
+          if ($LASTEXITCODE -ne 0) { throw "Poppler source collection failed." }
+          npm run licenses:sharp:sources
+          if ($LASTEXITCODE -ne 0) { throw "Sharp source collection failed." }
+
+      - name: Prepare download files and checksums
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $installer = "release/EasyConvert-Setup-$version.exe"
+          if (!(Test-Path -LiteralPath $installer)) { throw "Installer is missing." }
+          New-Item -ItemType Directory -Path release/download -Force | Out-Null
+          Copy-Item -LiteralPath $installer -Destination release/download
+          foreach ($pattern in @('release/Poppler-sources-*.zip', 'release/Sharp-libvips-sources-*.zip')) {
+            $sources = @(Get-ChildItem -Path $pattern -File)
+            if ($sources.Count -ne 1) { throw "Expected one source archive: $pattern" }
+            Copy-Item -LiteralPath $sources[0].FullName -Destination release/download
+          }
+          $lines = Get-ChildItem release/download -File | Sort-Object Name | ForEach-Object {
+            $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($_.Name)"
+          }
+          $lines | Set-Content -LiteralPath release/download/SHA256SUMS.txt -Encoding utf8NoBOM
+          "Commit: $env:GITHUB_SHA`nVersion: $version`nInstaller: unsigned" | Set-Content -LiteralPath release/download/BUILD.txt -Encoding utf8NoBOM
+
+      - name: Upload installer and source archives
+        uses: actions/upload-artifact@v4
+        with:
+          name: EasyConvert-windows-x64-${{ github.sha }}
+          path: release/download/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14

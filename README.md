@@ -154,6 +154,13 @@ are available under `resources/licenses/`.
 For an unpacked application, run `npm.cmd run desktop:pack`. Its executable is
 `release/win-unpacked/EasyConvert.exe`; keep the entire directory together.
 
+To build on GitHub, open **Actions → Build installer → Run workflow** and select
+the branch or tag to build. The workflow runs application checks and creates an
+unsigned Windows x64 installer. Download the artifact from the completed run for
+the installer, third-party source archives, SHA256 checksums and build commit.
+Artifacts are retained for 14 days. Publishing a GitHub release is a separate,
+manual step.
+
 ## Checks
 
 Run from the repository root:
